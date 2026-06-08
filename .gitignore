@@ -1,0 +1,23 @@
+# Generated / compiled files
+pl_detail.db
+pl_data.json
+api_data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Node
+node_modules/
+
+# Large data files (keep locally, not in Git)
+*.xlsb
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+Desktop.ini
