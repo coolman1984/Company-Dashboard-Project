@@ -31,7 +31,15 @@ function loadData() {
     files.forEach(f => {
         const key = f.replace('.json', '');
         try {
-            cache[key] = JSON.parse(fs.readFileSync(path.join(API_DATA_DIR, f), 'utf-8'));
+            const data = JSON.parse(fs.readFileSync(path.join(API_DATA_DIR, f), 'utf-8'));
+            // Add field aliases: cogs -> cost_of_goods_sold, opex -> operating_expense
+            if (Array.isArray(data)) {
+                data.forEach(function(row) {
+                    if (row.cogs !== undefined) row.cost_of_goods_sold = row.cogs;
+                    if (row.opex !== undefined) row.operating_expense = row.opex;
+                });
+            }
+            cache[key] = data;
             count++;
         } catch (e) {
             console.error(`  WARN: Failed to load ${f}: ${e.message}`);
