@@ -331,8 +331,20 @@ function metricSnapshot(row = {}) {
 
 function getExecutiveOutlook(query) {
     const where = getExecutiveFilter(query);
-    const monthlyWhere = appendCondition(where, `year = 2026 AND ${OUTLOOK_PERIOD_SQL}`);
-    const priorWhere = appendCondition(where, "year = 2025 AND version = 'Actual'");
+    const reqYear = parseInteger(query.ovYear);
+    const selectedYear = (reqYear && VALID_YEARS.includes(reqYear)) ? reqYear : 2026;
+    const priorYearNum = selectedYear - 1;
+    const isOutlookYear = selectedYear === 2026;
+
+    const monthlyWhere = isOutlookYear
+        ? appendCondition(where, `year = ${selectedYear} AND ${OUTLOOK_PERIOD_SQL}`)
+        : appendCondition(where, `year = ${selectedYear} AND version = 'Actual'`);
+
+    const actualYtdWhere = isOutlookYear
+        ? appendCondition(where, `year = ${selectedYear} AND version = 'Actual'`)
+        : monthlyWhere;
+
+    const priorWhere = appendCondition(where, `year = ${priorYearNum} AND version = 'Actual'`);
 
     const monthly = runDynamic(`
         SELECT ${PERIOD_NUMBER_SQL} AS period_number,
@@ -351,7 +363,7 @@ function getExecutiveOutlook(query) {
     const actualYtd = metricSnapshot(runDynamic(`
         SELECT ${FULL_METRIC_SELECT}
         FROM pl_detail
-        ${appendCondition(where, "year = 2026 AND version = 'Actual'")}
+        ${actualYtdWhere}
     `, where.params)[0]);
 
     const outlook = metricSnapshot(runDynamic(`
@@ -435,10 +447,14 @@ function getExecutiveOutlook(query) {
 
     return {
         coverage: {
-            year: 2026,
-            actualPeriods: [1, 2, 3, 4, 5],
-            outlookPeriods: [6, 7, 8, 9, 10, 11, 12],
-            definition: 'Actual P01-P05 + T06 P06 + T07 P07-P12'
+            year: selectedYear,
+            priorYear: priorYearNum,
+            isOutlookYear,
+            actualPeriods: isOutlookYear ? [1, 2, 3, 4, 5] : null,
+            outlookPeriods: isOutlookYear ? [6, 7, 8, 9, 10, 11, 12] : null,
+            definition: isOutlookYear
+                ? 'Actual P01-P05 + T06 P06 + T07 P07-P12'
+                : `FY${selectedYear} Full Year Actual`
         },
         monthly,
         actualYtd,
@@ -448,6 +464,41 @@ function getExecutiveOutlook(query) {
         profitability,
         productRisk
     };
+}
+
+function getPortfolio(query) {
+    const yearNum = parseInteger(query.year, 2025);
+    const priorYearNum = parseInteger(query.priorYear, yearNum - 1);
+    validateYear(yearNum);
+    validateYear(priorYearNum);
+
+    const rows = runDynamic(`
+        WITH current_year AS (
+            SELECT COALESCE(m_group_desc, 'Unassigned') AS label,
+                   SUM(net_sales) AS net_sales,
+                   SUM(gross_margin) AS gross_margin,
+                   SUM(operating_profit) AS operating_profit,
+                   SUM(cost_of_goods_sold) AS cogs
+            FROM pl_detail
+            WHERE year = ? AND version = 'Actual'
+            GROUP BY m_group_desc HAVING net_sales != 0
+        ),
+        prior_year AS (
+            SELECT COALESCE(m_group_desc, 'Unassigned') AS label,
+                   SUM(net_sales) AS prior_net_sales,
+                   SUM(gross_margin) AS prior_gross_margin
+            FROM pl_detail
+            WHERE year = ? AND version = 'Actual'
+            GROUP BY m_group_desc
+        )
+        SELECT c.*, COALESCE(p.prior_net_sales, 0) AS prior_net_sales,
+                    COALESCE(p.prior_gross_margin, 0) AS prior_gross_margin
+        FROM current_year c
+        LEFT JOIN prior_year p ON c.label = p.label
+        ORDER BY c.net_sales DESC LIMIT 30
+    `, [yearNum, priorYearNum]);
+
+    return { year: yearNum, priorYear: priorYearNum, products: rows };
 }
 
 function getFilters(query) {
@@ -616,6 +667,7 @@ function handleApi(pathname, query, res) {
     if (pathname === '/api/executive-outlook') return jsonResponse(res, getExecutiveOutlook(query));
     if (pathname === '/api/drilldown') return jsonResponse(res, getDrilldown(query));
     if (pathname === '/api/top-products') return jsonResponse(res, getTopProducts(query));
+    if (pathname === '/api/portfolio') return jsonResponse(res, getPortfolio(query));
 
     if (pathname === '/api/query') {
         const dimension = query.dimension;

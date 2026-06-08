@@ -717,6 +717,14 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 19V9m7 10V4m7 15v-6"/><path d="m3 7 5-4 4 3 7-4"/></svg>
                 Scenario
             </button>
+            <button class="tab" type="button" role="tab" id="tab-trends" aria-selected="false" aria-controls="panel-trends" data-tab="trends">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 17l4-8 4 4 4-6 4 3"/><path d="M3 21h18"/></svg>
+                Trends
+            </button>
+            <button class="tab" type="button" role="tab" id="tab-portfolio" aria-selected="false" aria-controls="panel-portfolio" data-tab="portfolio">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="8" cy="14" r="3"/><circle cx="16" cy="9" r="4"/><circle cx="13" cy="18" r="2"/></svg>
+                Portfolio
+            </button>
         </nav>
 
         <div class="sidebar-meta">
@@ -757,26 +765,33 @@
                     Loading database coverage...
                 </div>
                 <div class="section-head">
-                    <div><h2>2026 executive outlook</h2><p>Actual P01-P05 plus T06 P06 plus T07 P07-P12, compared with FY2025</p></div>
+                    <div><h2 id="overviewHeading">2026 executive outlook</h2><p id="overviewSubtext">Actual P01-P05 plus T06 P06 plus T07 P07-P12, compared with FY2025</p></div>
+                    <div class="control-group"><label for="ovYear">Year</label><select id="ovYear"></select></div>
                 </div>
                 <div class="kpi-grid" id="executiveKpiGrid"></div>
+                <article class="table-card" id="moversCard" style="display:none">
+                    <div class="table-head">
+                        <div><div class="chart-title">Revenue movers — year on year</div><div class="chart-subtitle">Products ranked by absolute revenue change; top gainers and largest declines at a glance</div></div>
+                    </div>
+                    <div class="table-scroll"><table class="data-table" id="moversTable"></table></div>
+                </article>
                 <div class="chart-grid executive-charts">
                     <article class="chart-card">
                         <div class="chart-title">Revenue trend: Actual to outlook</div>
                         <div class="chart-subtitle">Cumulative monthly revenue with completed and remaining periods separated</div>
-                        <div class="scenario-boundary">Actual through P05, outlook begins P06</div>
+                        <div class="scenario-boundary" id="revScenarioBoundary">Actual through P05, outlook begins P06</div>
                         <div class="chart-container"><canvas id="revenueOutlookChart"></canvas></div>
                     </article>
                     <article class="chart-card">
                         <div class="chart-title">Gross margin %: Actual to outlook</div>
                         <div class="chart-subtitle">Monthly margin quality and second-half profitability risk</div>
-                        <div class="scenario-boundary">Solid Actual, dashed operating outlook</div>
+                        <div class="scenario-boundary" id="gmScenarioBoundary">Solid Actual, dashed operating outlook</div>
                         <div class="chart-container"><canvas id="grossMarginOutlookChart"></canvas></div>
                     </article>
                 </div>
                 <article class="table-card">
                     <div class="table-head">
-                        <div><div class="chart-title">P&amp;L summary: 2026 outlook</div><div class="chart-subtitle">Actual progress, full-year outlook, prior year, and variance in one reconciliation</div></div>
+                        <div><div class="chart-title" id="plTableTitle">P&amp;L summary: 2026 outlook</div><div class="chart-subtitle">Actual progress, full-year outlook, prior year, and variance in one reconciliation</div></div>
                         <button class="export-btn" type="button" data-export-table="executivePlTable" data-export-name="executive-outlook">Export CSV</button>
                     </div>
                     <div class="table-scroll"><table class="data-table" id="executivePlTable"></table></div>
@@ -789,19 +804,20 @@
                 <div class="signal-grid" id="cfoSignalGrid"></div>
                 <div class="chart-grid">
                     <article class="chart-card">
-                        <div class="chart-title">Profit bridge vs FY2025</div>
+                        <div class="chart-title" id="profitBridgeTitle">Profit bridge vs FY2025</div>
                         <div class="chart-subtitle">Where revenue growth converts, or fails to convert, into earnings</div>
                         <div class="chart-container"><canvas id="profitBridgeChart"></canvas></div>
                     </article>
                     <article class="chart-card">
                         <div class="chart-title">Revenue concentration exposure</div>
-                        <div class="chart-subtitle">Share of 2026 outlook held by the largest customers</div>
+                        <div class="chart-subtitle" id="concentrationSubtitle">Share of 2026 outlook held by the largest customers</div>
                         <div class="chart-container"><canvas id="concentrationChart"></canvas></div>
+                        <div class="table-note" id="hhiNote"></div>
                     </article>
                 </div>
                 <article class="table-card">
                     <div class="table-head">
-                        <div><div class="chart-title">Product profitability action matrix</div><div class="chart-subtitle">Top product groups by 2026 revenue — margin quality, COGS efficiency, and YoY movement with management action tiers</div></div>
+                        <div><div class="chart-title">Product profitability action matrix</div><div class="chart-subtitle" id="profitMatrixSubtitle">Top product groups by 2026 revenue — margin quality, COGS efficiency, and YoY movement with management action tiers</div></div>
                         <button class="export-btn" type="button" data-export-table="profitabilityTable" data-export-name="product-profitability-actions">Export CSV</button>
                     </div>
                     <div class="table-scroll"><table class="data-table" id="profitabilityTable"></table></div>
@@ -853,6 +869,38 @@
                     <article class="chart-card"><div class="chart-title">Outlook composition</div><div class="chart-subtitle">Contribution of each period version to the combined outlook</div><div class="chart-container tall"><canvas id="attainmentChart"></canvas></div></article>
                 </div>
                 <article class="table-card"><div class="table-head"><div><div class="chart-title">Scenario details</div><div class="chart-subtitle">Versions represent different periods and combine into the outlook</div></div><button class="export-btn" type="button" data-export-table="scenarioTable" data-export-name="scenario-comparison">Export CSV</button></div><div class="table-scroll"><table class="data-table" id="scenarioTable"></table></div></article>
+            </section>
+
+            <section class="panel" id="panel-trends" role="tabpanel" aria-labelledby="tab-trends" hidden>
+                <div class="section-head"><div><h2>5-Year financial trends</h2><p>Structural P&amp;L performance and efficiency ratios from FY2022 through FY2026</p></div></div>
+                <div class="kpi-grid" id="trendKpiGrid"></div>
+                <div class="chart-grid">
+                    <article class="chart-card full"><div class="chart-title">Revenue &amp; gross margin trend</div><div class="chart-subtitle">Annual revenue (bars, left axis) with gross margin % overlay (line, right axis)</div><div class="chart-container tall"><canvas id="revenueTrendChart"></canvas></div></article>
+                </div>
+                <div class="chart-grid">
+                    <article class="chart-card"><div class="chart-title">Cost efficiency</div><div class="chart-subtitle">COGS and operating expense as % of revenue — lower is better</div><div class="chart-container"><canvas id="efficiencyTrendChart"></canvas></div></article>
+                    <article class="chart-card"><div class="chart-title">Year-on-year growth rates</div><div class="chart-subtitle">Revenue, gross profit, and operating profit YoY % change</div><div class="chart-container"><canvas id="growthRateChart"></canvas></div></article>
+                </div>
+                <article class="table-card">
+                    <div class="table-head"><div><div class="chart-title">5-year P&amp;L summary</div><div class="chart-subtitle">With % of revenue column and year-on-year growth rate</div></div><button class="export-btn" type="button" data-export-table="trendTable" data-export-name="5year-trend">Export CSV</button></div>
+                    <div class="table-scroll"><table class="data-table" id="trendTable"></table></div>
+                </article>
+            </section>
+
+            <section class="panel" id="panel-portfolio" role="tabpanel" aria-labelledby="tab-portfolio" hidden>
+                <div class="section-head"><div><h2>Strategic portfolio matrix</h2><p>Product group positioning by growth rate and gross margin — BCG-style quadrant for capital allocation decisions</p></div></div>
+                <div class="controls">
+                    <div class="control-group"><label for="portYear">Current year</label><select id="portYear"></select></div>
+                    <div class="control-group"><label for="portPriorYear">Compare with</label><select id="portPriorYear"></select></div>
+                    <button class="primary-btn" type="button" id="portBtn">Analyze</button>
+                </div>
+                <div class="chart-grid">
+                    <article class="chart-card full"><div class="chart-title">Growth vs margin matrix</div><div class="chart-subtitle">Bubble size = revenue. Quadrants guide invest / harvest / fix / exit decisions.</div><div class="chart-container tall"><canvas id="portfolioChart"></canvas></div></article>
+                </div>
+                <article class="table-card">
+                    <div class="table-head"><div><div class="chart-title">Portfolio detail</div><div class="chart-subtitle">Products ranked by revenue with quadrant classification and recommended action</div></div><button class="export-btn" type="button" data-export-table="portfolioTable" data-export-name="portfolio-matrix">Export CSV</button></div>
+                    <div class="table-scroll"><table class="data-table" id="portfolioTable"></table></div>
+                </article>
             </section>
         </div>
     </main>

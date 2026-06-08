@@ -19,7 +19,7 @@ var freshness = null;
 var summary = null;
 var activeTab = 'overview';
 var standardFilterState = { year: '', version: 'Actual' };
-var tabLoaded = { overview: false, regional: false, product: false, drilldown: false, scenario: false };
+var tabLoaded = { overview: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false };
 var yearlyData = [];
 var executiveData = null;
 var productData = [];
@@ -30,7 +30,9 @@ var pageMeta = {
     regional: ['Regional Performance', 'Commercial geography, profitability and market contribution'],
     product: ['Product Profitability', 'Product group economics and margin quality'],
     drilldown: ['Variance Contributors', 'The dimensions driving financial movement between periods'],
-    scenario: ['2026 Operating Outlook', 'Actual P01-P05 plus T06 P06 plus T07 P07-P12']
+    scenario: ['2026 Operating Outlook', 'Actual P01-P05 plus T06 P06 plus T07 P07-P12'],
+    trends: ['5-Year Trends', 'Structural P&L performance and efficiency ratios FY2022–FY2026'],
+    portfolio: ['Strategic Portfolio Matrix', 'Product group growth vs margin positioning for capital allocation decisions']
 };
 
 var metricLabels = {
@@ -214,6 +216,9 @@ function populateControls() {
     fillSelect(el('prodYear2'), filters.years, { defaultValue: filters.years[Math.max(0, filters.years.length - 2)], labeler: yearLabeler });
     fillSelect(el('ddYear1'), filters.years, { defaultValue: 2024, labeler: yearLabeler });
     fillSelect(el('ddYear2'), filters.years, { defaultValue: 2025, labeler: yearLabeler });
+    fillSelect(el('ovYear'), filters.years, { defaultValue: 2026 });
+    fillSelect(el('portYear'), filters.years, { defaultValue: filters.years[filters.years.length - 1], labeler: yearLabeler });
+    fillSelect(el('portPriorYear'), filters.years, { defaultValue: filters.years[Math.max(0, filters.years.length - 2)], labeler: yearLabeler });
 }
 
 function renderSummaryMeta() {
@@ -288,17 +293,19 @@ function renderExecutiveKPIs(data) {
     var outlook = data.outlook;
     var prior = data.priorYear;
     var risk = data.productRisk;
+    var cov = data.coverage;
     var actualShare = ratio(data.actualYtd.net_sales, outlook.net_sales);
     var revenueGrowth = percentChange(prior.net_sales, outlook.net_sales);
     var grossGrowth = percentChange(prior.gross_margin, outlook.gross_margin);
     var opVariance = outlook.operating_profit - prior.operating_profit;
     var netVariance = outlook.net_income - prior.net_income;
     var lossRevenueShare = ratio(risk.loss_making_revenue, risk.total_revenue);
+    var priorLabel = 'FY' + cov.priorYear;
     var cards = [
         {
-            label: 'Revenue outlook',
+            label: cov.isOutlookYear ? 'Revenue outlook' : 'Revenue',
             value: formatCompact(outlook.net_sales),
-            sub: signedPercent(revenueGrowth) + ' vs FY2025 | ' + formatPercent(actualShare) + ' completed',
+            sub: signedPercent(revenueGrowth) + ' vs ' + priorLabel + (cov.isOutlookYear ? ' | ' + formatPercent(actualShare) + ' completed' : ''),
             tone: 'blue',
             icon: 'trending_up',
             metric: 'net_sales',
@@ -307,7 +314,7 @@ function renderExecutiveKPIs(data) {
         {
             label: 'Gross profit',
             value: formatCompact(outlook.gross_margin),
-            sub: signedPercent(grossGrowth) + ' vs FY2025 | Margin ' + formatPercent(ratio(outlook.gross_margin, outlook.net_sales)),
+            sub: signedPercent(grossGrowth) + ' vs ' + priorLabel + ' | Margin ' + formatPercent(ratio(outlook.gross_margin, outlook.net_sales)),
             tone: 'cyan',
             icon: 'paid',
             metric: 'gross_margin',
@@ -316,7 +323,7 @@ function renderExecutiveKPIs(data) {
         {
             label: 'Operating profit',
             value: formatCompact(outlook.operating_profit),
-            sub: formatCompact(opVariance) + ' vs FY2025 | Margin ' + formatPercent(ratio(outlook.operating_profit, outlook.net_sales)),
+            sub: formatCompact(opVariance) + ' vs ' + priorLabel + ' | Margin ' + formatPercent(ratio(outlook.operating_profit, outlook.net_sales)),
             tone: 'violet',
             icon: 'monitoring',
             metric: 'operating_profit',
@@ -325,7 +332,7 @@ function renderExecutiveKPIs(data) {
         {
             label: 'Net profit',
             value: formatCompact(outlook.net_income),
-            sub: formatCompact(netVariance) + ' vs FY2025 | Margin ' + formatPercent(ratio(outlook.net_income, outlook.net_sales)),
+            sub: formatCompact(netVariance) + ' vs ' + priorLabel + ' | Margin ' + formatPercent(ratio(outlook.net_income, outlook.net_sales)),
             tone: 'green',
             icon: 'account_balance_wallet',
             metric: 'net_income',
@@ -371,6 +378,7 @@ function executiveLineDataset(label, values, color, dashed) {
 }
 
 function renderExecutiveCharts(data) {
+    var coverage = data.coverage;
     var monthly = data.monthly.slice().sort(function (a, b) { return a.period_number - b.period_number; });
     var labels = monthly.map(function (row) { return row.period_label; });
     var cumulative = 0;
@@ -378,15 +386,25 @@ function renderExecutiveCharts(data) {
         cumulative += Number(row.net_sales || 0);
         return cumulative / 1e6;
     });
-    var actualRevenue = cumulativeValues.map(function (value, index) { return index <= 4 ? value : null; });
-    var outlookRevenue = cumulativeValues.map(function (value, index) { return index >= 4 ? value : null; });
-    var actualMargin = monthly.map(function (row, index) {
-        return index <= 4 && row.net_sales ? Number(row.gross_margin) / Number(row.net_sales) * 100 : null;
-    });
-    var outlookMargin = monthly.map(function (row, index) {
-        if (index === 4 && row.net_sales) return Number(row.gross_margin) / Number(row.net_sales) * 100;
-        return index >= 5 && row.net_sales ? Number(row.gross_margin) / Number(row.net_sales) * 100 : null;
-    });
+    var actualRevenue, outlookRevenue, actualMargin, outlookMargin;
+    if (coverage.isOutlookYear) {
+        actualRevenue = cumulativeValues.map(function (value, index) { return index <= 4 ? value : null; });
+        outlookRevenue = cumulativeValues.map(function (value, index) { return index >= 4 ? value : null; });
+        actualMargin = monthly.map(function (row, index) {
+            return index <= 4 && row.net_sales ? Number(row.gross_margin) / Number(row.net_sales) * 100 : null;
+        });
+        outlookMargin = monthly.map(function (row, index) {
+            if (index === 4 && row.net_sales) return Number(row.gross_margin) / Number(row.net_sales) * 100;
+            return index >= 5 && row.net_sales ? Number(row.gross_margin) / Number(row.net_sales) * 100 : null;
+        });
+    } else {
+        actualRevenue = cumulativeValues;
+        outlookRevenue = cumulativeValues.map(function () { return null; });
+        actualMargin = monthly.map(function (row) {
+            return row.net_sales ? Number(row.gross_margin) / Number(row.net_sales) * 100 : null;
+        });
+        outlookMargin = monthly.map(function () { return null; });
+    }
 
     destroyChart('revenueOutlook');
     charts.revenueOutlook = new Chart(el('revenueOutlookChart'), {
@@ -426,6 +444,7 @@ function renderExecutivePL(data) {
     var actual = data.actualYtd;
     var outlook = data.outlook;
     var prior = data.priorYear;
+    var cov = data.coverage;
     var definitions = [
         ['Revenue', 'net_sales', ''],
         ['Cost of Sales', 'cogs', ''],
@@ -436,11 +455,20 @@ function renderExecutivePL(data) {
         ['Corporate Tax', 'corporate_tax', ''],
         ['Net Profit', 'net_income', 'total']
     ];
-    var html = '<thead><tr><th rowspan="2">Account</th>' +
-        '<th colspan="2">Actual 2026 P01-P05</th><th colspan="2">2026 Outlook P01-P12</th>' +
-        '<th colspan="2">2025 Full Year</th><th colspan="2">Variance vs 2025</th></tr>' +
-        '<tr><th>Amount</th><th>% Revenue</th><th>Amount</th><th>% Revenue</th>' +
-        '<th>Amount</th><th>% Revenue</th><th>Amount</th><th>%</th></tr></thead><tbody>';
+    var html;
+    if (cov.isOutlookYear) {
+        html = '<thead><tr><th rowspan="2">Account</th>' +
+            '<th colspan="2">Actual ' + cov.year + ' P01-P05</th><th colspan="2">' + cov.year + ' Outlook P01-P12</th>' +
+            '<th colspan="2">' + cov.priorYear + ' Full Year</th><th colspan="2">Variance vs ' + cov.priorYear + '</th></tr>' +
+            '<tr><th>Amount</th><th>% Revenue</th><th>Amount</th><th>% Revenue</th>' +
+            '<th>Amount</th><th>% Revenue</th><th>Amount</th><th>%</th></tr></thead><tbody>';
+    } else {
+        html = '<thead><tr><th rowspan="2">Account</th>' +
+            '<th colspan="2">FY' + cov.year + ' Actual</th>' +
+            '<th colspan="2">FY' + cov.priorYear + ' Full Year</th><th colspan="2">Variance vs ' + cov.priorYear + '</th></tr>' +
+            '<tr><th>Amount</th><th>% Revenue</th>' +
+            '<th>Amount</th><th>% Revenue</th><th>Amount</th><th>%</th></tr></thead><tbody>';
+    }
 
     definitions.forEach(function (definition) {
         var key = definition[1];
@@ -449,12 +477,20 @@ function renderExecutivePL(data) {
         var priorValue = Number(prior[key] || 0);
         var variance = outlookValue - priorValue;
         var variancePct = percentChange(priorValue, outlookValue);
-        html += '<tr class="' + definition[2] + '"><td>' + escapeHtml(definition[0]) + '</td>' +
-            '<td>' + escapeHtml(formatFull(actualValue)) + '</td><td>' + formatPercent(ratio(actualValue, actual.net_sales)) + '</td>' +
-            '<td>' + escapeHtml(formatFull(outlookValue)) + '</td><td>' + formatPercent(ratio(outlookValue, outlook.net_sales)) + '</td>' +
-            '<td>' + escapeHtml(formatFull(priorValue)) + '</td><td>' + formatPercent(ratio(priorValue, prior.net_sales)) + '</td>' +
-            '<td class="' + valueClass(key, variance) + '">' + escapeHtml(formatFull(variance)) + '</td>' +
-            '<td class="' + valueClass(key, variance) + '">' + signedPercent(variancePct) + '</td></tr>';
+        if (cov.isOutlookYear) {
+            html += '<tr class="' + definition[2] + '"><td>' + escapeHtml(definition[0]) + '</td>' +
+                '<td>' + escapeHtml(formatFull(actualValue)) + '</td><td>' + formatPercent(ratio(actualValue, actual.net_sales)) + '</td>' +
+                '<td>' + escapeHtml(formatFull(outlookValue)) + '</td><td>' + formatPercent(ratio(outlookValue, outlook.net_sales)) + '</td>' +
+                '<td>' + escapeHtml(formatFull(priorValue)) + '</td><td>' + formatPercent(ratio(priorValue, prior.net_sales)) + '</td>' +
+                '<td class="' + valueClass(key, variance) + '">' + escapeHtml(formatFull(variance)) + '</td>' +
+                '<td class="' + valueClass(key, variance) + '">' + signedPercent(variancePct) + '</td></tr>';
+        } else {
+            html += '<tr class="' + definition[2] + '"><td>' + escapeHtml(definition[0]) + '</td>' +
+                '<td>' + escapeHtml(formatFull(outlookValue)) + '</td><td>' + formatPercent(ratio(outlookValue, outlook.net_sales)) + '</td>' +
+                '<td>' + escapeHtml(formatFull(priorValue)) + '</td><td>' + formatPercent(ratio(priorValue, prior.net_sales)) + '</td>' +
+                '<td class="' + valueClass(key, variance) + '">' + escapeHtml(formatFull(variance)) + '</td>' +
+                '<td class="' + valueClass(key, variance) + '">' + signedPercent(variancePct) + '</td></tr>';
+        }
     });
     el('executivePlTable').innerHTML = html + '</tbody>';
 }
@@ -468,39 +504,60 @@ function topShare(rows, count, total) {
 function renderCfoSignals(data) {
     var outlook = data.outlook;
     var prior = data.priorYear;
+    var cov = data.coverage;
     var salesChange = outlook.net_sales - prior.net_sales;
     var opChange = outlook.operating_profit - prior.operating_profit;
     var incrementalMargin = ratio(opChange, salesChange);
     var gmBps = (ratio(outlook.gross_margin, outlook.net_sales) - ratio(prior.gross_margin, prior.net_sales)) * 10000;
     var lossShare = ratio(data.productRisk.loss_making_revenue, data.productRisk.total_revenue);
     var topFive = topShare(data.concentration.customers, 5, outlook.net_sales);
+    var periodLabel = cov.isOutlookYear ? 'FY' + cov.year + ' outlook' : 'FY' + cov.year;
+    var priorLabel = 'FY' + cov.priorYear;
     var signals = [
         {
             cls: gmBps >= 0 ? 'positive' : (gmBps < -200 ? 'critical' : 'warning'),
             label: gmBps >= 0 ? 'Gross margin improvement' : 'Gross margin compression',
             value: (gmBps >= 0 ? '+' : '') + gmBps.toFixed(0) + ' bps',
             copy: gmBps >= 0
-                ? 'Outlook margin versus FY2025. Protect the mix and cost gains behind the improvement.'
-                : 'Outlook margin versus FY2025. Prioritize pricing, mix, and direct-cost recovery.'
+                ? periodLabel + ' margin versus ' + priorLabel + '. Protect the mix and cost gains behind the improvement.'
+                : periodLabel + ' margin versus ' + priorLabel + '. Prioritize pricing, mix, and direct-cost recovery.'
         },
         {
             cls: incrementalMargin < 0 ? 'critical' : 'positive',
             label: 'Incremental operating margin',
             value: formatPercent(incrementalMargin),
-            copy: 'Operating profit change divided by revenue change. Negative conversion signals value-destructive growth.'
+            copy: 'Operating profit change divided by revenue change versus ' + priorLabel + '. Negative conversion signals value-destructive growth.'
         },
         {
             cls: lossShare > .25 ? 'critical' : 'warning',
             label: 'Loss-making revenue exposure',
             value: formatPercent(lossShare),
-            copy: 'Share of outlook revenue generated by product groups below operating break-even.'
+            copy: 'Share of ' + periodLabel + ' revenue generated by product groups below operating break-even.'
         },
         {
             cls: topFive > .5 ? 'warning' : 'neutral',
             label: 'Top 5 customer concentration',
             value: formatPercent(topFive),
-            copy: 'Revenue dependency on the five largest customers in the 2026 operating outlook.'
-        }
+            copy: 'Revenue dependency on the five largest customers in the ' + periodLabel + '.'
+        },
+        (function () {
+            var revGrowth = percentChange(prior.net_sales, outlook.net_sales);
+            var opGrowth = percentChange(prior.operating_profit, outlook.operating_profit);
+            var leverage = (revGrowth && opGrowth) ? opGrowth / revGrowth : null;
+            var cls = leverage == null ? 'neutral'
+                : leverage > 1.5 ? 'positive'
+                : leverage < 0.5 ? 'critical'
+                : 'warning';
+            var leverageStr = leverage == null ? '--' : leverage.toFixed(2) + '×';
+            var copy = leverage == null
+                ? 'Operating leverage cannot be calculated — one or both metrics have no prior-year base.'
+                : leverage > 1.5
+                ? 'Operating profit is growing faster than revenue — cost structure is scaling efficiently.'
+                : leverage < 0.5
+                ? 'Revenue is growing faster than profit — costs are not scaling well. Review opex discipline.'
+                : 'Revenue and profit growing in similar proportion — neutral operating leverage.';
+            return { cls: cls, label: 'Operating leverage', value: leverageStr, copy: copy };
+        }())
     ];
     el('cfoSignalGrid').innerHTML = signals.map(function (signal) {
         return '<article class="signal-card ' + signal.cls + '"><div class="signal-label">' +
@@ -525,7 +582,7 @@ function renderCfoCharts(data) {
         data: {
             labels: ['Revenue', 'Gross Profit', 'OpEx', 'Operating Profit', 'Net Profit'],
             datasets: [{
-                label: 'Variance vs FY2025',
+                label: 'Variance vs FY' + data.coverage.priorYear,
                 data: bridge.map(function (value) { return value / 1e6; }),
                 backgroundColor: bridge.map(function (value, index) {
                     if (index === 2) return value <= 0 ? colors.green : colors.red;
@@ -539,10 +596,10 @@ function renderCfoCharts(data) {
     });
 
     var customers = data.concentration.customers.slice(0, 8);
-    var concentrationOptions = horizontalChartOptions('% of outlook revenue');
+    var concentrationOptions = horizontalChartOptions('% of revenue');
     concentrationOptions.plugins.legend.display = false;
     concentrationOptions.plugins.tooltip.callbacks.label = function (context) {
-        return Number(context.parsed.x).toFixed(1) + '% of outlook revenue';
+        return Number(context.parsed.x).toFixed(1) + '% of revenue';
     };
     concentrationOptions.scales.x.ticks.callback = function (value) { return value + '%'; };
     destroyChart('concentration');
@@ -558,6 +615,17 @@ function renderCfoCharts(data) {
         },
         options: concentrationOptions
     });
+
+    var allCustomers = data.concentration.customers;
+    var hhi = allCustomers.reduce(function (sum, r) {
+        var share = Number(r.net_sales || 0) / Math.abs(outlook.net_sales || 1) * 100;
+        return sum + share * share;
+    }, 0);
+    var hhiRisk = hhi > 2500 ? 'High concentration risk' : hhi > 1500 ? 'Moderate concentration' : 'Diversified';
+    var hhiNote = el('hhiNote');
+    if (hhiNote) {
+        hhiNote.textContent = 'HHI (top 10 customers): ' + Math.round(hhi).toLocaleString('en-US') + ' — ' + hhiRisk + '. Thresholds: <1,500 diversified, 1,500–2,500 moderate, >2,500 high risk.';
+    }
 }
 
 function cleanDimensionLabel(value) {
@@ -599,6 +667,40 @@ function productRisk(row) {
     }
     return { cls: 'healthy', label: 'Scale',
         action: 'Margins healthy and stable. Defend pricing discipline and look for selective volume growth opportunities.' };
+}
+
+function renderTopMovers(data) {
+    var cov = data.coverage;
+    var products = data.profitability.slice().map(function (r) {
+        var priorSales = Number(r.prior_net_sales || 0);
+        var change = Number(r.net_sales || 0) - priorSales;
+        var pct = percentChange(r.prior_net_sales, r.net_sales);
+        var currGm = ratio(r.gross_margin, r.net_sales);
+        var priorGm = ratio(r.prior_gross_margin, r.prior_net_sales);
+        var gmPpChange = (currGm != null && priorGm != null) ? (currGm - priorGm) * 100 : null;
+        return { label: r.label, sales: Number(r.net_sales || 0), priorSales: priorSales, change: change, pct: pct, gmPpChange: gmPpChange };
+    }).filter(function (r) { return r.priorSales !== 0 || r.change !== 0; });
+
+    products.sort(function (a, b) { return Math.abs(b.change) - Math.abs(a.change); });
+    var moversCard = el('moversCard');
+    if (!products.length || !cov.priorYear) { moversCard.style.display = 'none'; return; }
+    moversCard.style.display = '';
+
+    var html = '<thead><tr><th>Product group</th><th>FY' + cov.year + ' revenue</th>' +
+        '<th>Change vs FY' + cov.priorYear + '</th><th>Change %</th><th>GM pp shift</th><th>Signal</th></tr></thead><tbody>';
+    products.slice(0, 10).forEach(function (r) {
+        var revCls = valueClass('net_sales', r.change);
+        var gmCls = r.gmPpChange == null ? '' : r.gmPpChange >= 0 ? 'pos' : 'neg';
+        var signal = r.change > 0 ? (r.gmPpChange != null && r.gmPpChange < -1 ? 'Growing but margin eroding' : 'Strong growth') :
+                                    (r.gmPpChange != null && r.gmPpChange < -2 ? 'Declining — margin also falling' : 'Revenue declining');
+        html += '<tr><td>' + escapeHtml(cleanDimensionLabel(r.label)) + '</td>' +
+            '<td>' + escapeHtml(formatCompact(r.sales)) + '</td>' +
+            '<td class="' + revCls + '">' + (r.change >= 0 ? '+' : '') + escapeHtml(formatCompact(r.change)) + '</td>' +
+            '<td class="' + revCls + '">' + (r.pct != null ? signedPercent(r.pct) : '--') + '</td>' +
+            '<td class="' + gmCls + '">' + (r.gmPpChange != null ? (r.gmPpChange >= 0 ? '+' : '') + r.gmPpChange.toFixed(1) + ' pp' : '--') + '</td>' +
+            '<td>' + escapeHtml(signal) + '</td></tr>';
+    });
+    el('moversTable').innerHTML = html + '</tbody>';
 }
 
 function renderProfitabilityTable(data) {
@@ -674,21 +776,256 @@ function loadOverview(force) {
     setLoading('executivePlTable');
     setLoading('cfoSignalGrid');
     setLoading('profitabilityTable');
-    return fetchJson(API + '/api/executive-outlook' + queryString({}, {
+    return fetchJson(API + '/api/executive-outlook' + queryString({ ovYear: el('ovYear').value }, {
         ignoreYear: true,
         ignoreVersion: true
     }), { force: force, timeout: 45000 })
         .then(function (data) {
             executiveData = data;
+            var cov = data.coverage;
+            var isOutlook = cov.isOutlookYear;
+            el('overviewHeading').textContent = cov.year + ' executive ' + (isOutlook ? 'outlook' : 'performance');
+            el('overviewSubtext').textContent = isOutlook
+                ? cov.definition + ', compared with FY' + cov.priorYear
+                : 'FY' + cov.year + ' full-year Actual, compared with FY' + cov.priorYear;
+            el('revScenarioBoundary').style.display = isOutlook ? '' : 'none';
+            el('gmScenarioBoundary').style.display = isOutlook ? '' : 'none';
+            el('plTableTitle').textContent = 'P&L summary: ' + (isOutlook ? cov.year + ' outlook' : 'FY' + cov.year + ' Actual');
+            el('concentrationSubtitle').textContent = 'Share of FY' + cov.year + (isOutlook ? ' outlook' : ' revenue') + ' held by the largest customers';
+            el('profitBridgeTitle').textContent = 'Profit bridge vs FY' + cov.priorYear;
+            el('profitMatrixSubtitle').textContent = 'Top product groups by ' + cov.year + ' revenue — margin quality, COGS efficiency, and YoY movement with management action tiers';
             renderExecutiveKPIs(data);
             renderExecutiveCharts(data);
             renderExecutivePL(data);
             renderCfoSignals(data);
             renderCfoCharts(data);
+            renderTopMovers(data);
             renderProfitabilityTable(data);
             tabLoaded.overview = true;
         })
         .catch(handleLoadError);
+}
+
+function loadTrends(force) {
+    if (yearlyData.length) { renderTrends(yearlyData); return Promise.resolve(); }
+    return fetchJson(API + '/api/yearly-pl', { force: force })
+        .then(function (data) {
+            yearlyData = data;
+            renderTrends(data);
+            tabLoaded.trends = true;
+        })
+        .catch(handleLoadError);
+}
+
+function renderTrends(data) {
+    var rows = data.filter(function (r) { return r.version === 'Actual' || !r.version; });
+    if (!rows.length) { el('trendKpiGrid').innerHTML = '<div class="loading"><span>No trend data available.</span></div>'; return; }
+    rows.sort(function (a, b) { return a.year - b.year; });
+    var labels = rows.map(function (r) { return String(r.year); });
+    var revenueM = rows.map(function (r) { return Number(r.net_sales || 0) / 1e6; });
+    var gmPct = rows.map(function (r) { return r.net_sales ? Number(r.gross_margin || 0) / Number(r.net_sales) * 100 : null; });
+    var opProfitM = rows.map(function (r) { return Number(r.operating_profit || 0) / 1e6; });
+    var cogsPct = rows.map(function (r) { return r.net_sales ? Number(r.cogs || 0) / Number(r.net_sales) * 100 : null; });
+    var opexPct = rows.map(function (r) { return r.net_sales ? Number(r.opex || 0) / Number(r.net_sales) * 100 : null; });
+
+    function yoyGrowth(values) {
+        return values.map(function (v, i) {
+            if (i === 0 || !values[i - 1]) return null;
+            return percentChange(values[i - 1], v);
+        });
+    }
+    var revenueGrowth = yoyGrowth(rows.map(function (r) { return Number(r.net_sales || 0); }));
+    var gpGrowth = yoyGrowth(rows.map(function (r) { return Number(r.gross_margin || 0); }));
+    var opGrowth = yoyGrowth(rows.map(function (r) { return Number(r.operating_profit || 0); }));
+
+    function cagr(first, last, years) {
+        if (!first || first <= 0 || years <= 0) return null;
+        return Math.pow(last / first, 1 / years) - 1;
+    }
+    var n = rows.length - 1;
+    var kpis = [
+        { label: 'Revenue', value: formatCompact(rows[n].net_sales), cagr: cagr(rows[0].net_sales, rows[n].net_sales, n), tone: 'blue' },
+        { label: 'Gross Margin %', value: formatPercent(ratio(rows[n].gross_margin, rows[n].net_sales)), cagr: null, extra: (gmPct[0] != null && gmPct[n] != null ? (gmPct[n] - gmPct[0] >= 0 ? '+' : '') + (gmPct[n] - gmPct[0]).toFixed(1) + ' pp change over period' : null), tone: 'cyan' },
+        { label: 'Operating Profit', value: formatCompact(rows[n].operating_profit), cagr: cagr(rows[0].operating_profit, rows[n].operating_profit, n), tone: 'violet' },
+        { label: 'Net Income', value: formatCompact(rows[n].net_income), cagr: cagr(rows[0].net_income, rows[n].net_income, n), tone: 'green' }
+    ];
+    el('trendKpiGrid').innerHTML = kpis.map(function (k) {
+        var cagrText = k.cagr != null ? formatPercent(k.cagr) + ' CAGR over ' + n + ' years' : (k.extra || '--');
+        return '<article class="kpi-card"><div class="kpi-top"><span class="kpi-icon ' + k.tone + '"></span><div><div class="kpi-label">' +
+            escapeHtml(k.label) + '</div><div class="kpi-value">' + escapeHtml(k.value) + '</div></div></div>' +
+            '<div class="kpi-sub">' + escapeHtml(cagrText) + '</div></article>';
+    }).join('');
+
+    destroyChart('revenueTrend');
+    charts.revenueTrend = new Chart(el('revenueTrendChart'), {
+        data: {
+            labels: labels,
+            datasets: [
+                { type: 'bar', label: 'Revenue', data: revenueM, backgroundColor: colors.blue, yAxisID: 'yRev', borderRadius: 4 },
+                { type: 'line', label: 'Gross Margin %', data: gmPct, borderColor: colors.green, backgroundColor: colors.green, yAxisID: 'yGm', tension: 0.3, pointRadius: 4, borderWidth: 2.5, spanGaps: false }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 7, boxHeight: 7, padding: 14, font: { size: 9, weight: 600 } } },
+                tooltip: { padding: 10, titleFont: { size: 10 }, bodyFont: { size: 10 }, callbacks: { label: function (ctx) { return ctx.dataset.yAxisID === 'yRev' ? 'Revenue: $' + ctx.parsed.y.toFixed(1) + 'M' : 'GM%: ' + ctx.parsed.y.toFixed(1) + '%'; } } }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#66758a', font: { size: 9 } } },
+                yRev: { type: 'linear', position: 'left', grid: { color: '#edf1f6' }, border: { display: false }, ticks: { color: '#66758a', font: { size: 9 }, callback: function (v) { return '$' + v + 'M'; } } },
+                yGm: { type: 'linear', position: 'right', grid: { display: false }, border: { display: false }, ticks: { color: '#66758a', font: { size: 9 }, callback: function (v) { return v + '%'; } } }
+            }
+        }
+    });
+
+    var effOptions = baseChartOptions('% of revenue');
+    effOptions.plugins.tooltip.callbacks.label = function (ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + '%'; };
+    effOptions.scales.y.ticks.callback = function (v) { return v + '%'; };
+    destroyChart('efficiencyTrend');
+    charts.efficiencyTrend = new Chart(el('efficiencyTrendChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'COGS %', data: cogsPct, borderColor: colors.red, backgroundColor: colors.red, tension: 0.3, pointRadius: 3, borderWidth: 2 },
+                { label: 'OpEx %', data: opexPct, borderColor: colors.amber, backgroundColor: colors.amber, tension: 0.3, pointRadius: 3, borderWidth: 2 }
+            ]
+        },
+        options: effOptions
+    });
+
+    var growthOptions = baseChartOptions('YoY growth %');
+    growthOptions.plugins.tooltip.callbacks.label = function (ctx) { return ctx.dataset.label + ': ' + (ctx.parsed.y != null ? (ctx.parsed.y * 100).toFixed(1) + '%' : '--'); };
+    growthOptions.scales.y.ticks.callback = function (v) { return (v * 100).toFixed(0) + '%'; };
+    destroyChart('growthRate');
+    charts.growthRate = new Chart(el('growthRateChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Revenue', data: revenueGrowth, backgroundColor: revenueGrowth.map(function (v) { return v == null ? 'transparent' : v >= 0 ? colors.blue : colors.red; }), borderRadius: 3 },
+                { label: 'Gross Profit', data: gpGrowth, backgroundColor: gpGrowth.map(function (v) { return v == null ? 'transparent' : v >= 0 ? colors.cyan : colors.red; }), borderRadius: 3 },
+                { label: 'Operating Profit', data: opGrowth, backgroundColor: opGrowth.map(function (v) { return v == null ? 'transparent' : v >= 0 ? colors.green : colors.red; }), borderRadius: 3 }
+            ]
+        },
+        options: growthOptions
+    });
+
+    var plDefs = [['Revenue', 'net_sales'], ['COGS', 'cogs'], ['Gross Profit', 'gross_margin'], ['OpEx', 'opex'], ['Operating Profit', 'operating_profit'], ['Net Income', 'net_income']];
+    var html = '<thead><tr><th>Metric</th>' + labels.map(function (y) { return '<th>' + y + '</th><th>% Rev</th><th>YoY</th>'; }).join('') + '</tr></thead><tbody>';
+    plDefs.forEach(function (def) {
+        var key = def[1];
+        html += '<tr><td>' + escapeHtml(def[0]) + '</td>';
+        rows.forEach(function (r, i) {
+            var val = Number(r[key] || 0);
+            var pctRev = ratio(val, r.net_sales);
+            var prev = i > 0 ? Number(rows[i - 1][key] || 0) : null;
+            var yoy = prev != null ? percentChange(prev, val) : null;
+            var cls = yoy != null ? valueClass(key, yoy) : '';
+            html += '<td>' + escapeHtml(formatCompact(val)) + '</td><td>' + formatPercent(pctRev) + '</td><td class="' + cls + '">' + (yoy != null ? signedPercent(yoy) : '--') + '</td>';
+        });
+        html += '</tr>';
+    });
+    el('trendTable').innerHTML = html + '</tbody>';
+    tabLoaded.trends = true;
+}
+
+function loadPortfolio(force) {
+    var year = el('portYear').value;
+    var priorYear = el('portPriorYear').value;
+    if (!year || !priorYear || year === priorYear) { showToast('Choose two different years', true); return Promise.resolve(); }
+    setLoading('portfolioTable');
+    return fetchJson(API + '/api/portfolio?year=' + encodeURIComponent(year) + '&priorYear=' + encodeURIComponent(priorYear), { force: force })
+        .then(function (data) {
+            renderPortfolioMatrix(data);
+            tabLoaded.portfolio = true;
+        })
+        .catch(handleLoadError);
+}
+
+function renderPortfolioMatrix(data) {
+    var products = data.products || [];
+    if (!products.length) {
+        el('portfolioTable').innerHTML = '<tbody><tr><td>No data for selected years.</td></tr></tbody>';
+        destroyChart('portfolio');
+        return;
+    }
+
+    var totalRevenue = products.reduce(function (s, r) { return s + Number(r.net_sales || 0); }, 0);
+    var maxRevenue = products.reduce(function (max, r) { return Math.max(max, Number(r.net_sales || 0)); }, 0);
+    var medianGm = (function () {
+        var gms = products.map(function (r) { return r.net_sales ? Number(r.gross_margin || 0) / Number(r.net_sales) * 100 : 0; }).sort(function (a, b) { return a - b; });
+        return gms[Math.floor(gms.length / 2)] || 0;
+    }());
+
+    var riskColors = { critical: colors.red, eroding: colors.amber, watch: '#e89a24', star: colors.green, healthy: colors.cyan };
+
+    destroyChart('portfolio');
+    charts.portfolio = new Chart(el('portfolioChart'), {
+        type: 'bubble',
+        data: {
+            datasets: products.map(function (r) {
+                var gmPct = r.net_sales ? Number(r.gross_margin || 0) / Number(r.net_sales) * 100 : 0;
+                var growth = r.prior_net_sales ? (Number(r.net_sales || 0) - Number(r.prior_net_sales || 0)) / Math.abs(Number(r.prior_net_sales)) * 100 : 0;
+                var rev = Number(r.net_sales || 0);
+                var radius = Math.max(5, Math.min(35, Math.sqrt(rev / maxRevenue) * 35));
+                var risk = productRisk({ gross_margin: r.gross_margin, net_sales: r.net_sales, operating_profit: r.operating_profit, prior_gross_margin: r.prior_gross_margin, prior_net_sales: r.prior_net_sales });
+                return {
+                    label: cleanDimensionLabel(r.label),
+                    data: [{ x: growth, y: gmPct, r: radius }],
+                    backgroundColor: (riskColors[risk.cls] || colors.blue) + 'cc',
+                    borderColor: riskColors[risk.cls] || colors.blue,
+                    borderWidth: 1.5
+                };
+            })
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function (ctx) { return ctx.dataset.label + ' — Growth: ' + ctx.parsed.x.toFixed(1) + '%, GM: ' + ctx.parsed.y.toFixed(1) + '%'; } } }
+            },
+            scales: {
+                x: {
+                    grid: { color: '#edf1f6' }, border: { display: false },
+                    title: { display: true, text: 'Revenue growth % vs prior year', color: '#96a2b3', font: { size: 9 } },
+                    ticks: { color: '#66758a', font: { size: 9 }, callback: function (v) { return v + '%'; } }
+                },
+                y: {
+                    grid: { color: '#edf1f6' }, border: { display: false },
+                    title: { display: true, text: 'Gross margin %', color: '#96a2b3', font: { size: 9 } },
+                    ticks: { color: '#66758a', font: { size: 9 }, callback: function (v) { return v + '%'; } }
+                }
+            }
+        }
+    });
+
+    var html = '<thead><tr><th>Product group</th><th>Revenue</th><th>Revenue share</th><th>Growth %</th><th>Gross margin %</th><th>Op margin %</th><th>Quadrant</th><th>Risk tier</th><th>Recommended action</th></tr></thead><tbody>';
+    products.forEach(function (r) {
+        var gmPct = r.net_sales ? Number(r.gross_margin || 0) / Number(r.net_sales) * 100 : 0;
+        var opPct = r.net_sales ? Number(r.operating_profit || 0) / Number(r.net_sales) * 100 : 0;
+        var growth = r.prior_net_sales ? (Number(r.net_sales || 0) - Number(r.prior_net_sales || 0)) / Math.abs(Number(r.prior_net_sales)) * 100 : null;
+        var share = totalRevenue > 0 ? Number(r.net_sales || 0) / totalRevenue * 100 : 0;
+        var highGrowth = growth != null && growth > 0;
+        var highMargin = gmPct >= medianGm;
+        var quadrant = highGrowth && highMargin ? 'Stars — Invest & grow'
+            : !highGrowth && highMargin ? 'Cash Cows — Harvest & defend'
+            : highGrowth && !highMargin ? 'Question Marks — Fix or exit'
+            : 'Traps — Exit priority';
+        var risk = productRisk({ gross_margin: r.gross_margin, net_sales: r.net_sales, operating_profit: r.operating_profit, prior_gross_margin: r.prior_gross_margin, prior_net_sales: r.prior_net_sales });
+        html += '<tr><td>' + escapeHtml(cleanDimensionLabel(r.label)) + '</td>' +
+            '<td>' + escapeHtml(formatCompact(r.net_sales)) + '</td>' +
+            '<td>' + share.toFixed(1) + '%</td>' +
+            '<td class="' + (growth == null ? '' : growth >= 0 ? 'pos' : 'neg') + '">' + (growth != null ? (growth >= 0 ? '+' : '') + growth.toFixed(1) + '%' : '--') + '</td>' +
+            '<td>' + gmPct.toFixed(1) + '%</td>' +
+            '<td class="' + (opPct >= 0 ? '' : 'neg') + '">' + opPct.toFixed(1) + '%</td>' +
+            '<td>' + escapeHtml(quadrant) + '</td>' +
+            '<td><span class="risk-tag ' + risk.cls + '">' + escapeHtml(risk.label) + '</span></td>' +
+            '<td>' + escapeHtml(risk.action) + '</td></tr>';
+    });
+    el('portfolioTable').innerHTML = html + '</tbody>';
 }
 
 function loadRegional(force) {
@@ -975,7 +1312,9 @@ function loadActiveTab(force) {
         regional: loadRegional,
         product: loadProduct,
         drilldown: loadDrilldown,
-        scenario: loadScenario
+        scenario: loadScenario,
+        trends: loadTrends,
+        portfolio: loadPortfolio
     }[activeTab];
     return Promise.resolve(loader(force)).then(function () {
         setStatus(true, 'Live SQLite');
@@ -1115,6 +1454,7 @@ function bindEvents() {
     el('prodMetric').addEventListener('change', renderProduct);
     el('ddBtn').addEventListener('click', function () { loadDrilldown(true); });
     el('scenMetric').addEventListener('change', renderScenario);
+    el('ovYear').addEventListener('change', function () { loadOverview(true); });
     document.querySelectorAll('[data-export-table]').forEach(function (button) {
         button.addEventListener('click', function () {
             exportCSV(button.dataset.exportTable, button.dataset.exportName);
