@@ -102,6 +102,7 @@ document.querySelectorAll('.tab').forEach(function(t) {
             else if (tabName === 'regional') loadRegional();
             else if (tabName === 'product') loadProductAnalysis();
             else if (tabName === 'drilldown') loadDrilldown();
+            else if (tabName === 'scenario') loadScenario();
             tabLoaded[tabName] = true;
         }
     });
@@ -202,7 +203,7 @@ function renderCharts(data) {
         ]},
         options: { responsive: true, maintainAspectRatio: false,
             plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } }, tooltip: { callbacks: { label: function(c) { return c.dataset.label + ': ' + c.parsed.y.toFixed(1) + '%'; } } } },
-            scales: { y: { grid: { color: '#e5e7eb' }, title: { display: true, text: 'Margin %' }, ticks: { callback: function(v) { return v + '%'; } } }, x: { grid: { display: false } } }
+            scales: { y: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: 'Margin %' }, ticks: { callback: function(v) { return v + '%'; } } }, x: { grid: { display: false } } }
         }
     });
 
@@ -211,7 +212,7 @@ function renderCharts(data) {
         data: { labels: years, datasets: [{ label: 'Net Income', data: ni, backgroundColor: ni.map(function(v){ return v>=0 ? C.green : C.red; }), borderRadius: 8, barPercentage: 0.6 }] },
         options: { responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c){ return '$' + c.parsed.y.toFixed(1) + 'M'; } } } },
-            scales: { y: { grid: { color: '#e5e7eb' }, title: { display: true, text: '$ Millions' }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, x: { grid: { display: false } } }
+            scales: { y: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: '$ Millions' }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, x: { grid: { display: false } } }
         }
     });
 
@@ -224,7 +225,7 @@ function renderCharts(data) {
         ]},
         options: { responsive: true, maintainAspectRatio: false,
             plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } }, tooltip: { callbacks: { label: function(c){ return c.dataset.label + ': ' + c.parsed.y.toFixed(1) + '%'; } } } },
-            scales: { y: { grid: { color: '#e5e7eb' }, stacked: true, title: { display: true, text: '% of Net Sales' }, ticks: { callback: function(v){ return v + '%'; } } }, x: { stacked: true, grid: { display: false } } }
+            scales: { y: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, stacked: true, title: { display: true, text: '% of Net Sales' }, ticks: { callback: function(v){ return v + '%'; } } }, x: { stacked: true, grid: { display: false } } }
         }
     });
 }
@@ -325,7 +326,7 @@ function loadRegional() {
             type: 'bar', data: { labels: regions, datasets: datasets },
             options: { responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 12 } }, tooltip: { callbacks: { label: function(c) { return c.dataset.label + ': $' + c.parsed.y.toFixed(1) + 'M'; } } } },
-                scales: { y: { grid: { color: '#e5e7eb' }, title: { display: true, text: '$ Millions' }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, x: { grid: { display: false } } }
+                scales: { y: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: '$ Millions' }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, x: { grid: { display: false } } }
             }
         });
 
@@ -371,7 +372,7 @@ function loadProductAnalysis() {
             ]},
             options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { position: 'top', labels: { usePointStyle: true } }, tooltip: { callbacks: { label: function(c){ return c.dataset.label + ': $' + c.parsed.x.toFixed(1) + 'M'; } } } },
-                scales: { x: { grid: { color: '#e5e7eb' }, title: { display: true, text: '$ Millions' }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, y: { grid: { display: false } } }
+                scales: { x: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: '$ Millions' }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, y: { grid: { display: false } } }
             }
         });
 
@@ -380,7 +381,7 @@ function loadProductAnalysis() {
             type: 'bar', data: { labels: labels, datasets: [{ label: 'GM% '+y1, data: marginData, backgroundColor: marginData.map(function(v){ return v>=0?C.green:C.red; }), borderRadius: 3 }] },
             options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c){ return c.parsed.x.toFixed(1)+'%'; } } } },
-                scales: { x: { grid: { color: '#e5e7eb' }, title: { display: true, text: 'Gross Margin %' }, ticks: { callback: function(v){ return v+'%'; } } }, y: { grid: { display: false } } }
+                scales: { x: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: 'Gross Margin %' }, ticks: { callback: function(v){ return v+'%'; } } }, y: { grid: { display: false } } }
             }
         });
 
@@ -420,7 +421,7 @@ function loadDrilldown() {
             type: 'bar', data: { labels: top.map(function(d){ return d.dimension||'N/A'; }), datasets: [{ label: 'Change '+y1+'→'+y2, data: top.map(function(d){ return d.change/1e6; }), backgroundColor: top.map(function(d){ return isGood(metric, d.change)?C.green:C.red; }), borderRadius: 4 }] },
             options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c){ return (c.parsed.x>=0?'+':'')+'$'+c.parsed.x.toFixed(1)+'M'; } } } },
-                scales: { x: { grid: { color: '#e5e7eb' }, title: { display: true, text: 'Change ($M)' }, ticks: { callback: function(v){ return '$'+v+'M'; } } }, y: { grid: { display: false } } }
+                scales: { x: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: 'Change ($M)' }, ticks: { callback: function(v){ return '$'+v+'M'; } } }, y: { grid: { display: false } } }
             }
         });
 
@@ -437,6 +438,203 @@ function loadDrilldown() {
         th += '</tbody>'; tb.innerHTML = th;
         showToast(data.length+' items loaded');
     }).catch(function(e){ showToast('Failed: '+e.message, true); }).then(function(){ btn.disabled=false; btn.textContent='Drill Down'; });
+}
+
+// ===== SCENARIO COMPARISON =====
+function loadScenario() {
+    var metric = document.getElementById('scenMetric').value;
+    var metricLabels = {
+        net_sales: 'Net Sales',
+        cogs: 'COGS',
+        gross_margin: 'Gross Margin',
+        opex: 'OpEx',
+        operating_profit: 'Operating Profit',
+        net_income: 'Net Income'
+    };
+
+    if (scenarioDataCache) {
+        renderScenarioDashboard(scenarioDataCache, metric, metricLabels);
+    } else {
+        showLoading('scenarioTable');
+        safeFetch(API + '/api/scenario-pl').then(function(data) {
+            scenarioDataCache = data;
+            renderScenarioDashboard(data, metric, metricLabels);
+        }).catch(function(e) {
+            showToast('Failed to load scenario data: ' + e.message, true);
+        });
+    }
+}
+
+function renderScenarioDashboard(data, metric, metricLabels) {
+    // 1. Render actual vs forecast trend chart
+    var years = data.map(function(r) { return r.year; });
+    var actuals = data.map(function(r) { return r['actual_' + metric] / 1e6; });
+    
+    // Forecasts only exist for 2026 (index 4)
+    var t06 = data.map(function(r) { 
+        return r.year === 2026 ? r['t06_' + metric] / 1e6 : null; 
+    });
+    var t07 = data.map(function(r) { 
+        return r.year === 2026 ? r['t07_' + metric] / 1e6 : null; 
+    });
+
+    destroyChart('scenarioChart');
+    charts.scenario = new Chart(document.getElementById('scenarioChart'), {
+        type: 'bar',
+        data: {
+            labels: years,
+            datasets: [
+                {
+                    label: 'Actual',
+                    data: actuals,
+                    backgroundColor: C.blue,
+                    borderRadius: 4,
+                    barPercentage: 0.6
+                },
+                {
+                    label: 'T06 Forecast',
+                    data: t06,
+                    backgroundColor: C.orange,
+                    borderRadius: 4,
+                    barPercentage: 0.6
+                },
+                {
+                    label: 'T07 Forecast',
+                    data: t07,
+                    backgroundColor: C.purple,
+                    borderRadius: 4,
+                    barPercentage: 0.6
+                }
+            ]
+        },
+        options: makeBarOptions('$ Millions')
+    });
+
+    // 2. Render attainment chart
+    // Get 2026 data
+    var data2026 = data.filter(function(r) { return r.year === 2026; })[0];
+    if (!data2026) {
+        showToast('No 2026 scenario data found', true);
+        return;
+    }
+    var actVal = data2026['actual_' + metric];
+    var t06Val = data2026['t06_' + metric];
+    var t07Val = data2026['t07_' + metric];
+
+    var pctT06 = (t06Val && t06Val !== 0) ? (actVal / t06Val) * 100 : null;
+    var pctT07 = (t07Val && t07Val !== 0) ? (actVal / t07Val) * 100 : null;
+
+    var dir = metricDirection[metric] || 1;
+    var colorT06 = C.gray, colorT07 = C.gray;
+    
+    if (pctT06 !== null) {
+        if (dir === 1) {
+            colorT06 = (pctT06 >= 100) ? C.green : (pctT06 >= 85 ? C.orange : C.red);
+        } else {
+            colorT06 = (pctT06 <= 100) ? C.green : C.red;
+        }
+    }
+    if (pctT07 !== null) {
+        if (dir === 1) {
+            colorT07 = (pctT07 >= 100) ? C.green : (pctT07 >= 85 ? C.orange : C.red);
+        } else {
+            colorT07 = (pctT07 <= 100) ? C.green : C.red;
+        }
+    }
+
+    destroyChart('attainmentChart');
+    charts.attainment = new Chart(document.getElementById('attainmentChart'), {
+        type: 'bar',
+        data: {
+            labels: ['T06 Attainment', 'T07 Attainment'],
+            datasets: [{
+                data: [pctT06, pctT07],
+                backgroundColor: [colorT06, colorT07],
+                borderRadius: 4,
+                barPercentage: 0.5
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(c) {
+                            return c.parsed.x.toFixed(1) + '% Attainment';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    min: 0,
+                    max: Math.max(120, (pctT06 || 0) + 10, (pctT07 || 0) + 10),
+                    grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                    title: { display: true, text: 'Percentage (%)' },
+                    ticks: { callback: function(v) { return v + '%'; } }
+                },
+                y: { grid: { display: false } }
+            }
+        }
+    });
+
+    // 3. Render comparison details table for ALL metrics in 2026
+    var tb = document.getElementById('scenarioTable');
+    var metricsToCompare = [
+        { key: 'net_sales', label: 'Net Sales' },
+        { key: 'cogs', label: 'COGS' },
+        { key: 'gross_margin', label: 'Gross Margin' },
+        { key: 'opex', label: 'OpEx' },
+        { key: 'operating_profit', label: 'Operating Profit' },
+        { key: 'net_income', label: 'Net Income' }
+    ];
+
+    var th = '<thead>' +
+        '<tr>' +
+            '<th rowspan="2">Metric</th>' +
+            '<th rowspan="2">Actual 2026</th>' +
+            '<th colspan="3" style="text-align:center">T06 Forecast</th>' +
+            '<th colspan="3" style="text-align:center">T07 Forecast</th>' +
+        '</tr>' +
+        '<tr>' +
+            '<th>Target</th><th>Var ($)</th><th>Var (%)</th>' +
+            '<th>Target</th><th>Var ($)</th><th>Var (%)</th>' +
+        '</tr>' +
+    '</thead><tbody>';
+
+    metricsToCompare.forEach(function(mInfo) {
+        var k = mInfo.key;
+        var act = data2026['actual_' + k] || 0;
+        var t06 = data2026['t06_' + k] || 0;
+        var t07 = data2026['t07_' + k] || 0;
+
+        var v06 = act - t06;
+        var v07 = act - t07;
+
+        var p06 = t06 ? (v06 / Math.abs(t06)) * 100 : null;
+        var p07 = t07 ? (v07 / Math.abs(t07)) * 100 : null;
+
+        var cls06 = colorClass(k, v06);
+        var cls07 = colorClass(k, v07);
+
+        th += '<tr>' +
+            '<td style="font-weight:600">' + mInfo.label + '</td>' +
+            '<td>' + fmtM(act) + '</td>' +
+            '<td>' + fmtM(t06) + '</td>' +
+            '<td class="' + cls06 + '">' + (v06 >= 0 ? '+' : '') + fmtM(v06) + '</td>' +
+            '<td class="' + cls06 + '">' + (p06 !== null ? (p06 >= 0 ? '+' : '') + p06.toFixed(1) + '%' : '--') + '</td>' +
+            '<td>' + fmtM(t07) + '</td>' +
+            '<td class="' + cls07 + '">' + (v07 >= 0 ? '+' : '') + fmtM(v07) + '</td>' +
+            '<td class="' + cls07 + '">' + (p07 !== null ? (p07 >= 0 ? '+' : '') + p07.toFixed(1) + '%' : '--') + '</td>' +
+        '</tr>';
+    });
+
+    th += '</tbody>';
+    tb.innerHTML = th;
+    showToast('Scenario data rendered');
 }
 
 // ===== CSV EXPORT =====
@@ -472,7 +670,7 @@ function destroyChart(id) {
 function makeBarOptions(yLabel) {
     return { responsive: true, maintainAspectRatio: false,
         plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } }, tooltip: { callbacks: { label: function(c){ return c.dataset.label + ': $' + c.parsed.y.toFixed(1) + 'M'; } } } },
-        scales: { y: { beginAtZero: true, grid: { color: '#e5e7eb' }, title: { display: true, text: yLabel }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, x: { grid: { display: false } } }
+        scales: { y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: yLabel }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, x: { grid: { display: false } } }
     };
 }
 
@@ -484,6 +682,7 @@ function hexToRgba(hex, alpha) {
 // Expose for HTML onclick
 window.loadProductAnalysis = loadProductAnalysis;
 window.loadDrilldown = loadDrilldown;
+window.loadScenario = loadScenario;
 window.exportCSV = exportCSV;
 
 // ===== EVENT BINDINGS =====
@@ -497,8 +696,16 @@ document.getElementById('focusYear').addEventListener('change', function() {
 
 document.getElementById('productBtn').addEventListener('click', loadProductAnalysis);
 document.getElementById('ddBtn').addEventListener('click', loadDrilldown);
+document.getElementById('scenMetric').addEventListener('change', loadScenario);
 
 // ===== STARTUP =====
+if (window.Chart) {
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.08)';
+    if (Chart.defaults.plugins && Chart.defaults.plugins.legend && Chart.defaults.plugins.legend.labels) {
+        Chart.defaults.plugins.legend.labels.color = '#f8fafc';
+    }
+}
 showLoading('kpiGrid');
 showLoading('plTable');
 document.getElementById('insightsContent').innerHTML = '<div class="loading">Analyzing...</div>';
