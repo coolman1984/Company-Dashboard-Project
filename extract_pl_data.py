@@ -8,8 +8,9 @@ import pythoncom
 import win32com.client
 
 def extract_pl_data():
-    file_path = r"D:\WORK\Software Development\GitHub\Company Dashboard\PL 2022~2026.xlsb"
-    output_path = r"D:\WORK\Software Development\GitHub\Company Dashboard\pl_data.json"
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(BASE_DIR, "PL 2022~2026.xlsb")
+    output_path = os.path.join(BASE_DIR, "pl_data.json")
     
     if not os.path.exists(file_path):
         print(f"ERROR: File not found: {file_path}")
@@ -32,8 +33,8 @@ def extract_pl_data():
             sname = workbook.Sheets(i).Name
             print(f"  Sheet {i}: '{sname}'")
         
-        # Use the sheet named "Sheet3"
-        target_sheet = workbook.Sheets(1)  # Sheet3 is the first sheet
+        # Use the first sheet (Sheet3 is Sheets(1) in this workbook)
+        target_sheet = workbook.Sheets(1)
         sheet_name = target_sheet.Name
         print(f"\nUsing sheet: '{sheet_name}'")
         

@@ -16,8 +16,9 @@ import pythoncom
 import win32com.client
 
 # ===== CONFIGURATION =====
-XLSB_PATH = r"D:\WORK\Software Development\GitHub\Company Dashboard\PL 2022~2026.xlsb"
-DB_PATH = r"D:\WORK\Software Development\GitHub\Company Dashboard\pl_detail.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+XLSB_PATH = os.path.join(BASE_DIR, "PL 2022~2026.xlsb")
+DB_PATH = os.path.join(BASE_DIR, "pl_detail.db")
 CHUNK_SIZE = 10000  # Rows per COM read + DB insert
 
 # Column definitions: (column_name, sql_type)
@@ -86,6 +87,12 @@ COLUMNS = [
 def create_database():
     """Create SQLite database with the PL detail table."""
     if os.path.exists(DB_PATH):
+        print(f"WARNING: Database already exists at {DB_PATH}")
+        print(f"Re-running ingestion will DELETE the existing database and rebuild from scratch.")
+        response = input("Continue? Type 'yes' to confirm: ")
+        if response.lower() != 'yes':
+            print("Aborted.")
+            sys.exit(0)
         os.remove(DB_PATH)
         print(f"Removed existing database: {DB_PATH}")
     

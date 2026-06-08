@@ -1,11 +1,13 @@
 """
 Quick exploration of Sheet1 structure - read headers and sample data only.
 """
+import os
 import pythoncom
 import win32com.client
 
 def explore_sheet1():
-    file_path = r"D:\WORK\Software Development\GitHub\Company Dashboard\PL 2022~2026.xlsb"
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(BASE_DIR, "PL 2022~2026.xlsb")
     
     pythoncom.CoInitialize()
     excel = None

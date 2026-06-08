@@ -3,7 +3,7 @@ import sqlite3
 import time
 import os
 
-db = r"D:\WORK\Software Development\GitHub\Company Dashboard\pl_detail.db"
+db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pl_detail.db")
 conn = sqlite3.connect(db)
 cursor = conn.cursor()
 

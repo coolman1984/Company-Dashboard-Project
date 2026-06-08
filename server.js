@@ -14,14 +14,16 @@ const url = require('url');
 
 const PORT = 3001;
 const API_DATA_DIR = path.join(__dirname, 'api_data');
+const PROJECT_ROOT = path.resolve(__dirname);
 
 // Pre-load all JSON data into memory for instant access
 const cache = {};
 
 function loadData() {
     if (!fs.existsSync(API_DATA_DIR)) {
-        console.error('ERROR: api_data/ directory not found. Run: python precompute_data.py');
-        process.exit(1);
+        console.warn('WARN: api_data/ directory not found. Run: python precompute_data.py');
+        console.warn('Server starting with empty cache — some endpoints will return empty data.');
+        return 0;
     }
     
     const files = fs.readdirSync(API_DATA_DIR).filter(f => f.endsWith('.json'));
@@ -42,8 +44,8 @@ function loadData() {
 // Load all data at startup
 const dataCount = loadData();
 if (dataCount === 0) {
-    console.error('No data files found! Run: python precompute_data.py');
-    process.exit(1);
+    console.warn('WARN: No data files loaded! Run: python precompute_data.py');
+    console.warn('Server starting with empty cache.');
 }
 
 const MIME_TYPES = {
@@ -57,9 +59,15 @@ const MIME_TYPES = {
 };
 
 function serveStatic(filePath, res) {
-    const ext = path.extname(filePath);
+    const safePath = path.resolve(filePath);
+    if (!safePath.startsWith(PROJECT_ROOT)) {
+        res.writeHead(403);
+        res.end('Forbidden');
+        return;
+    }
+    const ext = path.extname(safePath);
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-    fs.readFile(filePath, (err, data) => {
+    fs.readFile(safePath, (err, data) => {
         if (err) {
             res.writeHead(404);
             res.end('Not found');
@@ -83,11 +91,17 @@ function errorResponse(res, code, msg) {
 const server = http.createServer((req, res) => {
     const parsed = url.parse(req.url, true);
     const pathname = parsed.pathname;
+    const startTime = Date.now();
     
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    res.on('finish', () => {
+        const ms = Date.now() - startTime;
+        console.log(`${res.statusCode} ${req.method} ${pathname} — ${ms}ms`);
+    });
     
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
@@ -201,12 +215,37 @@ const server = http.createServer((req, res) => {
                     return jsonResponse(res, result);
                 }
                 
-                // Class dimension: compute from summary/yearly data
+                // Class dimension fallback: query directly from yearly-pl grouped by class
                 if (dimension === 'class' && cache['yearly-pl']) {
-                    // Class has only 3 values, return empty for now as class data isn't in views
+                    const classCacheKey = `drilldown_class_fallback_${metric}_${year1}_${year2}`;
+                    if (cache[classCacheKey]) {
+                        return jsonResponse(res, cache[classCacheKey]);
+                    }
+                    // Compute on-the-fly from regional-pl data if available
+                    const fallbackView = cache['regional-pl'] || cache['country-pl'];
+                    if (fallbackView) {
+                        const groups = {};
+                        fallbackView.forEach(function(row) {
+                            if (row.year !== year1 && row.year !== year2) return;
+                            const key = row.class || row.region_desc || 'All';
+                            if (!groups[key]) groups[key] = { dimension: key, val_year1: 0, val_year2: 0 };
+                            if (row.year === year1) groups[key].val_year1 += (row[metric] || 0);
+                            if (row.year === year2) groups[key].val_year2 += (row[metric] || 0);
+                        });
+                        const result = Object.values(groups)
+                            .filter(function(g) { return g.val_year1 !== 0 || g.val_year2 !== 0; })
+                            .map(function(g) {
+                                g.change = g.val_year2 - g.val_year1;
+                                g.pct_change = g.val_year1 !== 0 ? Math.round(g.change / Math.abs(g.val_year1) * 10000) / 100 : null;
+                                return g;
+                            })
+                            .sort(function(a, b) { return Math.abs(b.change) - Math.abs(a.change); })
+                            .slice(0, 30);
+                        return jsonResponse(res, result);
+                    }
                     return jsonResponse(res, []);
                 }
-                
+
                 return errorResponse(res, 404, `No data available for ${dimension}/${metric}/${year1}-${year2}`);
             }
             

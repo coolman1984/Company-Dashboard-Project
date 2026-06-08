@@ -6,67 +6,677 @@
     <title>PL Financial Analysis 2022-2026</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        :root{--primary:#1a56db;--primary-light:#e8edfb;--primary-bg:#f0f4ff;--success:#059669;--success-light:#d1fae5;--danger:#dc2626;--danger-light:#fee2e2;--warning:#d97706;--warning-light:#fef3c7;--gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;--gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;--gray-800:#1f2937;--gray-900:#111827;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);--shadow-md:0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.06)}
-        body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--gray-100);color:var(--gray-800);line-height:1.6}
-        .header{background:linear-gradient(135deg,#1e3a8a 0%,#1a56db 50%,#3b82f6 100%);color:#fff;padding:24px 36px;box-shadow:var(--shadow-md)}
-        .header h1{font-size:24px;font-weight:700;letter-spacing:-.5px}
-        .header p{font-size:13px;opacity:.85;margin-top:4px}
-        .header .badge{display:inline-block;background:rgba(255,255,255,.2);padding:3px 10px;border-radius:16px;font-size:11px;margin-top:6px}
-        .container{max-width:1440px;margin:0 auto;padding:20px}
-        .tabs{display:flex;gap:0;margin-bottom:20px;background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
-        .tab{flex:1;padding:14px 20px;text-align:center;font-weight:600;font-size:14px;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;color:var(--gray-500);user-select:none}
-        .tab:hover{background:var(--gray-50);color:var(--gray-700)}
-        .tab.active{color:var(--primary);border-bottom-color:var(--primary);background:var(--primary-bg)}
-        .panel{display:none}.panel.active{display:block}
-        .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px}
-        .kpi-card{background:#fff;border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow);border-left:4px solid var(--primary);transition:transform .15s}
-        .kpi-card:hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
-        .kpi-card.success{border-left-color:var(--success)}.kpi-card.danger{border-left-color:var(--danger)}.kpi-card.warning{border-left-color:var(--warning)}
-        .kpi-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-500)}
-        .kpi-value{font-size:22px;font-weight:700;color:var(--gray-900);margin:2px 0}
-        .kpi-sub{font-size:12px;color:var(--gray-500)}.kpi-sub.pos{color:var(--success)}.kpi-sub.neg{color:var(--danger)}
-        .chart-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px}
-        .chart-card{background:#fff;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}.chart-card.full{grid-column:1/-1}
-        .chart-title{font-size:15px;font-weight:700;color:var(--gray-800);margin-bottom:2px}
-        .chart-subtitle{font-size:11px;color:var(--gray-500);margin-bottom:12px}
-        .chart-container{position:relative;width:100%;height:300px}.chart-container.tall{height:380px}
-        .table-card{background:#fff;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:20px;overflow-x:auto}
-        .data-table{width:100%;border-collapse:collapse;font-size:12px}
-        .data-table th{background:var(--gray-50);padding:8px 12px;text-align:right;font-weight:700;color:var(--gray-700);border-bottom:2px solid var(--gray-200);white-space:nowrap;position:sticky;top:0}
-        .data-table th:first-child{text-align:left}
-        .data-table td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--gray-100);white-space:nowrap}
-        .data-table td:first-child{text-align:left;font-weight:600;color:var(--gray-700)}
-        .data-table tr.total td{font-weight:700;background:var(--primary-light);border-top:2px solid var(--primary)}
-        .data-table tr.subtotal td{font-weight:600;background:var(--gray-50);border-top:1px solid var(--gray-300)}
-        .data-table tr:hover td{background:var(--gray-50)}.data-table tr.total:hover td{background:var(--primary-light)}
-        .pos{color:var(--success)}.neg{color:var(--danger)}
-        .controls{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;align-items:end}
-        .control-group{display:flex;flex-direction:column;gap:4px}
-        .control-group label{font-size:11px;font-weight:600;text-transform:uppercase;color:var(--gray-500);letter-spacing:.3px}
-        .control-group select,.control-group input{padding:8px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;background:#fff;color:var(--gray-800);min-width:140px}
-        .control-group select:focus,.control-group input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,86,219,.1)}
-        .btn{padding:8px 18px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
-        .btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:#1648b8}
-        .btn-primary:disabled{background:var(--gray-300);cursor:not-allowed}
-        .loading{text-align:center;padding:40px;color:var(--gray-400);font-size:14px}
-        .loading-spinner{display:inline-block;width:24px;height:24px;border:3px solid var(--gray-200);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:middle}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
-        .status-dot.ok{background:var(--success)}.status-dot.err{background:var(--danger)}
-        .var-bar{display:inline-block;height:8px;border-radius:4px;min-width:2px}.var-bar.pos{background:var(--success)}.var-bar.neg{background:var(--danger)}
-        .toast{position:fixed;bottom:20px;right:20px;background:var(--gray-800);color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;z-index:9999;opacity:0;transform:translateY(20px);transition:all .3s}
-        .toast.show{opacity:1;transform:translateY(0)}.toast.error{background:var(--danger)}
-        .footer{text-align:center;padding:16px;color:var(--gray-400);font-size:11px}
-        @media(max-width:900px){.chart-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
-        @media(max-width:600px){.kpi-grid{grid-template-columns:1fr}.controls{flex-direction:column}}
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0f172a;
+            --bg-page: #f1f5f9;
+            --surface: #ffffff;
+            --surface-hover: #f8fafc;
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --primary-light: #eff6ff;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --text: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --radius-sm: 8px;
+            --radius: 12px;
+            --radius-lg: 16px;
+            --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+            --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+            --shadow-md: 0 4px 6px rgba(15, 23, 42, 0.05), 0 2px 4px rgba(15, 23, 42, 0.03);
+            --shadow-lg: 0 10px 25px rgba(15, 23, 42, 0.08), 0 4px 10px rgba(15, 23, 42, 0.04);
+            --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background: var(--bg-page);
+            color: var(--text);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #334155 100%);
+            color: #fff;
+            padding: 28px 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -60%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6);
+            opacity: 0.6;
+        }
+
+        .header h1 {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            font-size: 13px;
+            opacity: 0.75;
+            margin-top: 6px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-top: 10px;
+            position: relative;
+            z-index: 1;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 24px 24px 0;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 4px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px 20px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all var(--transition);
+            color: var(--text-secondary);
+            user-select: none;
+            position: relative;
+        }
+
+        .tab:hover {
+            color: var(--text);
+            background: var(--border-light);
+        }
+
+        .tab.active {
+            color: #fff;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+        }
+
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+            animation: fadeSlideIn 0.3s ease;
+        }
+
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--primary);
+            transition: all var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%);
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .kpi-card.success {
+            border-left-color: var(--success);
+        }
+
+        .kpi-card.success::after {
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
+        }
+
+        .kpi-card.danger {
+            border-left-color: var(--danger);
+        }
+
+        .kpi-card.danger::after {
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.06) 0%, transparent 70%);
+        }
+
+        .kpi-card.warning {
+            border-left-color: var(--warning);
+        }
+
+        .kpi-card.warning::after {
+            background: radial-gradient(circle, rgba(245, 158, 11, 0.06) 0%, transparent 70%);
+        }
+
+        .kpi-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .kpi-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--text);
+            position: relative;
+            z-index: 1;
+            line-height: 1.2;
+        }
+
+        .kpi-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .kpi-sub.pos {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .kpi-sub.neg {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .chart-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            transition: box-shadow var(--transition);
+            border: 1px solid var(--border);
+        }
+
+        .chart-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .chart-card.full {
+            grid-column: 1 / -1;
+        }
+
+        .chart-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+            letter-spacing: -0.3px;
+        }
+
+        .chart-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+        }
+
+        .chart-container.tall {
+            height: 400px;
+        }
+
+        .table-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 12px;
+        }
+
+        .data-table thead th {
+            background: #f8fafc;
+            padding: 10px 14px;
+            text-align: right;
+            font-weight: 700;
+            font-size: 11px;
+            color: var(--text-secondary);
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+
+        .data-table thead th:first-child {
+            text-align: left;
+            border-radius: var(--radius-sm) 0 0 0;
+        }
+
+        .data-table thead th:last-child {
+            border-radius: 0 var(--radius-sm) 0 0;
+        }
+
+        .data-table tbody td {
+            padding: 10px 14px;
+            text-align: right;
+            border-bottom: 1px solid var(--border-light);
+            white-space: nowrap;
+            color: var(--text);
+        }
+
+        .data-table tbody td:first-child {
+            text-align: left;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .data-table tbody tr:nth-child(even) td {
+            background: #f8fafc;
+        }
+
+        .data-table tbody tr:hover td {
+            background: #eff6ff;
+        }
+
+        .data-table tr.total td {
+            font-weight: 700;
+            background: #eff6ff;
+            border-top: 2px solid var(--primary);
+            color: var(--primary-dark);
+        }
+
+        .data-table tr.subtotal td {
+            font-weight: 600;
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+        }
+
+        .data-table tr.total:hover td {
+            background: #dbeafe;
+        }
+
+        .pos {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .neg {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            align-items: end;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .control-group label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.4px;
+        }
+
+        .control-group select,
+        .control-group input {
+            padding: 9px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--surface);
+            color: var(--text);
+            min-width: 150px;
+            transition: all var(--transition);
+            font-family: inherit;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 10px center;
+            background-repeat: no-repeat;
+            background-size: 18px;
+            padding-right: 36px;
+        }
+
+        .control-group select:focus,
+        .control-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+        }
+
+        .btn {
+            padding: 9px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: inherit;
+            letter-spacing: 0.2px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            background: #cbd5e1;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 48px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.15);
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            vertical-align: middle;
+            position: relative;
+        }
+
+        .status-dot::after {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            opacity: 0.3;
+            animation: pulse-ring 2s ease-out infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(1);
+                opacity: 0.3;
+            }
+            100% {
+                transform: scale(2.2);
+                opacity: 0;
+            }
+        }
+
+        .status-dot.ok {
+            background: var(--success);
+            color: var(--success);
+        }
+
+        .status-dot.err {
+            background: var(--danger);
+            color: var(--danger);
+        }
+
+        .var-bar {
+            display: inline-block;
+            height: 8px;
+            border-radius: 4px;
+            min-width: 2px;
+        }
+
+        .var-bar.pos {
+            background: linear-gradient(90deg, #10b981, #34d399);
+        }
+
+        .var-bar.neg {
+            background: linear-gradient(90deg, #ef4444, #f87171);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            background: #1e293b;
+            color: #fff;
+            padding: 14px 22px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 9999;
+            opacity: 0;
+            transform: translateY(16px) scale(0.96);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.4);
+            border-left: 3px solid var(--primary);
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        .toast.error {
+            border-left-color: var(--danger);
+        }
+
+        .toast.success {
+            border-left-color: var(--success);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+            margin-top: 8px;
+        }
+
+        @media (max-width: 960px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .header {
+                padding: 22px 24px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .tabs {
+                flex-direction: column;
+                gap: 2px;
+            }
+
+            .tab {
+                border-radius: 6px;
+            }
+
+            .container {
+                padding: 16px 12px 0;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .kpi-value {
+                font-size: 22px;
+            }
+
+            .chart-card,
+            .table-card {
+                padding: 16px;
+            }
+
+            .toast {
+                left: 16px;
+                right: 16px;
+                bottom: 16px;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>
 <div class="header">
-    <h1>Profit & Loss Analysis</h1>
+    <h1>Profit &amp; Loss Analysis</h1>
     <p>Year-over-Year Financial Performance &middot; FY 2022-2026 &middot; 790K Detail Records</p>
-    <span class="badge"><span class="status-dot ok" id="statusDot"></span>Pre-computed Backend &middot; Instant Responses</span>
+    <span class="badge"><span class="status-dot ok" id="statusDot"></span><span id="statusLabel">Pre-computed Backend &middot; Instant Responses</span></span>
 </div>
 <div class="container">
     <div class="tabs">
@@ -78,15 +688,15 @@
     <div class="panel active" id="panel-overview">
         <div class="kpi-grid" id="kpiGrid"></div>
         <div class="chart-grid">
-            <div class="chart-card"><div class="chart-title">Revenue & Cost Trend</div><div class="chart-subtitle">Net Sales vs COGS vs Gross Margin</div><div class="chart-container"><canvas id="revenueCostChart"></canvas></div></div>
+            <div class="chart-card"><div class="chart-title">Revenue &amp; Cost Trend</div><div class="chart-subtitle">Net Sales vs COGS vs Gross Margin</div><div class="chart-container"><canvas id="revenueCostChart"></canvas></div></div>
             <div class="chart-card"><div class="chart-title">Margin Analysis</div><div class="chart-subtitle">Gross Margin %, Operating Margin %, Net Income %</div><div class="chart-container"><canvas id="marginChart"></canvas></div></div>
         </div>
         <div class="chart-grid">
             <div class="chart-card"><div class="chart-title">Net Income by Year</div><div class="chart-subtitle">Green = positive, Red = negative</div><div class="chart-container"><canvas id="netIncomeChart"></canvas></div></div>
-            <div class="chart-card"><div class="chart-title">Cost Structure % of Sales</div><div class="chart-subtitle">COGS, OpEx & Overhead as % of Net Sales</div><div class="chart-container"><canvas id="costStructChart"></canvas></div></div>
+            <div class="chart-card"><div class="chart-title">Cost Structure % of Sales</div><div class="chart-subtitle">COGS, OpEx &amp; Overhead as % of Net Sales</div><div class="chart-container"><canvas id="costStructChart"></canvas></div></div>
         </div>
         <div class="table-card">
-            <div class="chart-title">Detailed P&L with YoY Variance</div>
+            <div class="chart-title">Detailed P&amp;L with YoY Variance</div>
             <div class="chart-subtitle">All figures absolute; variance columns show YoY % change</div>
             <div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="plTable"></table></div>
         </div>
@@ -96,20 +706,20 @@
             <div class="control-group"><label>Metric</label><select id="regMetric"><option value="net_sales">Net Sales</option><option value="cost_of_goods_sold">COGS</option><option value="gross_margin">Gross Margin</option><option value="operating_profit">Operating Profit</option><option value="net_income">Net Income</option></select></div>
         </div>
         <div class="chart-grid"><div class="chart-card full"><div class="chart-title">Regional Comparison by Year</div><div class="chart-subtitle">Selected metric across all regions and years</div><div class="chart-container tall"><canvas id="regionalChart"></canvas></div></div></div>
-        <div class="table-card"><div class="chart-title">Regional P&L Detail</div><div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="regionalTable"></table></div></div>
+        <div class="table-card"><div class="chart-title">Regional P&amp;L Detail</div><div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="regionalTable"></table></div></div>
     </div>
     <div class="panel" id="panel-product">
         <div class="controls">
             <div class="control-group"><label>Year</label><select id="prodYear"><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option></select></div>
             <div class="control-group"><label>Compare With</label><select id="prodYear2"><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025" selected>2025</option><option value="2026">2026</option></select></div>
             <div class="control-group"><label>Metric</label><select id="prodMetric"><option value="net_sales">Net Sales</option><option value="gross_margin">Gross Margin</option><option value="operating_profit">Operating Profit</option><option value="net_income">Net Income</option></select></div>
-            <div class="control-group"><label>&nbsp;</label><button class="btn btn-primary" onclick="loadProductAnalysis()">Analyze</button></div>
+            <div class="control-group"><label>&nbsp;</label><button class="btn btn-primary" id="prodBtn">Analyze</button></div>
         </div>
         <div class="chart-grid">
             <div class="chart-card"><div class="chart-title">Top Product Groups by Net Sales</div><div class="chart-subtitle">Top 15 product groups</div><div class="chart-container tall"><canvas id="productChart"></canvas></div></div>
             <div class="chart-card"><div class="chart-title">Product Group Margin %</div><div class="chart-subtitle">Gross Margin % by product group</div><div class="chart-container tall"><canvas id="productMarginChart"></canvas></div></div>
         </div>
-        <div class="table-card"><div class="chart-title">Product Group P&L Detail</div><div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="productTable"></table></div></div>
+        <div class="table-card"><div class="chart-title">Product Group P&amp;L Detail</div><div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="productTable"></table></div></div>
     </div>
     <div class="panel" id="panel-drilldown">
         <div class="controls">
@@ -117,7 +727,7 @@
             <div class="control-group"><label>Year 2 (To)</label><select id="ddYear2"><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025" selected>2025</option><option value="2026">2026</option></select></div>
             <div class="control-group"><label>Dimension</label><select id="ddDim"><option value="region_desc">Region</option><option value="country_name">Country</option><option value="m_group_desc">Product Group</option><option value="customer_name">Customer</option><option value="class">Class</option></select></div>
             <div class="control-group"><label>Metric</label><select id="ddMetric"><option value="net_sales">Net Sales</option><option value="cost_of_goods_sold">COGS</option><option value="gross_margin">Gross Margin</option><option value="operating_expense">Operating Expense</option><option value="operating_profit">Operating Profit</option><option value="net_income">Net Income</option></select></div>
-            <div class="control-group"><label>&nbsp;</label><button class="btn btn-primary" id="ddBtn" onclick="loadDrilldown()">Drill Down</button></div>
+            <div class="control-group"><label>&nbsp;</label><button class="btn btn-primary" id="ddBtn">Drill Down</button></div>
         </div>
         <div class="chart-grid"><div class="chart-card full"><div class="chart-title">Variance Waterfall - Biggest Contributors</div><div class="chart-subtitle">Top items driving the change</div><div class="chart-container tall"><canvas id="drilldownChart"></canvas></div></div></div>
         <div class="table-card"><div class="chart-title">Variance Detail Table</div><div class="chart-subtitle">Sorted by absolute change amount</div><div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="drilldownTable"></table></div></div>

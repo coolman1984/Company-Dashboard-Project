@@ -7,8 +7,8 @@ import json
 import os
 import time
 
-DB_PATH = r"D:\WORK\Software Development\GitHub\Company Dashboard\pl_detail.db"
-OUT_DIR = r"D:\WORK\Software Development\GitHub\Company Dashboard\api_data"
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pl_detail.db")
+OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "api_data")
 
 os.makedirs(OUT_DIR, exist_ok=True)
 
