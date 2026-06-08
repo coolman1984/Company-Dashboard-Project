@@ -1,0 +1,22 @@
+{
+  "name": "company-dashboard",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "check": "node --check server.js && node --check app.js",
+    "test": "npm run check && node smoke_test.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "financial-dashboard",
+    "sqlite",
+    "chartjs"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "better-sqlite3": "^12.10.0"
+  }
+}

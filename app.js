@@ -11,6 +11,7 @@ var yearColors = ['#4361ee', '#06d6a0', '#ffd166', '#7209b7', '#ef476f'];
 
 var tabLoaded = { overview: false, regional: false, product: false, drilldown: false, scenario: false };
 var regionalDataCache = null, mgroupDataCache = null, yearlyDataCache = null, scenarioDataCache = null;
+var dataFreshnessCache = null;
 var focusYear = 2026;
 var charts = {};
 
@@ -89,24 +90,61 @@ function setStatus(ok, msg) {
     if (label) label.textContent = msg;
 }
 
+function getActualYearMeta(year) {
+    return dataFreshnessCache && dataFreshnessCache.years && dataFreshnessCache.years[year]
+        ? dataFreshnessCache.years[year].Actual
+        : null;
+}
+
+function yearLabel(year) {
+    var meta = getActualYearMeta(year);
+    if (meta && !meta.isFullYear) {
+        return year + ' YTD P' + String(meta.maxPeriodNumber || meta.periodCount).padStart(2, '0');
+    }
+    return String(year);
+}
+
+function renderFreshnessNote() {
+    var el = document.getElementById('dataFreshnessNote');
+    if (!el) return;
+    var meta = getActualYearMeta(2026);
+    if (meta && !meta.isFullYear) {
+        el.innerHTML = '<strong>Data coverage:</strong> FY2026 Actual includes P01-P' +
+            String(meta.maxPeriodNumber || meta.periodCount).padStart(2, '0') +
+            '. These values are year-to-date, not a full-year YoY comparison. The scenario view completes the outlook with T06 P06 and T07 P07-P12.';
+    } else {
+        el.innerHTML = '<strong>Data coverage:</strong> All displayed Actual years contain 12 periods.';
+    }
+}
+
 // ===== TABS =====
 document.querySelectorAll('.tab').forEach(function(t) {
     t.addEventListener('click', function() {
-        document.querySelectorAll('.tab').forEach(function(x) { x.classList.remove('active'); });
-        document.querySelectorAll('.panel').forEach(function(x) { x.classList.remove('active'); });
+        document.querySelectorAll('.tab').forEach(function(x) {
+            x.classList.remove('active');
+            x.setAttribute('aria-selected', 'false');
+        });
+        document.querySelectorAll('.panel').forEach(function(x) {
+            x.classList.remove('active');
+            x.hidden = true;
+        });
         t.classList.add('active');
+        t.setAttribute('aria-selected', 'true');
         var tabName = t.dataset.tab;
-        document.getElementById('panel-' + tabName).classList.add('active');
+        var panel = document.getElementById('panel-' + tabName);
+        panel.hidden = false;
+        panel.classList.add('active');
         if (!tabLoaded[tabName]) {
             if (tabName === 'overview') loadOverview();
             else if (tabName === 'regional') loadRegional();
             else if (tabName === 'product') loadProductAnalysis();
             else if (tabName === 'drilldown') loadDrilldown();
             else if (tabName === 'scenario') loadScenario();
-            tabLoaded[tabName] = true;
         }
     });
 });
+
+document.querySelectorAll('.panel:not(.active)').forEach(function(panel) { panel.hidden = true; });
 
 // ===== OVERVIEW =====
 function loadOverview() {
@@ -114,14 +152,21 @@ function loadOverview() {
     showLoading('plTable');
     document.getElementById('insightsContent').innerHTML = '<div class="loading">Analyzing...</div>';
 
-    safeFetch(API + '/api/yearly-pl').then(function(data) {
+    Promise.all([
+        safeFetch(API + '/api/yearly-pl'),
+        safeFetch(API + '/api/data-freshness').catch(function() { return null; })
+    ]).then(function(results) {
+        var data = results[0];
+        dataFreshnessCache = results[1];
         if (!data || !data.length) throw new Error('No yearly data');
         yearlyDataCache = data;
+        renderFreshnessNote();
         renderKPIs(data, focusYear);
         renderCharts(data);
         renderPLTable(data);
-        renderInsights(data);
+        renderInsights(data, focusYear);
         setStatus(true, 'Data loaded');
+        tabLoaded.overview = true;
     }).catch(function(e) {
         showToast('Failed: ' + e.message, true);
         setStatus(false, 'Load failed');
@@ -150,17 +195,27 @@ function renderKPIs(data, fy) {
 
     var salesChg = pctChg(nsPi, nsLi);
     var gmChg = pctChg(gmPi, gmLi);
-    var cagr = ns0 > 0 ? (Math.pow(nsLi / ns0, 1 / li) - 1) * 100 : 0;
+    var fullYearIndex = li;
+    while (fullYearIndex > 0 && getActualYearMeta(d[fullYearIndex].year) && !getActualYearMeta(d[fullYearIndex].year).isFullYear) {
+        fullYearIndex--;
+    }
+    var cagrEnd = d[fullYearIndex];
+    var cagrYears = Math.max(1, fullYearIndex);
+    var cagr = ns0 > 0 ? (Math.pow(cagrEnd.net_sales / ns0, 1 / cagrYears) - 1) * 100 : 0;
+    var selectedMeta = getActualYearMeta(fy);
+    var comparisonText = selectedMeta && !selectedMeta.isFullYear
+        ? ' vs FY ' + d[pi].year + ' (full year)'
+        : ' vs ' + d[pi].year;
 
     function arrow(v) { return v > 0 ? '▲' : v < 0 ? '▼' : ''; }
 
     var kpis = [
-        { label: 'Net Sales ' + fy, value: fmtM(nsLi), sub: (salesChg !== null ? arrow(salesChg) + ' ' + Math.abs(salesChg * 100).toFixed(1) + '% vs ' + d[pi].year : 'N/A'), pos: salesChg !== null && salesChg > 0, cls: '' },
-        { label: 'Gross Margin ' + fy, value: fmtM(gmLi), sub: (gmChg !== null ? arrow(gmChg) + ' ' + Math.abs(gmChg * 100).toFixed(1) + '% vs ' + d[pi].year : 'N/A'), pos: gmChg !== null && gmChg > 0, cls: gmLi >= 0 ? 'success' : 'danger' },
-        { label: 'Operating Profit ' + fy, value: fmtM(opLi), sub: opLi >= 0 ? 'Profitable' : 'Operating Loss', pos: opLi >= 0, cls: opLi >= 0 ? 'success' : 'danger' },
-        { label: 'Net Income ' + fy, value: fmtM(niLi), sub: niLi >= 0 ? 'Net Profit' : 'Net Loss', pos: niLi >= 0, cls: niLi >= 0 ? 'success' : 'danger' },
-        { label: 'Rev. CAGR (' + d[0].year + '-' + fy + ')', value: cagr.toFixed(1) + '%', sub: 'Compound annual growth', pos: cagr > 0, cls: 'info' },
-        { label: 'Gross Margin % ' + fy, value: fmtPct(gmLi / nsLi), sub: 'vs ' + fmtPct(gmPi / nsPi) + ' in ' + d[pi].year, pos: gmLi / nsLi > gmPi / nsPi, cls: 'info' },
+        { label: 'Net Sales ' + yearLabel(fy), value: fmtM(nsLi), sub: (salesChg !== null ? arrow(salesChg) + ' ' + Math.abs(salesChg * 100).toFixed(1) + '%' + comparisonText : 'N/A'), pos: salesChg !== null && salesChg > 0, cls: '' },
+        { label: 'Gross Margin ' + yearLabel(fy), value: fmtM(gmLi), sub: (gmChg !== null ? arrow(gmChg) + ' ' + Math.abs(gmChg * 100).toFixed(1) + '%' + comparisonText : 'N/A'), pos: gmChg !== null && gmChg > 0, cls: gmLi >= 0 ? 'success' : 'danger' },
+        { label: 'Operating Profit ' + yearLabel(fy), value: fmtM(opLi), sub: opLi >= 0 ? 'Positive operating result' : 'Operating loss', pos: opLi >= 0, cls: opLi >= 0 ? 'success' : 'danger' },
+        { label: 'Net Income ' + yearLabel(fy), value: fmtM(niLi), sub: niLi >= 0 ? 'Positive net result' : 'Net loss', pos: niLi >= 0, cls: niLi >= 0 ? 'success' : 'danger' },
+        { label: 'Revenue CAGR (' + d[0].year + '-' + cagrEnd.year + ')', value: cagr.toFixed(1) + '%', sub: 'Full fiscal years only', pos: cagr > 0, cls: 'info' },
+        { label: 'Gross Margin % ' + yearLabel(fy), value: fmtPct(gmLi / nsLi), sub: 'vs ' + fmtPct(gmPi / nsPi) + ' in ' + d[pi].year, pos: gmLi / nsLi > gmPi / nsPi, cls: 'info' },
     ];
 
     document.getElementById('kpiGrid').innerHTML = kpis.map(function(k) {
@@ -177,7 +232,7 @@ function renderCharts(data) {
     var cogs = data.map(function(r) { return r.cogs / 1e6; });
     var gm = data.map(function(r) { return r.gross_margin / 1e6; });
     var ni = data.map(function(r) { return r.net_income / 1e6; });
-    var years = data.map(function(r) { return r.year; });
+    var years = data.map(function(r) { return yearLabel(r.year); });
 
     destroyChart('revenueCostChart');
     destroyChart('marginChart');
@@ -203,7 +258,7 @@ function renderCharts(data) {
         ]},
         options: { responsive: true, maintainAspectRatio: false,
             plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } }, tooltip: { callbacks: { label: function(c) { return c.dataset.label + ': ' + c.parsed.y.toFixed(1) + '%'; } } } },
-            scales: { y: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: 'Margin %' }, ticks: { callback: function(v) { return v + '%'; } } }, x: { grid: { display: false } } }
+            scales: { y: { grid: { color: '#e5e7eb' }, title: { display: true, text: 'Margin %' }, ticks: { callback: function(v) { return v + '%'; } } }, x: { grid: { display: false } } }
         }
     });
 
@@ -212,7 +267,7 @@ function renderCharts(data) {
         data: { labels: years, datasets: [{ label: 'Net Income', data: ni, backgroundColor: ni.map(function(v){ return v>=0 ? C.green : C.red; }), borderRadius: 8, barPercentage: 0.6 }] },
         options: { responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c){ return '$' + c.parsed.y.toFixed(1) + 'M'; } } } },
-            scales: { y: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: '$ Millions' }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, x: { grid: { display: false } } }
+            scales: { y: { grid: { color: '#e5e7eb' }, title: { display: true, text: '$ Millions' }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, x: { grid: { display: false } } }
         }
     });
 
@@ -225,7 +280,7 @@ function renderCharts(data) {
         ]},
         options: { responsive: true, maintainAspectRatio: false,
             plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } }, tooltip: { callbacks: { label: function(c){ return c.dataset.label + ': ' + c.parsed.y.toFixed(1) + '%'; } } } },
-            scales: { y: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, stacked: true, title: { display: true, text: '% of Net Sales' }, ticks: { callback: function(v){ return v + '%'; } } }, x: { stacked: true, grid: { display: false } } }
+            scales: { y: { grid: { color: '#e5e7eb' }, stacked: true, title: { display: true, text: '% of Net Sales' }, ticks: { callback: function(v){ return v + '%'; } } }, x: { stacked: true, grid: { display: false } } }
         }
     });
 }
@@ -233,8 +288,8 @@ function renderCharts(data) {
 function renderPLTable(data) {
     var tb = document.getElementById('plTable');
     var h = '<thead><tr><th>Line Item</th>';
-    data.forEach(function(r) { h += '<th>FY ' + r.year + '</th>'; });
-    for (var i = 1; i < data.length; i++) h += '<th>' + data[i-1].year + '→' + data[i].year + '</th>';
+    data.forEach(function(r) { h += '<th>' + yearLabel(r.year) + '</th>'; });
+    for (var i = 1; i < data.length; i++) h += '<th>' + data[i-1].year + ' to ' + yearLabel(data[i].year) + '</th>';
     h += '</tr></thead><tbody>';
 
     var keys = [
@@ -270,9 +325,10 @@ function renderPLTable(data) {
 }
 
 // ===== QUICK INSIGHTS =====
-function renderInsights(data) {
+function renderInsights(data, fy) {
     var d = data;
-    var last = d[d.length-1], prev = d[d.length-2];
+    var li = yearIndex(d, fy);
+    var last = d[li], prev = d[Math.max(0, li - 1)];
     var el = document.getElementById('insightsContent');
     var lines = [];
 
@@ -283,7 +339,7 @@ function renderInsights(data) {
     var niChg = pctChg(prev.net_income, last.net_income);
 
     if (nsChg !== null) {
-        lines.push('<div class="insight-item ' + (nsChg > 0 ? 'good' : 'bad') + '"><span class="insight-dot"></span><strong>Net Sales</strong> ' + (nsChg > 0 ? 'grew' : 'declined') + ' <b>' + Math.abs(nsChg * 100).toFixed(1) + '%</b> in ' + last.year + ' vs ' + prev.year + '</div>');
+        lines.push('<div class="insight-item ' + (nsChg > 0 ? 'good' : 'bad') + '"><span class="insight-dot"></span><strong>Net Sales</strong> ' + (nsChg > 0 ? 'grew' : 'declined') + ' <b>' + Math.abs(nsChg * 100).toFixed(1) + '%</b> in ' + yearLabel(last.year) + ' vs FY ' + prev.year + '</div>');
     }
     if (cogsChg !== null && nsChg !== null) {
         var worse = cogsChg > nsChg;
@@ -299,7 +355,9 @@ function renderInsights(data) {
         var niPct = last.net_sales ? last.net_income / last.net_sales * 100 : 0;
         lines.push('<div class="insight-item ' + (niChg > 0 ? 'good' : 'bad') + '"><span class="insight-dot"></span><strong>Net Income</strong> ' + (niChg > 0 ? 'grew' : 'declined') + ' <b>' + Math.abs(niChg * 100).toFixed(1) + '%</b> — net margin is <b>' + niPct.toFixed(1) + '%</b></div>');
     }
-    lines.push('<div class="insight-item neutral"><span class="insight-dot"></span>CAGR (' + d[0].year + '-' + last.year + '): <b>' + (d[0].net_sales > 0 ? ((Math.pow(last.net_sales / d[0].net_sales, 1/(d.length-1)) - 1) * 100).toFixed(1) : 'N/A') + '%</b></div>');
+    if (getActualYearMeta(last.year) && !getActualYearMeta(last.year).isFullYear) {
+        lines.unshift('<div class="insight-item neutral"><span class="insight-dot"></span><strong>Comparison note:</strong> ' + yearLabel(last.year) + ' is compared with full-year ' + prev.year + '; use it as directional, not like-for-like YoY.</div>');
+    }
 
     el.innerHTML = lines.join('');
 }
@@ -315,7 +373,7 @@ function loadRegional() {
         var years = [2022,2023,2024,2025,2026];
 
         var datasets = years.map(function(y, i) {
-            return { label: String(y), data: regions.map(function(r) {
+            return { label: yearLabel(y), data: regions.map(function(r) {
                 var row = data.find(function(d) { return d.year === y && d.region_desc === r; });
                 return row ? (row[metric] || 0) / 1e6 : 0;
             }), backgroundColor: yearColors[i], borderRadius: 6, barPercentage: 0.8 };
@@ -326,13 +384,13 @@ function loadRegional() {
             type: 'bar', data: { labels: regions, datasets: datasets },
             options: { responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 12 } }, tooltip: { callbacks: { label: function(c) { return c.dataset.label + ': $' + c.parsed.y.toFixed(1) + 'M'; } } } },
-                scales: { y: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: '$ Millions' }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, x: { grid: { display: false } } }
+                scales: { y: { grid: { color: '#e5e7eb' }, title: { display: true, text: '$ Millions' }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, x: { grid: { display: false } } }
             }
         });
 
         var tb = document.getElementById('regionalTable');
         var th = '<thead><tr><th>Region</th>';
-        years.forEach(function(y) { th += '<th>FY ' + y + '</th>'; });
+        years.forEach(function(y) { th += '<th>' + yearLabel(y) + '</th>'; });
         th += '</tr></thead><tbody>';
         regions.forEach(function(r) {
             th += '<tr><td><strong>' + r + '</strong></td>';
@@ -345,6 +403,7 @@ function loadRegional() {
         });
         th += '</tbody>';
         tb.innerHTML = th;
+        tabLoaded.regional = true;
     }).catch(function(e) { showToast('Regional load failed: ' + e.message, true); });
 }
 
@@ -355,6 +414,10 @@ function loadProductAnalysis() {
     var y1 = parseInt(document.getElementById('prodYear').value);
     var y2 = parseInt(document.getElementById('prodYear2').value);
     var metric = document.getElementById('prodMetric').value;
+    if (y1 === y2) {
+        showToast('Choose two different years for product comparison', true);
+        return;
+    }
     var promise = mgroupDataCache ? Promise.resolve(mgroupDataCache) : safeFetch(API + '/api/mgroup-pl').then(function(d) { mgroupDataCache = d; return d; });
 
     promise.then(function(data) {
@@ -367,12 +430,12 @@ function loadProductAnalysis() {
 
         charts.product = new Chart(document.getElementById('productChart'), {
             type: 'bar', data: { labels: labels, datasets: [
-                { label: String(y1), data: y1Data.map(function(d){ return (d[metric]||0)/1e6; }), backgroundColor: C.blue, borderRadius: 3 },
-                { label: String(y2), data: y2Vals, backgroundColor: C.orange, borderRadius: 3 }
+                { label: yearLabel(y1), data: y1Data.map(function(d){ return (d[metric]||0)/1e6; }), backgroundColor: C.blue, borderRadius: 3 },
+                { label: yearLabel(y2), data: y2Vals, backgroundColor: C.orange, borderRadius: 3 }
             ]},
             options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { position: 'top', labels: { usePointStyle: true } }, tooltip: { callbacks: { label: function(c){ return c.dataset.label + ': $' + c.parsed.x.toFixed(1) + 'M'; } } } },
-                scales: { x: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: '$ Millions' }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, y: { grid: { display: false } } }
+                scales: { x: { grid: { color: '#e5e7eb' }, title: { display: true, text: '$ Millions' }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, y: { grid: { display: false } } }
             }
         });
 
@@ -381,12 +444,12 @@ function loadProductAnalysis() {
             type: 'bar', data: { labels: labels, datasets: [{ label: 'GM% '+y1, data: marginData, backgroundColor: marginData.map(function(v){ return v>=0?C.green:C.red; }), borderRadius: 3 }] },
             options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c){ return c.parsed.x.toFixed(1)+'%'; } } } },
-                scales: { x: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: 'Gross Margin %' }, ticks: { callback: function(v){ return v+'%'; } } }, y: { grid: { display: false } } }
+                scales: { x: { grid: { color: '#e5e7eb' }, title: { display: true, text: 'Gross Margin %' }, ticks: { callback: function(v){ return v+'%'; } } }, y: { grid: { display: false } } }
             }
         });
 
         var tb = document.getElementById('productTable');
-        var th = '<thead><tr><th>Product Group</th><th>FY '+y1+'</th><th>FY '+y2+'</th><th>Change</th><th>%</th><th>GM% '+y1+'</th></tr></thead><tbody>';
+        var th = '<thead><tr><th>Product Group</th><th>'+yearLabel(y1)+'</th><th>'+yearLabel(y2)+'</th><th>Change</th><th>%</th><th>GM% '+yearLabel(y1)+'</th></tr></thead><tbody>';
         y1Data.forEach(function(d){
             var r2 = y2Data.find(function(x){ return x.m_group_desc===d.m_group_desc; });
             var v2 = r2 ? r2[metric] : 0, chg = (d[metric]||0)-v2, chgPct = v2!==0 ? chg/Math.abs(v2)*100 : null;
@@ -397,6 +460,7 @@ function loadProductAnalysis() {
             th += '<td>'+(d.net_sales?fmtPct(d.gross_margin/d.net_sales):'--')+'</td></tr>';
         });
         th += '</tbody>'; tb.innerHTML = th;
+        tabLoaded.product = true;
     }).catch(function(e){ showToast('Product load failed: '+e.message, true); });
 }
 
@@ -421,7 +485,7 @@ function loadDrilldown() {
             type: 'bar', data: { labels: top.map(function(d){ return d.dimension||'N/A'; }), datasets: [{ label: 'Change '+y1+'→'+y2, data: top.map(function(d){ return d.change/1e6; }), backgroundColor: top.map(function(d){ return isGood(metric, d.change)?C.green:C.red; }), borderRadius: 4 }] },
             options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c){ return (c.parsed.x>=0?'+':'')+'$'+c.parsed.x.toFixed(1)+'M'; } } } },
-                scales: { x: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: 'Change ($M)' }, ticks: { callback: function(v){ return '$'+v+'M'; } } }, y: { grid: { display: false } } }
+                scales: { x: { grid: { color: '#e5e7eb' }, title: { display: true, text: 'Change ($M)' }, ticks: { callback: function(v){ return '$'+v+'M'; } } }, y: { grid: { display: false } } }
             }
         });
 
@@ -437,6 +501,7 @@ function loadDrilldown() {
         });
         th += '</tbody>'; tb.innerHTML = th;
         showToast(data.length+' items loaded');
+        tabLoaded.drilldown = true;
     }).catch(function(e){ showToast('Failed: '+e.message, true); }).then(function(){ btn.disabled=false; btn.textContent='Drill Down'; });
 }
 
@@ -466,17 +531,16 @@ function loadScenario() {
 }
 
 function renderScenarioDashboard(data, metric, metricLabels) {
-    // 1. Render actual vs forecast trend chart
-    var years = data.map(function(r) { return r.year; });
+    var years = data.map(function(r) { return yearLabel(r.year); });
     var actuals = data.map(function(r) { return r['actual_' + metric] / 1e6; });
-    
-    // Forecasts only exist for 2026 (index 4)
-    var t06 = data.map(function(r) { 
-        return r.year === 2026 ? r['t06_' + metric] / 1e6 : null; 
-    });
-    var t07 = data.map(function(r) { 
-        return r.year === 2026 ? r['t07_' + metric] / 1e6 : null; 
-    });
+    var data2026 = data.filter(function(r) { return r.year === 2026; })[0];
+    if (!data2026) {
+        showToast('No 2026 scenario data found', true);
+        return;
+    }
+    var actVal = data2026['actual_' + metric] || 0;
+    var t06Val = data2026['t06_' + metric] || 0;
+    var t07Val = data2026['t07_' + metric] || 0;
 
     destroyChart('scenarioChart');
     charts.scenario = new Chart(document.getElementById('scenarioChart'), {
@@ -485,22 +549,22 @@ function renderScenarioDashboard(data, metric, metricLabels) {
             labels: years,
             datasets: [
                 {
-                    label: 'Actual',
+                    label: 'Actual history / YTD',
                     data: actuals,
                     backgroundColor: C.blue,
                     borderRadius: 4,
                     barPercentage: 0.6
                 },
                 {
-                    label: 'T06 Forecast',
-                    data: t06,
+                    label: 'T06 P06',
+                    data: data.map(function(r) { return r.year === 2026 ? t06Val / 1e6 : null; }),
                     backgroundColor: C.orange,
                     borderRadius: 4,
                     barPercentage: 0.6
                 },
                 {
-                    label: 'T07 Forecast',
-                    data: t07,
+                    label: 'T07 P07-P12',
+                    data: data.map(function(r) { return r.year === 2026 ? t07Val / 1e6 : null; }),
                     backgroundColor: C.purple,
                     borderRadius: 4,
                     barPercentage: 0.6
@@ -510,48 +574,18 @@ function renderScenarioDashboard(data, metric, metricLabels) {
         options: makeBarOptions('$ Millions')
     });
 
-    // 2. Render attainment chart
-    // Get 2026 data
-    var data2026 = data.filter(function(r) { return r.year === 2026; })[0];
-    if (!data2026) {
-        showToast('No 2026 scenario data found', true);
-        return;
-    }
-    var actVal = data2026['actual_' + metric];
-    var t06Val = data2026['t06_' + metric];
-    var t07Val = data2026['t07_' + metric];
-
-    var pctT06 = (t06Val && t06Val !== 0) ? (actVal / t06Val) * 100 : null;
-    var pctT07 = (t07Val && t07Val !== 0) ? (actVal / t07Val) * 100 : null;
-
-    var dir = metricDirection[metric] || 1;
-    var colorT06 = C.gray, colorT07 = C.gray;
-    
-    if (pctT06 !== null) {
-        if (dir === 1) {
-            colorT06 = (pctT06 >= 100) ? C.green : (pctT06 >= 85 ? C.orange : C.red);
-        } else {
-            colorT06 = (pctT06 <= 100) ? C.green : C.red;
-        }
-    }
-    if (pctT07 !== null) {
-        if (dir === 1) {
-            colorT07 = (pctT07 >= 100) ? C.green : (pctT07 >= 85 ? C.orange : C.red);
-        } else {
-            colorT07 = (pctT07 <= 100) ? C.green : C.red;
-        }
-    }
-
+    var combined = actVal + t06Val + t07Val;
     destroyChart('attainmentChart');
     charts.attainment = new Chart(document.getElementById('attainmentChart'), {
         type: 'bar',
         data: {
-            labels: ['T06 Attainment', 'T07 Attainment'],
+            labels: ['Actual P01-P05', 'T06 P06', 'T07 P07-P12', 'Combined 2026'],
             datasets: [{
-                data: [pctT06, pctT07],
-                backgroundColor: [colorT06, colorT07],
+                label: metricLabels[metric] || metric,
+                data: [actVal / 1e6, t06Val / 1e6, t07Val / 1e6, combined / 1e6],
+                backgroundColor: [C.blue, C.orange, C.purple, C.green],
                 borderRadius: 4,
-                barPercentage: 0.5
+                barPercentage: 0.55
             }]
         },
         options: {
@@ -563,25 +597,22 @@ function renderScenarioDashboard(data, metric, metricLabels) {
                 tooltip: {
                     callbacks: {
                         label: function(c) {
-                            return c.parsed.x.toFixed(1) + '% Attainment';
+                            return '$' + c.parsed.x.toFixed(1) + 'M';
                         }
                     }
                 }
             },
             scales: {
                 x: {
-                    min: 0,
-                    max: Math.max(120, (pctT06 || 0) + 10, (pctT07 || 0) + 10),
-                    grid: { color: 'rgba(255, 255, 255, 0.08)' },
-                    title: { display: true, text: 'Percentage (%)' },
-                    ticks: { callback: function(v) { return v + '%'; } }
+                    grid: { color: '#e5e7eb' },
+                    title: { display: true, text: '$ Millions' },
+                    ticks: { callback: function(v) { return '$' + v + 'M'; } }
                 },
                 y: { grid: { display: false } }
             }
         }
     });
 
-    // 3. Render comparison details table for ALL metrics in 2026
     var tb = document.getElementById('scenarioTable');
     var metricsToCompare = [
         { key: 'net_sales', label: 'Net Sales' },
@@ -594,14 +625,12 @@ function renderScenarioDashboard(data, metric, metricLabels) {
 
     var th = '<thead>' +
         '<tr>' +
-            '<th rowspan="2">Metric</th>' +
-            '<th rowspan="2">Actual 2026</th>' +
-            '<th colspan="3" style="text-align:center">T06 Forecast</th>' +
-            '<th colspan="3" style="text-align:center">T07 Forecast</th>' +
-        '</tr>' +
-        '<tr>' +
-            '<th>Target</th><th>Var ($)</th><th>Var (%)</th>' +
-            '<th>Target</th><th>Var ($)</th><th>Var (%)</th>' +
+            '<th>Metric</th>' +
+            '<th>Actual P01-P05</th>' +
+            '<th>T06 P06</th>' +
+            '<th>T07 P07-P12</th>' +
+            '<th>Combined 2026 Outlook</th>' +
+            '<th>Actual Share</th>' +
         '</tr>' +
     '</thead><tbody>';
 
@@ -610,30 +639,22 @@ function renderScenarioDashboard(data, metric, metricLabels) {
         var act = data2026['actual_' + k] || 0;
         var t06 = data2026['t06_' + k] || 0;
         var t07 = data2026['t07_' + k] || 0;
-
-        var v06 = act - t06;
-        var v07 = act - t07;
-
-        var p06 = t06 ? (v06 / Math.abs(t06)) * 100 : null;
-        var p07 = t07 ? (v07 / Math.abs(t07)) * 100 : null;
-
-        var cls06 = colorClass(k, v06);
-        var cls07 = colorClass(k, v07);
+        var total = act + t06 + t07;
+        var actualShare = total > 0 && act >= 0 ? act / total * 100 : null;
 
         th += '<tr>' +
             '<td style="font-weight:600">' + mInfo.label + '</td>' +
             '<td>' + fmtM(act) + '</td>' +
             '<td>' + fmtM(t06) + '</td>' +
-            '<td class="' + cls06 + '">' + (v06 >= 0 ? '+' : '') + fmtM(v06) + '</td>' +
-            '<td class="' + cls06 + '">' + (p06 !== null ? (p06 >= 0 ? '+' : '') + p06.toFixed(1) + '%' : '--') + '</td>' +
             '<td>' + fmtM(t07) + '</td>' +
-            '<td class="' + cls07 + '">' + (v07 >= 0 ? '+' : '') + fmtM(v07) + '</td>' +
-            '<td class="' + cls07 + '">' + (p07 !== null ? (p07 >= 0 ? '+' : '') + p07.toFixed(1) + '%' : '--') + '</td>' +
+            '<td class="' + (total < 0 ? 'neg' : '') + '">' + fmtM(total) + '</td>' +
+            '<td>' + (actualShare !== null ? actualShare.toFixed(1) + '%' : '--') + '</td>' +
         '</tr>';
     });
 
     th += '</tbody>';
     tb.innerHTML = th;
+    tabLoaded.scenario = true;
     showToast('Scenario data rendered');
 }
 
@@ -648,6 +669,7 @@ function exportCSV(tableId, filename) {
         var line = [];
         cols.forEach(function(col) {
             var text = col.textContent.replace(/"/g, '""').replace(/\s+/g, ' ').trim();
+            if (/^[=+\-@]/.test(text)) text = "'" + text;
             line.push('"' + text + '"');
         });
         csv.push(line.join(','));
@@ -670,7 +692,7 @@ function destroyChart(id) {
 function makeBarOptions(yLabel) {
     return { responsive: true, maintainAspectRatio: false,
         plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } }, tooltip: { callbacks: { label: function(c){ return c.dataset.label + ': $' + c.parsed.y.toFixed(1) + 'M'; } } } },
-        scales: { y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.08)' }, title: { display: true, text: yLabel }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, x: { grid: { display: false } } }
+        scales: { y: { beginAtZero: true, grid: { color: '#e5e7eb' }, title: { display: true, text: yLabel }, ticks: { callback: function(v){ return '$' + v + 'M'; } } }, x: { grid: { display: false } } }
     };
 }
 
@@ -690,7 +712,7 @@ document.getElementById('focusYear').addEventListener('change', function() {
     focusYear = parseInt(this.value);
     if (yearlyDataCache) {
         renderKPIs(yearlyDataCache, focusYear);
-        renderInsights(yearlyDataCache);
+        renderInsights(yearlyDataCache, focusYear);
     }
 });
 
@@ -700,16 +722,15 @@ document.getElementById('scenMetric').addEventListener('change', loadScenario);
 
 // ===== STARTUP =====
 if (window.Chart) {
-    Chart.defaults.color = '#94a3b8';
-    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.08)';
+    Chart.defaults.color = '#475569';
+    Chart.defaults.borderColor = '#e5e7eb';
     if (Chart.defaults.plugins && Chart.defaults.plugins.legend && Chart.defaults.plugins.legend.labels) {
-        Chart.defaults.plugins.legend.labels.color = '#f8fafc';
+        Chart.defaults.plugins.legend.labels.color = '#1e293b';
     }
 }
 showLoading('kpiGrid');
 showLoading('plTable');
 document.getElementById('insightsContent').innerHTML = '<div class="loading">Analyzing...</div>';
 loadOverview();
-tabLoaded.overview = true;
 
 })();

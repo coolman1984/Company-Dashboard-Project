@@ -51,7 +51,7 @@ A complete financial analysis platform that:
 | Indexes | 12 |
 | Views | 6 |
 | Pre-computed JSON files | 312 |
-| API endpoints | 10 |
+| API endpoints | 13 |
 | Dashboard tabs | 4 |
 | API response time | **2-35ms** (was 1-5s with Python subprocess) |
 
@@ -366,6 +366,7 @@ CREATE TABLE pl_detail (
 | Endpoint | Method | Description | Parameters | Response Time |
 |----------|--------|-------------|-----------|---------------|
 | `/api/summary` | GET | Database summary & filter options | — | ~11ms |
+| `/api/data-freshness` | GET | Period coverage by year and version | — | ~5ms |
 | `/api/yearly-pl` | GET | Yearly P&L summary (Actual) | — | ~5ms |
 | `/api/regional-pl` | GET | P&L by year × region | — | ~8ms |
 | `/api/mgroup-pl` | GET | P&L by year × product group | — | ~35ms |
@@ -576,6 +577,8 @@ Company Dashboard/
 ├── server.js                 ← Step 6: Node.js API server v2 (static JSON backend)
 ├── index.html                ← Step 7: Dashboard HTML
 ├── app.js                    ← Step 7: Dashboard JavaScript (separated from HTML)
+├── package.json              ← Node scripts and dependencies
+├── smoke_test.js             ← API, metadata, and static-file security smoke tests
 │
 ├── api_data/                 ← Pre-computed JSON files (133 files)
 │   ├── summary.json
@@ -634,6 +637,17 @@ Company Dashboard/
 ---
 
 ## Change Log
+
+### 2026-06-08 — v3.2 — Professionalization & Data Integrity
+
+- Added `/api/data-freshness` with period coverage by year and version.
+- Corrected FY2026 presentation: Actual is explicitly labeled YTD P01-P05.
+- Reworked Scenario Comparison to combine Actual P01-P05 + T06 P06 + T07 P07-P12 instead of incorrectly treating them as competing full-year targets.
+- Added semantic, keyboard-accessible dashboard tabs and clearer focus states.
+- Added retry-safe lazy loading, same-year product comparison validation, and CSV formula-injection protection.
+- Restricted static serving to `index.html` and `app.js`; database, workbook, source, and project files are no longer downloadable over HTTP.
+- Removed local database paths and cache-key inventories from `/api/status`.
+- Added `npm test` syntax and API/security smoke coverage via `smoke_test.js`.
 
 ### 2026-06-08 — v2.1 — Drill-Down Fix
 
