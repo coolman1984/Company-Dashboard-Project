@@ -130,6 +130,7 @@ cursor.execute("""
         SUM(net_sales) as net_sales,
         SUM(cost_of_goods_sold) as cogs,
         SUM(gross_margin) as gross_margin,
+        SUM(operating_expense) as opex,
         SUM(operating_profit) as operating_profit,
         SUM(net_income) as net_income
     FROM pl_detail

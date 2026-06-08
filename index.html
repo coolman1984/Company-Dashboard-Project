@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PL Financial Analysis 2022-2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <style>
         *,
@@ -44,12 +47,16 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-page);
             color: var(--text);
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+        }
+
+        .header h1, .chart-title, .kpi-value, .tab, .btn, .kpi-label {
+            font-family: 'Outfit', sans-serif;
         }
 
         .header {
@@ -764,6 +771,7 @@
         <div class="tab" data-tab="regional">Regional Analysis</div>
         <div class="tab" data-tab="product">Product Analysis</div>
         <div class="tab" data-tab="drilldown">Variance Drill-Down</div>
+        <div class="tab" data-tab="scenario">Scenario Comparison</div>
     </div>
     <div class="panel active" id="panel-overview">
         <div class="controls">
@@ -823,6 +831,21 @@
         <div class="chart-grid"><div class="chart-card full"><div class="chart-title">Variance Waterfall - Biggest Contributors</div><div class="chart-subtitle">Top items driving the change</div><div class="chart-container tall"><canvas id="drilldownChart"></canvas></div></div></div>
         <div class="table-card"><div class="chart-title">Variance Detail Table</div><div class="chart-subtitle">Sorted by absolute change amount</div><div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="drilldownTable"></table></div>
             <button class="export-btn" onclick="exportCSV('drilldownTable','drilldown')">Export CSV</button></div>
+    </div>
+    <div class="panel" id="panel-scenario">
+        <div class="controls">
+            <div class="control-group"><label>Scenario Metric</label><select id="scenMetric"><option value="net_sales">Net Sales</option><option value="cogs">COGS</option><option value="gross_margin">Gross Margin</option><option value="opex">OpEx</option><option value="operating_profit">Operating Profit</option><option value="net_income">Net Income</option></select></div>
+        </div>
+        <div class="chart-grid">
+            <div class="chart-card"><div class="chart-title">Actual vs Forecast Trend</div><div class="chart-subtitle">Comparing Actuals with Forecasts T06 & T07 (2026 Focus)</div><div class="chart-container tall"><canvas id="scenarioChart"></canvas></div></div>
+            <div class="chart-card"><div class="chart-title">2026 Target Attainment %</div><div class="chart-subtitle">Actuals as a % of T06 & T07 Forecasts</div><div class="chart-container tall"><canvas id="attainmentChart"></canvas></div></div>
+        </div>
+        <div class="table-card">
+            <div class="chart-title">Scenario Comparison Details</div>
+            <div class="chart-subtitle">All figures in absolute terms; compare Actual vs T06 vs T07</div>
+            <div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="scenarioTable"></table></div>
+            <button class="export-btn" onclick="exportCSV('scenarioTable','scenario-comparison')">Export CSV</button>
+        </div>
     </div>
 </div>
 <div class="footer">PL Financial Analysis Dashboard &middot; 790,245 records &middot; Pre-computed Static Backend &middot; Excel COM Automation</div>

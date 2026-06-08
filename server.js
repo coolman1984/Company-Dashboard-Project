@@ -140,6 +140,11 @@ const server = http.createServer((req, res) => {
                 return jsonResponse(res, cache['mgroup-pl'] || []);
             }
             
+            // Scenario PL (Actual vs Forecast)
+            if (pathname === '/api/scenario-pl') {
+                return jsonResponse(res, cache['scenario-pl'] || []);
+            }
+            
             // 5. Country PL (optional region filter)
             if (pathname === '/api/country-pl') {
                 const region = parsed.query.region;
@@ -180,10 +185,30 @@ const server = http.createServer((req, res) => {
                     return errorResponse(res, 400, 'Invalid dimension or metric');
                 }
                 
+                // If year1 > year2, fetch the pre-computed file for (year2, year1) and invert it
+                const invertYears = year1 > year2;
+                const y1 = invertYears ? year2 : year1;
+                const y2 = invertYears ? year1 : year2;
+                
                 // Try pre-computed file first
-                const cacheKey = `drilldown_${dimension}_${metric}_${year1}_${year2}`;
+                const cacheKey = `drilldown_${dimension}_${metric}_${y1}_${y2}`;
                 if (cache[cacheKey]) {
-                    return jsonResponse(res, cache[cacheKey]);
+                    let data = cache[cacheKey];
+                    if (invertYears) {
+                        data = data.map(function(row) {
+                            const newRow = Object.assign({}, row);
+                            const val1 = row.val_year1;
+                            const val2 = row.val_year2;
+                            newRow.val_year1 = val2;
+                            newRow.val_year2 = val1;
+                            newRow.change = val1 - val2;
+                            newRow.pct_change = val2 !== 0 ? Math.round(newRow.change / Math.abs(val2) * 10000) / 100 : null;
+                            return newRow;
+                        });
+                        // Re-sort by absolute change DESC after inverting
+                        data = data.slice().sort(function(a, b) { return Math.abs(b.change) - Math.abs(a.change); });
+                    }
+                    return jsonResponse(res, data);
                 }
                 
                 // Fallback: compute from cached view data on-the-fly

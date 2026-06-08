@@ -9,8 +9,8 @@ var API = '';
 var C = { blue: '#4361ee', green: '#06d6a0', red: '#ef476f', orange: '#ffd166', purple: '#7209b7', teal: '#4cc9f0', gray: '#6c757d', slate: '#415a77' };
 var yearColors = ['#4361ee', '#06d6a0', '#ffd166', '#7209b7', '#ef476f'];
 
-var tabLoaded = { overview: false, regional: false, product: false, drilldown: false };
-var regionalDataCache = null, mgroupDataCache = null, yearlyDataCache = null;
+var tabLoaded = { overview: false, regional: false, product: false, drilldown: false, scenario: false };
+var regionalDataCache = null, mgroupDataCache = null, yearlyDataCache = null, scenarioDataCache = null;
 var focusYear = 2026;
 var charts = {};
 
@@ -417,7 +417,7 @@ function loadDrilldown() {
         var top = data.slice(0,20);
         destroyChart('drilldownChart');
         charts.drilldown = new Chart(document.getElementById('drilldownChart'), {
-            type: 'bar', data: { labels: top.map(function(d){ return d.dimension||'N/A'; }), datasets: [{ label: 'Change '+y1+'→'+y2, data: top.map(function(d){ return d.change/1e6; }), backgroundColor: top.map(function(d){ return d.change>=0?C.green:C.red; }), borderRadius: 4 }] },
+            type: 'bar', data: { labels: top.map(function(d){ return d.dimension||'N/A'; }), datasets: [{ label: 'Change '+y1+'→'+y2, data: top.map(function(d){ return d.change/1e6; }), backgroundColor: top.map(function(d){ return isGood(metric, d.change)?C.green:C.red; }), borderRadius: 4 }] },
             options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c){ return (c.parsed.x>=0?'+':'')+'$'+c.parsed.x.toFixed(1)+'M'; } } } },
                 scales: { x: { grid: { color: '#e5e7eb' }, title: { display: true, text: 'Change ($M)' }, ticks: { callback: function(v){ return '$'+v+'M'; } } }, y: { grid: { display: false } } }
