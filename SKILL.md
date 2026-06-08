@@ -1,7 +1,7 @@
 ---
 name: company-dashboard
 description: Full-stack financial analysis platform that extracts PL data from Excel, stores 790K+ records in SQLite, and serves a responsive live-query analytics dashboard. Use for building, extending, or troubleshooting the PL analysis pipeline.
-version: "4.0"
+version: "4.1"
 last-updated: "2026-06-08"
 ---
 
@@ -17,6 +17,8 @@ last-updated: "2026-06-08"
 - The browser uses a full-viewport responsive shell with five analysis tabs: Overview, Regional, Products, Variance, and Scenario.
 - FY2026 Actual is YTD P01-P05. The 2026 outlook combines Actual P01-P05, T06 P06, and T07 P07-P12.
 - Run `npm test` after server or dashboard changes.
+- `/api/executive-outlook` is the reconciled source for the CFO cockpit: monthly periods, Actual YTD, full-year outlook, FY2025 comparison, concentration, profitability, and product risk.
+- Do not label Operating Profit as EBITDA or derive cash-flow KPIs unless depreciation, amortization, balance-sheet, and cash-flow sources are added.
 
 ---
 
@@ -646,6 +648,15 @@ Company Dashboard/
 ---
 
 ## Change Log
+
+### 2026-06-08 - v4.1 - CFO Decision Cockpit
+
+- Added a reconciled 2026 executive outlook using Actual P01-P05, T06 P06, and T07 P07-P12.
+- Added monthly cumulative revenue and gross-margin outlook charts.
+- Added five executive KPIs, a scenario P&L reconciliation, profit bridge, concentration analysis, and a product action matrix.
+- Added operating-leverage, margin-compression, loss-making revenue, and top-customer risk signals.
+- Excluded unsupported EBITDA and cash-flow metrics rather than estimating them from incomplete data.
+- Added API reconciliation and regional-filter smoke coverage.
 
 ### 2026-06-08 - v4.0 - Live SQLite and Full-Screen Redesign
 

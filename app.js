@@ -18,6 +18,7 @@ var filters = { years: [], versions: [], regions: [], countries: [], classes: []
 var freshness = null;
 var summary = null;
 var activeTab = 'overview';
+var standardFilterState = { year: '', version: 'Actual' };
 var tabLoaded = { overview: false, regional: false, product: false, drilldown: false, scenario: false };
 var yearlyData = [];
 var executiveData = null;
@@ -475,10 +476,12 @@ function renderCfoSignals(data) {
     var topFive = topShare(data.concentration.customers, 5, outlook.net_sales);
     var signals = [
         {
-            cls: gmBps < -200 ? 'critical' : 'warning',
-            label: 'Gross margin compression',
+            cls: gmBps >= 0 ? 'positive' : (gmBps < -200 ? 'critical' : 'warning'),
+            label: gmBps >= 0 ? 'Gross margin improvement' : 'Gross margin compression',
             value: (gmBps >= 0 ? '+' : '') + gmBps.toFixed(0) + ' bps',
-            copy: 'Outlook margin versus FY2025. Prioritize pricing, mix, and direct-cost recovery.'
+            copy: gmBps >= 0
+                ? 'Outlook margin versus FY2025. Protect the mix and cost gains behind the improvement.'
+                : 'Outlook margin versus FY2025. Prioritize pricing, mix, and direct-cost recovery.'
         },
         {
             cls: incrementalMargin < 0 ? 'critical' : 'positive',
@@ -557,6 +560,12 @@ function renderCfoCharts(data) {
     });
 }
 
+function cleanDimensionLabel(value) {
+    var label = String(value == null ? '' : value).trim();
+    if (!label || /^-?\d{6,}$/.test(label)) return 'Unmapped product';
+    return label;
+}
+
 function productRisk(row) {
     var gmRate = ratio(row.gross_margin, row.net_sales);
     var opRate = ratio(row.operating_profit, row.net_sales);
@@ -580,7 +589,7 @@ function renderProfitabilityTable(data) {
         var priorGmRate = ratio(row.prior_gross_margin, row.prior_net_sales);
         var gmChange = priorGmRate == null ? null : (gmRate - priorGmRate) * 100;
         var risk = productRisk(row);
-        html += '<tr><td>' + escapeHtml(row.label) + '</td><td>' + escapeHtml(formatCompact(row.net_sales)) +
+        html += '<tr><td>' + escapeHtml(cleanDimensionLabel(row.label)) + '</td><td>' + escapeHtml(formatCompact(row.net_sales)) +
             '</td><td class="' + valueClass('net_sales', Number(row.net_sales) - Number(row.prior_net_sales)) + '">' +
             signedPercent(revenueChange) + '</td><td class="' + (gmRate < 0 ? 'neg' : '') + '">' + formatPercent(gmRate) +
             '</td><td class="' + (opRate < 0 ? 'neg' : '') + '">' + formatPercent(opRate) +
@@ -932,6 +941,10 @@ function configureGlobalFiltersForTab(tabName) {
     var executiveOption = versionSelect.querySelector('option[value="executive"]');
 
     if (tabName === 'overview') {
+        if (!yearSelect.disabled) {
+            standardFilterState.year = yearSelect.value;
+            standardFilterState.version = versionSelect.value || 'Actual';
+        }
         yearSelect.value = '2026';
         yearSelect.disabled = true;
         if (!executiveOption) {
@@ -946,9 +959,14 @@ function configureGlobalFiltersForTab(tabName) {
         return;
     }
 
+    var returningFromExecutive = yearSelect.disabled;
     yearSelect.disabled = false;
     versionSelect.disabled = false;
     if (executiveOption) executiveOption.remove();
+    if (returningFromExecutive) {
+        yearSelect.value = standardFilterState.year;
+        versionSelect.value = standardFilterState.version;
+    }
     if (!versionSelect.value || versionSelect.value === 'executive') versionSelect.value = 'Actual';
     versionLabel.textContent = 'Version';
 }
@@ -963,6 +981,10 @@ function refreshCountryOptions() {
 }
 
 function applyFilters() {
+    if (activeTab !== 'overview') {
+        standardFilterState.year = el('globalYear').value;
+        standardFilterState.version = el('globalVersion').value;
+    }
     requestCache.clear();
     Object.keys(tabLoaded).forEach(function (key) { tabLoaded[key] = false; });
     yearlyData = [];
@@ -977,6 +999,10 @@ function resetFilters() {
     el('globalVersion').value = activeTab === 'overview' ? 'executive' : 'Actual';
     el('globalRegion').value = '';
     el('globalCountry').value = '';
+    if (activeTab !== 'overview') {
+        standardFilterState.year = '';
+        standardFilterState.version = 'Actual';
+    }
     applyFilters();
 }
 

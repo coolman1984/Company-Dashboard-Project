@@ -6,6 +6,8 @@
 
 The production dashboard is now SQLite-first. Use parameterized `better-sqlite3` queries for interactive filters and keep `api_data/` only as a database-unavailable fallback. The pre-computation guidance below remains useful for very expensive or immutable workloads, but it is no longer the primary dashboard architecture.
 
+The executive overview is a reconciled CFO decision cockpit. Cards, monthly charts, P&L tables, concentration metrics, and product actions must use `/api/executive-outlook` so definitions tie. Never infer EBITDA, operating cash flow, free cash flow, working capital, or balance-sheet ratios from the P&L-only ledger.
+
 ---
 
 ## 1. Pre-Computation Pattern (The Biggest Lesson)

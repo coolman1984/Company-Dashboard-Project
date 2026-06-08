@@ -1,5 +1,5 @@
 /**
- * Company Dashboard v4 - dynamic SQLite analytics server.
+ * Company Dashboard v4.1 - dynamic SQLite and CFO outlook analytics server.
  *
  * Every dashboard endpoint queries pl_detail.db at request time. Precomputed
  * JSON is retained only as a cache-only fallback when SQLite is unavailable.
@@ -559,7 +559,7 @@ function handleApi(pathname, query, res) {
             backend: dbAvailable ? 'sqlite-live' : 'fallback-cache',
             database: dbAvailable ? 'connected' : 'unavailable',
             cachedFiles: Object.keys(fallbackCache).length,
-            serverVersion: '4.0-dynamic'
+            serverVersion: '4.1-cfo'
         });
     }
 
@@ -688,6 +688,6 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 server.listen(PORT, () => {
-    console.log(`Company Dashboard v4 listening at http://localhost:${PORT}`);
+    console.log(`Company Dashboard v4.1 listening at http://localhost:${PORT}`);
     console.log(`Backend: ${dbAvailable ? 'live SQLite queries' : 'fallback cache only'}`);
 });
