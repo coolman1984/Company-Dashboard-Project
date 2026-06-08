@@ -95,16 +95,16 @@ def create_database():
             sys.exit(0)
         os.remove(DB_PATH)
         print(f"Removed existing database: {DB_PATH}")
-    
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
+
     # Build CREATE TABLE statement
     col_defs = ", ".join(f'"{name}" {dtype}' for name, dtype in COLUMNS)
     create_sql = f'CREATE TABLE pl_detail ({col_defs})'
     cursor.execute(create_sql)
     conn.commit()
-    
+
     print(f"Created database: {DB_PATH}")
     print(f"Table: pl_detail ({len(COLUMNS)} columns)")
     return conn
@@ -112,7 +112,7 @@ def create_database():
 def create_indexes(conn):
     """Create indexes for fast analytical queries."""
     cursor = conn.cursor()
-    
+
     indexes = [
         ("idx_year", "year"),
         ("idx_region", "region_desc"),
@@ -128,25 +128,25 @@ def create_indexes(conn):
         ("idx_year_mgroup", "year, m_group_desc"),
         ("idx_year_customer", "year, customer_name"),
     ]
-    
+
     print("\nCreating indexes...")
     for idx_name, idx_col in indexes:
         start = time.time()
         cursor.execute(f'CREATE INDEX "{idx_name}" ON pl_detail ({idx_col})')
         elapsed = time.time() - start
         print(f"  ✓ {idx_name} on ({idx_col}) — {elapsed:.1f}s")
-    
+
     conn.commit()
     print("All indexes created.")
 
 def create_summary_views(conn):
     """Create pre-computed summary views for the dashboard."""
     cursor = conn.cursor()
-    
+
     # Yearly P&L summary (matches Sheet3 pivot)
     cursor.execute("""
         CREATE VIEW v_yearly_pl AS
-        SELECT 
+        SELECT
             year,
             SUM(net_sales) as net_sales,
             SUM(cost_of_goods_sold) as cogs,
@@ -167,11 +167,11 @@ def create_summary_views(conn):
         GROUP BY year
         ORDER BY year
     """)
-    
+
     # Regional P&L by year
     cursor.execute("""
         CREATE VIEW v_regional_pl AS
-        SELECT 
+        SELECT
             year,
             region_desc,
             SUM(net_sales) as net_sales,
@@ -185,11 +185,11 @@ def create_summary_views(conn):
         GROUP BY year, region_desc
         ORDER BY year, region_desc
     """)
-    
+
     # Product group P&L by year
     cursor.execute("""
         CREATE VIEW v_mgroup_pl AS
-        SELECT 
+        SELECT
             year,
             m_group_desc,
             SUM(net_sales) as net_sales,
@@ -203,11 +203,11 @@ def create_summary_views(conn):
         GROUP BY year, m_group_desc
         ORDER BY year, m_group_desc
     """)
-    
+
     # Country P&L by year
     cursor.execute("""
         CREATE VIEW v_country_pl AS
-        SELECT 
+        SELECT
             year,
             region_desc,
             country_name,
@@ -222,11 +222,11 @@ def create_summary_views(conn):
         GROUP BY year, region_desc, country_name
         ORDER BY year, region_desc, country_name
     """)
-    
+
     # Customer P&L by year (top customers)
     cursor.execute("""
         CREATE VIEW v_customer_pl AS
-        SELECT 
+        SELECT
             year,
             customer_name,
             region_desc,
@@ -241,22 +241,22 @@ def create_summary_views(conn):
         GROUP BY year, customer_name, region_desc
         ORDER BY year, net_sales DESC
     """)
-    
+
     # YoY variance view
     cursor.execute("""
         CREATE VIEW v_yoy_variance AS
-        SELECT 
+        SELECT
             curr.year,
             curr.net_sales as net_sales,
             prev.net_sales as prev_net_sales,
             curr.net_sales - prev.net_sales as net_sales_change,
-            CASE WHEN prev.net_sales != 0 
+            CASE WHEN prev.net_sales != 0
                 THEN ROUND((curr.net_sales - prev.net_sales) / ABS(prev.net_sales) * 100, 2)
                 ELSE NULL END as net_sales_pct_change,
             curr.gross_margin as gross_margin,
             prev.gross_margin as prev_gross_margin,
             curr.gross_margin - prev.gross_margin as gross_margin_change,
-            CASE WHEN prev.gross_margin != 0 
+            CASE WHEN prev.gross_margin != 0
                 THEN ROUND((curr.gross_margin - prev.gross_margin) / ABS(prev.gross_margin) * 100, 2)
                 ELSE NULL END as gross_margin_pct_change,
             curr.operating_profit as operating_profit,
@@ -268,7 +268,7 @@ def create_summary_views(conn):
         FROM v_yearly_pl curr
         LEFT JOIN v_yearly_pl prev ON curr.year = prev.year + 1
     """)
-    
+
     conn.commit()
     print("Created summary views: v_yearly_pl, v_regional_pl, v_mgroup_pl, v_country_pl, v_customer_pl, v_yoy_variance")
 
@@ -276,48 +276,48 @@ def ingest_data():
     """Main ingestion: read from Excel via COM in chunks, insert into SQLite."""
     conn = create_database()
     cursor = conn.cursor()
-    
+
     pythoncom.CoInitialize()
     excel = None
-    
+
     try:
         excel = win32com.client.DispatchEx("Excel.Application")
         excel.Visible = False
         excel.DisplayAlerts = False
-        
+
         print("\nOpening workbook...")
         workbook = excel.Workbooks.Open(XLSB_PATH, ReadOnly=True)
         sheet = workbook.Sheets(2)  # Sheet1
         print(f"Sheet: {sheet.Name}")
-        
+
         total_rows = sheet.UsedRange.Rows.Count
         total_cols = sheet.UsedRange.Columns.Count
         print(f"Total rows: {total_rows}, Total columns: {total_cols}")
-        
+
         # Prepare insert statement
         col_names = ", ".join(f'"{name}"' for name, _ in COLUMNS)
         placeholders = ", ".join("?" for _ in COLUMNS)
         insert_sql = f'INSERT INTO pl_detail ({col_names}) VALUES ({placeholders})'
-        
+
         # Read and insert in chunks
         total_inserted = 0
         start_time = time.time()
-        
+
         # Start from row 2 (row 1 is headers)
         data_start_row = 2
         num_chunks = (total_rows - 1 + CHUNK_SIZE - 1) // CHUNK_SIZE
-        
+
         for chunk_idx in range(num_chunks):
             chunk_start = data_start_row + (chunk_idx * CHUNK_SIZE)
             chunk_end = min(chunk_start + CHUNK_SIZE - 1, total_rows)
-            
+
             # Bulk read this chunk via COM
             chunk_range = sheet.Range(
                 sheet.Cells(chunk_start, 1),
                 sheet.Cells(chunk_end, total_cols)
             )
             chunk_data = chunk_range.Value
-            
+
             # Convert to list of tuples for executemany
             rows_to_insert = []
             for r in range(len(chunk_data)):
@@ -331,25 +331,25 @@ def ingest_data():
                     else:
                         row.append(val)
                 rows_to_insert.append(tuple(row))
-            
+
             # Bulk insert
             cursor.executemany(insert_sql, rows_to_insert)
             conn.commit()
-            
+
             total_inserted += len(rows_to_insert)
             elapsed = time.time() - start_time
             rate = total_inserted / elapsed if elapsed > 0 else 0
             eta = (total_rows - 1 - total_inserted) / rate if rate > 0 else 0
-            
+
             print(f"  Chunk {chunk_idx+1}/{num_chunks}: Inserted {total_inserted:,} rows "
                   f"({rate:,.0f} rows/sec, ETA: {eta:.0f}s)")
-        
+
         total_time = time.time() - start_time
         print(f"\n✓ Ingestion complete: {total_inserted:,} rows in {total_time:.1f}s "
               f"({total_inserted/total_time:,.0f} rows/sec)")
-        
+
         workbook.Close(SaveChanges=False)
-        
+
     except Exception as e:
         print(f"ERROR: {e}")
         import traceback
@@ -362,29 +362,29 @@ def ingest_data():
                 pass
         pythoncom.CoUninitialize()
         print("Excel COM cleanup complete.")
-    
+
     # Create indexes and views
     if total_inserted > 0:
         create_indexes(conn)
         create_summary_views(conn)
-        
+
         # Verify data
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM pl_detail")
         count = cursor.fetchone()[0]
         print(f"\nVerification: {count:,} rows in pl_detail table")
-        
+
         cursor.execute("SELECT * FROM v_yearly_pl")
         print("\n--- Yearly P&L Summary ---")
         for row in cursor.fetchall():
             print(f"  {row}")
-        
+
         # Show distinct values for key dimensions
         for dim in ['year', 'region_desc', 'version', 'class']:
             cursor.execute(f"SELECT DISTINCT {dim} FROM pl_detail ORDER BY {dim}")
             vals = [r[0] for r in cursor.fetchall()]
             print(f"\nDistinct {dim}: {vals}")
-    
+
     conn.close()
     print(f"\nDatabase saved: {DB_PATH}")
     db_size = os.path.getsize(DB_PATH) / (1024 * 1024)

@@ -505,8 +505,18 @@
             font-weight: 800;
         }
         .risk-tag.critical { color: #a92c45; background: var(--red-soft); }
-        .risk-tag.watch { color: #9b6416; background: var(--amber-soft); }
-        .risk-tag.healthy { color: #087454; background: var(--green-soft); }
+        .risk-tag.eroding  { color: #7c4a00; background: #fff0d6; }
+        .risk-tag.watch    { color: #9b6416; background: var(--amber-soft); }
+        .risk-tag.healthy  { color: #087454; background: var(--green-soft); }
+        .risk-tag.star     { color: #064e35; background: #c8f5e3; }
+        .data-table tr.row-critical td { background: #fff5f7; }
+        .data-table tr.row-eroding td  { background: #fffbf0; }
+        .gm-bar-wrap  { display: flex; flex-direction: column; gap: 3px; min-width: 56px; }
+        .gm-bar-track { height: 3px; border-radius: 3px; background: #e4e9f2; overflow: hidden; }
+        .gm-bar-fill  { display: block; height: 100%; border-radius: 3px; background: var(--green); }
+        .gm-bar-fill.amber { background: var(--amber); }
+        .gm-bar-fill.red   { background: var(--red); }
+        .cell-sub { display: block; font-size: 8px; color: var(--muted); margin-top: 1px; font-weight: 400; }
 
         .table-note {
             padding: 9px 16px;
@@ -791,7 +801,7 @@
                 </div>
                 <article class="table-card">
                     <div class="table-head">
-                        <div><div class="chart-title">Product profitability action matrix</div><div class="chart-subtitle">Highest-revenue product groups ranked by margin quality and year-over-year movement</div></div>
+                        <div><div class="chart-title">Product profitability action matrix</div><div class="chart-subtitle">Top product groups by 2026 revenue — margin quality, COGS efficiency, and YoY movement with management action tiers</div></div>
                         <button class="export-btn" type="button" data-export-table="profitabilityTable" data-export-name="product-profitability-actions">Export CSV</button>
                     </div>
                     <div class="table-scroll"><table class="data-table" id="profitabilityTable"></table></div>

@@ -567,38 +567,106 @@ function cleanDimensionLabel(value) {
 }
 
 function productRisk(row) {
-    var gmRate = ratio(row.gross_margin, row.net_sales);
-    var opRate = ratio(row.operating_profit, row.net_sales);
+    var gmRate      = ratio(row.gross_margin, row.net_sales);
+    var opRate      = ratio(row.operating_profit, row.net_sales);
     var priorGmRate = ratio(row.prior_gross_margin, row.prior_net_sales);
-    if (gmRate < 0 || opRate < 0) {
-        return { cls: 'critical', label: 'Intervene', action: 'Reprice, reduce direct cost, or exit unprofitable volume' };
+    var gmDrop      = priorGmRate != null ? (gmRate - priorGmRate) * 100 : 0;
+    var gmPct       = (gmRate || 0) * 100;
+
+    if (gmRate < 0) {
+        return { cls: 'critical', label: 'Intervene',
+            action: 'Negative gross margin — losing money on every unit sold. Reprice, renegotiate COGS, or exit this volume.' };
     }
-    if (priorGmRate != null && gmRate < priorGmRate - .03) {
-        return { cls: 'watch', label: 'Recover', action: 'Build a margin recovery plan and protect mix' };
+    if (opRate < 0) {
+        return { cls: 'critical', label: 'Intervene',
+            action: 'Operating loss despite positive gross margin. OpEx exceeds the margin contribution — review fixed cost allocation.' };
     }
-    return { cls: 'healthy', label: 'Scale', action: 'Defend economics and selectively grow' };
+    if (priorGmRate != null && gmDrop < -3) {
+        return { cls: 'eroding', label: 'Recover',
+            action: 'Gross margin fell ' + Math.abs(gmDrop).toFixed(1) + ' pp YoY. Review discount policy, channel mix, and COGS drivers urgently.' };
+    }
+    if (gmPct < 10) {
+        return { cls: 'watch', label: 'Watch',
+            action: 'Gross margin below 10% — insufficient buffer to absorb operating expense. Target repricing or direct cost reduction.' };
+    }
+    if (priorGmRate != null && gmDrop < -1) {
+        return { cls: 'watch', label: 'Watch',
+            action: 'Margin slipping ' + Math.abs(gmDrop).toFixed(1) + ' pp — monitor channel mix and discount exposure before it accelerates.' };
+    }
+    if (gmPct >= 25 && (priorGmRate == null || gmDrop >= -0.5)) {
+        return { cls: 'star', label: 'Star',
+            action: 'High-margin product with stable or improving economics. Prioritise volume growth and defend price positioning.' };
+    }
+    return { cls: 'healthy', label: 'Scale',
+        action: 'Margins healthy and stable. Defend pricing discipline and look for selective volume growth opportunities.' };
 }
 
 function renderProfitabilityTable(data) {
-    var html = '<thead><tr><th>Product group</th><th>Revenue outlook</th><th>Revenue vs 2025</th>' +
-        '<th>Gross margin %</th><th>Operating margin %</th><th>GM change</th><th>Status</th><th>Management action</th></tr></thead><tbody>';
-    data.profitability.forEach(function (row) {
+    var rows = data.profitability;
+    var totalRevenue = rows.reduce(function (s, r) { return s + Number(r.net_sales || 0); }, 0);
+    var critCount = 0, critRev = 0, erodCount = 0, watchCount = 0;
+
+    var html = '<thead><tr>' +
+        '<th>Product group</th><th>Revenue</th><th>vs 2025</th><th>COGS %</th>' +
+        '<th>Gross margin %</th><th>GM Δ</th><th>Op margin %</th>' +
+        '<th>Status</th><th>Management action</th>' +
+        '</tr></thead><tbody>';
+
+    rows.forEach(function (row) {
         var revenueChange = percentChange(row.prior_net_sales, row.net_sales);
-        var gmRate = ratio(row.gross_margin, row.net_sales);
-        var opRate = ratio(row.operating_profit, row.net_sales);
+        var gmRate      = ratio(row.gross_margin, row.net_sales);
+        var opRate      = ratio(row.operating_profit, row.net_sales);
+        var cogsRate    = ratio(row.cogs, row.net_sales);
         var priorGmRate = ratio(row.prior_gross_margin, row.prior_net_sales);
-        var gmChange = priorGmRate == null ? null : (gmRate - priorGmRate) * 100;
+        var gmChange    = priorGmRate == null ? null : (gmRate - priorGmRate) * 100;
+        var shareOfTotal = totalRevenue > 0 ? Number(row.net_sales || 0) / totalRevenue * 100 : 0;
         var risk = productRisk(row);
-        html += '<tr><td>' + escapeHtml(cleanDimensionLabel(row.label)) + '</td><td>' + escapeHtml(formatCompact(row.net_sales)) +
-            '</td><td class="' + valueClass('net_sales', Number(row.net_sales) - Number(row.prior_net_sales)) + '">' +
-            signedPercent(revenueChange) + '</td><td class="' + (gmRate < 0 ? 'neg' : '') + '">' + formatPercent(gmRate) +
-            '</td><td class="' + (opRate < 0 ? 'neg' : '') + '">' + formatPercent(opRate) +
-            '</td><td class="' + (gmChange != null && gmChange < 0 ? 'neg' : 'pos') + '">' +
-            (gmChange == null ? '--' : (gmChange >= 0 ? '+' : '') + gmChange.toFixed(1) + ' pp') +
-            '</td><td><span class="risk-tag ' + risk.cls + '">' + escapeHtml(risk.label) +
-            '</span></td><td>' + escapeHtml(risk.action) + '</td></tr>';
+
+        if (risk.cls === 'critical') { critCount++; critRev += Number(row.net_sales || 0); }
+        else if (risk.cls === 'eroding') erodCount++;
+        else if (risk.cls === 'watch') watchCount++;
+
+        // GM bar: 40% gross margin = full bar width; capped at 100%
+        var gmBarPct = Math.min(Math.max((gmRate || 0) * 250, 0), 100);
+        var gmBarCls = (gmRate || 0) < 0 ? 'red' : (gmRate || 0) * 100 < 10 ? 'amber' : '';
+        var gmChangeCls = gmChange == null ? '' : gmChange < 0 ? 'neg' : 'pos';
+        var rowCls = risk.cls === 'critical' ? ' class="row-critical"'
+                   : risk.cls === 'eroding'  ? ' class="row-eroding"' : '';
+
+        html +=
+            '<tr' + rowCls + '>' +
+            '<td>' + escapeHtml(cleanDimensionLabel(row.label)) + '</td>' +
+            '<td>' + escapeHtml(formatCompact(row.net_sales)) +
+                '<span class="cell-sub">' + shareOfTotal.toFixed(1) + '% of outlook</span></td>' +
+            '<td class="' + valueClass('net_sales', Number(row.net_sales) - Number(row.prior_net_sales)) + '">' +
+                signedPercent(revenueChange) + '</td>' +
+            '<td>' + formatPercent(cogsRate) + '</td>' +
+            '<td><div class="gm-bar-wrap">' +
+                '<span>' + formatPercent(gmRate) + '</span>' +
+                '<div class="gm-bar-track"><span class="gm-bar-fill' + (gmBarCls ? ' ' + gmBarCls : '') +
+                '" style="width:' + gmBarPct.toFixed(0) + '%"></span></div>' +
+            '</div></td>' +
+            '<td class="' + gmChangeCls + '">' +
+                (gmChange == null ? '--' : (gmChange >= 0 ? '+' : '') + gmChange.toFixed(1) + ' pp') + '</td>' +
+            '<td class="' + (opRate < 0 ? 'neg' : '') + '">' + formatPercent(opRate) + '</td>' +
+            '<td><span class="risk-tag ' + risk.cls + '">' + escapeHtml(risk.label) + '</span></td>' +
+            '<td>' + escapeHtml(risk.action) + '</td>' +
+            '</tr>';
     });
-    el('profitabilityTable').innerHTML = html + '</tbody>';
+
+    html += '</tbody>';
+
+    if (rows.length > 0) {
+        var parts = [];
+        if (critCount > 0) parts.push(critCount + ' loss-making (' + formatCompact(critRev) + ' revenue at risk)');
+        if (erodCount > 0) parts.push(erodCount + ' margin eroding');
+        if (watchCount > 0) parts.push(watchCount + ' below safe threshold');
+        if (parts.length === 0) parts.push('All ' + rows.length + ' product groups profitable and stable');
+        html += '<tfoot><tr><td colspan="9" class="table-note">Top ' + rows.length +
+            ' groups by 2026 outlook revenue · ' + parts.join(' · ') + '</td></tr></tfoot>';
+    }
+
+    el('profitabilityTable').innerHTML = html;
 }
 
 function loadOverview(force) {
