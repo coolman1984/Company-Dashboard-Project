@@ -38,7 +38,10 @@ async function run() {
 
     const home = await fetch(baseUrl + '/');
     assert.equal(home.status, 200);
-    assert.match(await home.text(), /Data coverage:/);
+    const homeHtml = await home.text();
+    assert.match(homeHtml, /Company Finance Command Center/);
+    assert.match(homeHtml, /app-shell/);
+    assert.match(homeHtml, /globalRegion/);
 
     assert.equal((await fetch(baseUrl + '/app.js')).status, 200);
     assert.equal((await fetch(baseUrl + '/favicon.ico')).status, 204);
@@ -49,8 +52,19 @@ async function run() {
     const status = await getJson('/api/status');
     assert.equal(status.response.status, 200);
     assert.equal(status.body.status, 'ok');
+    assert.equal(status.body.backend, 'sqlite-live');
     assert.equal('databasePath' in status.body, false);
     assert.equal('cacheKeys' in status.body, false);
+
+    const filters = await getJson('/api/filters');
+    assert.equal(filters.response.status, 200);
+    assert.ok(filters.body.years.includes(2026));
+    assert.ok(filters.body.versions.includes('Actual'));
+    assert.ok(filters.body.regions.length > 0);
+
+    const regionalFilters = await getJson(`/api/filters?region=${encodeURIComponent(filters.body.regions[0])}`);
+    assert.equal(regionalFilters.response.status, 200);
+    assert.ok(regionalFilters.body.countries.length > 0);
 
     const freshness = await getJson('/api/data-freshness');
     assert.equal(freshness.response.status, 200);
@@ -61,6 +75,44 @@ async function run() {
     const scenario = await getJson('/api/scenario-pl');
     assert.equal(scenario.response.status, 200);
     assert.ok(scenario.body.some(row => row.year === 2026 && row.actual_net_sales != null));
+
+    const executive = await getJson('/api/executive-outlook');
+    assert.equal(executive.response.status, 200);
+    assert.equal(executive.body.monthly.length, 12);
+    assert.equal(executive.body.monthly.filter(row => row.status === 'actual').length, 5);
+    assert.equal(executive.body.monthly.filter(row => row.status === 'outlook').length, 7);
+    assert.ok(executive.body.outlook.net_sales > 0);
+    assert.ok(executive.body.priorYear.net_sales > 0);
+    assert.ok(executive.body.concentration.customers.length > 0);
+    assert.ok(executive.body.profitability.length > 0);
+    const monthlyRevenue = executive.body.monthly.reduce((sum, row) => sum + row.net_sales, 0);
+    assert.ok(Math.abs(monthlyRevenue - executive.body.outlook.net_sales) < 0.01);
+
+    const executiveAfrica = await getJson('/api/executive-outlook?region=Africa');
+    assert.equal(executiveAfrica.response.status, 200);
+    assert.equal(executiveAfrica.body.monthly.length, 12);
+    assert.ok(executiveAfrica.body.outlook.net_sales < executive.body.outlook.net_sales);
+
+    const yearly = await getJson('/api/yearly-pl?version=Actual&region=Africa');
+    assert.equal(yearly.response.status, 200);
+    assert.ok(yearly.body.length > 0);
+    assert.ok(yearly.body.every(row => row.net_sales != null));
+
+    const product = await getJson('/api/mgroup-pl?version=Actual&year=2025&region=Africa');
+    assert.equal(product.response.status, 200);
+    assert.ok(product.body.length > 0);
+
+    const country = await getJson('/api/country-pl?version=Actual&region=Africa');
+    assert.equal(country.response.status, 200);
+    assert.ok(country.body.length > 0);
+
+    const customer = await getJson('/api/customer-pl?version=Actual&year=2025&region=Africa&limit=10');
+    assert.equal(customer.response.status, 200);
+    assert.ok(customer.body.length > 0);
+
+    const topProducts = await getJson('/api/top-products?version=Actual&year=2025&region=Africa&limit=10');
+    assert.equal(topProducts.response.status, 200);
+    assert.ok(topProducts.body.length > 0);
 
     const drilldown = await getJson('/api/drilldown?dimension=class&year1=2026&year2=2022&metric=net_sales');
     assert.equal(drilldown.response.status, 200);

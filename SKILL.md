@@ -1,13 +1,22 @@
 ---
 name: company-dashboard
-description: Full-stack financial analysis platform that extracts PL data from Excel via COM automation, stores 790K+ records in SQLite, pre-computes all dashboard data as static JSON, and serves an interactive drill-down dashboard with instant API responses. Use for building, extending, or troubleshooting the PL analysis pipeline.
-version: "2.0"
+description: Full-stack financial analysis platform that extracts PL data from Excel, stores 790K+ records in SQLite, and serves a responsive live-query analytics dashboard. Use for building, extending, or troubleshooting the PL analysis pipeline.
+version: "4.0"
 last-updated: "2026-06-08"
 ---
 
 # Company Dashboard — PL Financial Analysis Platform
 
 > **Living Document**: This SKILL.md is the master reference for the entire PL analysis system. Update it whenever the pipeline, database, server, or dashboard changes.
+
+## Current Architecture (v4)
+
+- `server.js` queries `pl_detail.db` directly with `better-sqlite3` in read-only mode.
+- Global `version`, `year`, `region`, and `country` filters are applied to live SQL on every dashboard endpoint.
+- Precomputed files under `api_data/` are retained only as an emergency fallback when SQLite cannot be opened.
+- The browser uses a full-viewport responsive shell with five analysis tabs: Overview, Regional, Products, Variance, and Scenario.
+- FY2026 Actual is YTD P01-P05. The 2026 outlook combines Actual P01-P05, T06 P06, and T07 P07-P12.
+- Run `npm test` after server or dashboard changes.
 
 ---
 
@@ -637,6 +646,15 @@ Company Dashboard/
 ---
 
 ## Change Log
+
+### 2026-06-08 - v4.0 - Live SQLite and Full-Screen Redesign
+
+- Replaced cache-first dashboard endpoints with parameterized live SQLite queries.
+- Added global year, version, region, and country filters with region-aware country options.
+- Added live scenario, product, customer, country, regional, yearly, and variance analysis.
+- Rebuilt the dashboard as a full-viewport responsive finance command center.
+- Added five-tab navigation, database status, KPI signals, responsive charts, tables, and CSV exports.
+- Expanded smoke coverage for dynamic endpoints, filtering, security, and FY2026 scenario integrity.
 
 ### 2026-06-08 — v3.2 — Professionalization & Data Integrity
 

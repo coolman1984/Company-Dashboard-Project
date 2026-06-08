@@ -1,0 +1,7 @@
+[   90527ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/api/regional-pl?year=2023&version=Actual:0
+[   99139ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/api/yearly-pl?year=2023&version=Actual:0
+[  118022ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/api/regional-pl?year=2023&version=Actual:0
+[  118285ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/api/mgroup-pl?version=Actual:0
+[  125152ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/api/drilldown?version=Actual&year1=2023&year2=2024&dimension=region_desc&metric=net_sales&limit=50:0
+[  161701ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/api/regional-pl?year=2023&version=Actual:0
+[  165089ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/api/yearly-pl?year=2023&version=Actual:0

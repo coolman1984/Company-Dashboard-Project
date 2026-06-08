@@ -21,6 +21,12 @@ const VALID_METRICS = ['net_sales', 'cost_of_goods_sold', 'gross_margin', 'opera
 const VALID_VERSIONS = ['Actual', 'T06', 'T07'];
 const VALID_YEARS = [2022, 2023, 2024, 2025, 2026];
 const MAX_LIMIT = 500;
+const PERIOD_NUMBER_SQL = 'CAST(ROUND((period - CAST(period AS INTEGER)) * 1000) AS INTEGER)';
+const OUTLOOK_PERIOD_SQL = `(
+    (version = 'Actual' AND ${PERIOD_NUMBER_SQL} BETWEEN 1 AND 5)
+    OR (version = 'T06' AND ${PERIOD_NUMBER_SQL} = 6)
+    OR (version = 'T07' AND ${PERIOD_NUMBER_SQL} BETWEEN 7 AND 12)
+)`;
 
 const METRIC_SELECT = [
     'SUM(net_sales) AS net_sales',
@@ -299,6 +305,151 @@ function getScenario(query) {
     return Object.values(byYear).sort((a, b) => a.year - b.year);
 }
 
+function getExecutiveFilter(query) {
+    const filterQuery = { ...query };
+    delete filterQuery.year;
+    delete filterQuery.version;
+    return buildWhere(filterQuery);
+}
+
+function appendCondition(where, condition) {
+    return where.sql ? `${where.sql} AND ${condition}` : `WHERE ${condition}`;
+}
+
+function metricSnapshot(row = {}) {
+    return {
+        net_sales: Number(row.net_sales || 0),
+        cogs: Number(row.cogs || 0),
+        gross_margin: Number(row.gross_margin || 0),
+        opex: Number(row.opex || 0),
+        operating_profit: Number(row.operating_profit || 0),
+        profit_before_tax: Number(row.profit_before_tax || 0),
+        corporate_tax: Number(row.corporate_tax || 0),
+        net_income: Number(row.net_income || 0)
+    };
+}
+
+function getExecutiveOutlook(query) {
+    const where = getExecutiveFilter(query);
+    const monthlyWhere = appendCondition(where, `year = 2026 AND ${OUTLOOK_PERIOD_SQL}`);
+    const priorWhere = appendCondition(where, "year = 2025 AND version = 'Actual'");
+
+    const monthly = runDynamic(`
+        SELECT ${PERIOD_NUMBER_SQL} AS period_number,
+               version,
+               ${FULL_METRIC_SELECT}
+        FROM pl_detail
+        ${monthlyWhere}
+        GROUP BY period_number, version
+        ORDER BY period_number
+    `, where.params).map(row => ({
+        ...row,
+        period_label: `P${String(row.period_number).padStart(2, '0')}`,
+        status: row.version === 'Actual' ? 'actual' : 'outlook'
+    }));
+
+    const actualYtd = metricSnapshot(runDynamic(`
+        SELECT ${FULL_METRIC_SELECT}
+        FROM pl_detail
+        ${appendCondition(where, "year = 2026 AND version = 'Actual'")}
+    `, where.params)[0]);
+
+    const outlook = metricSnapshot(runDynamic(`
+        SELECT ${FULL_METRIC_SELECT}
+        FROM pl_detail
+        ${monthlyWhere}
+    `, where.params)[0]);
+
+    const priorYear = metricSnapshot(runDynamic(`
+        SELECT ${FULL_METRIC_SELECT}
+        FROM pl_detail
+        ${priorWhere}
+    `, where.params)[0]);
+
+    const concentration = {};
+    const concentrationDimensions = [
+        ['customers', 'customer_name'],
+        ['products', 'm_group_desc'],
+        ['regions', 'region_desc']
+    ];
+
+    concentrationDimensions.forEach(([key, column]) => {
+        concentration[key] = runDynamic(`
+            SELECT COALESCE(${column}, 'Unassigned') AS label,
+                   ${METRIC_SELECT}
+            FROM pl_detail
+            ${monthlyWhere}
+            GROUP BY ${column}
+            HAVING net_sales != 0
+            ORDER BY net_sales DESC
+            LIMIT 10
+        `, where.params);
+    });
+
+    const profitability = runDynamic(`
+        WITH product_outlook AS (
+            SELECT COALESCE(m_group_desc, 'Unassigned') AS label,
+                   ${METRIC_SELECT}
+            FROM pl_detail
+            ${monthlyWhere}
+            GROUP BY m_group_desc
+        ),
+        product_prior AS (
+            SELECT COALESCE(m_group_desc, 'Unassigned') AS label,
+                   SUM(net_sales) AS prior_net_sales,
+                   SUM(gross_margin) AS prior_gross_margin,
+                   SUM(operating_profit) AS prior_operating_profit
+            FROM pl_detail
+            ${priorWhere}
+            GROUP BY m_group_desc
+        )
+        SELECT o.*,
+               COALESCE(p.prior_net_sales, 0) AS prior_net_sales,
+               COALESCE(p.prior_gross_margin, 0) AS prior_gross_margin,
+               COALESCE(p.prior_operating_profit, 0) AS prior_operating_profit
+        FROM product_outlook o
+        LEFT JOIN product_prior p ON p.label = o.label
+        WHERE o.net_sales != 0
+        ORDER BY o.net_sales DESC
+        LIMIT 20
+    `, [...where.params, ...where.params]);
+
+    const productRisk = runDynamic(`
+        WITH product_outlook AS (
+            SELECT m_group_desc,
+                   SUM(net_sales) AS net_sales,
+                   SUM(gross_margin) AS gross_margin,
+                   SUM(operating_profit) AS operating_profit
+            FROM pl_detail
+            ${monthlyWhere}
+            GROUP BY m_group_desc
+        )
+        SELECT COUNT(*) AS product_count,
+               SUM(CASE WHEN gross_margin < 0 THEN 1 ELSE 0 END) AS negative_gm_products,
+               SUM(CASE WHEN operating_profit < 0 THEN 1 ELSE 0 END) AS loss_making_products,
+               SUM(CASE WHEN gross_margin < 0 THEN net_sales ELSE 0 END) AS negative_gm_revenue,
+               SUM(CASE WHEN operating_profit < 0 THEN net_sales ELSE 0 END) AS loss_making_revenue,
+               SUM(net_sales) AS total_revenue
+        FROM product_outlook
+    `, where.params)[0] || {};
+
+    return {
+        coverage: {
+            year: 2026,
+            actualPeriods: [1, 2, 3, 4, 5],
+            outlookPeriods: [6, 7, 8, 9, 10, 11, 12],
+            definition: 'Actual P01-P05 + T06 P06 + T07 P07-P12'
+        },
+        monthly,
+        actualYtd,
+        outlook,
+        priorYear,
+        concentration,
+        profitability,
+        productRisk
+    };
+}
+
 function getFilters(query) {
     const region = query.region || null;
     const countries = region
@@ -361,7 +512,7 @@ function getDrilldown(query) {
     delete filterQuery.limit;
     const where = buildWhere(filterQuery, { defaultVersion: 'Actual' });
     const extraWhere = where.sql ? `${where.sql} AND year IN (?, ?)` : 'WHERE year IN (?, ?)';
-    const params = [...where.params, year1, year2, year1, year2, limit];
+  const params = [year1, year2, ...where.params, year1, year2, limit];
 
     const rows = runDynamic(`
         SELECT ${dimension} AS dimension,
@@ -462,6 +613,7 @@ function handleApi(pathname, query, res) {
     }
 
     if (pathname === '/api/scenario-pl') return jsonResponse(res, getScenario(query));
+    if (pathname === '/api/executive-outlook') return jsonResponse(res, getExecutiveOutlook(query));
     if (pathname === '/api/drilldown') return jsonResponse(res, getDrilldown(query));
     if (pathname === '/api/top-products') return jsonResponse(res, getTopProducts(query));
 

@@ -2,6 +2,10 @@
 
 > This file captures lessons learned, best practices, and problem-solving patterns from building the Company Dashboard project. Read this at the start of any task to avoid repeating mistakes and to apply proven patterns.
 
+## Current v4 Direction
+
+The production dashboard is now SQLite-first. Use parameterized `better-sqlite3` queries for interactive filters and keep `api_data/` only as a database-unavailable fallback. The pre-computation guidance below remains useful for very expensive or immutable workloads, but it is no longer the primary dashboard architecture.
+
 ---
 
 ## 1. Pre-Computation Pattern (The Biggest Lesson)
