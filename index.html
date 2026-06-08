@@ -228,8 +228,16 @@
             border-left-color: var(--warning);
         }
 
+        .kpi-card.info {
+            border-left-color: #8b5cf6;
+        }
+
         .kpi-card.warning::after {
             background: radial-gradient(circle, rgba(245, 158, 11, 0.06) 0%, transparent 70%);
+        }
+
+        .kpi-card.info::after {
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.06) 0%, transparent 70%);
         }
 
         .kpi-label {
@@ -292,6 +300,78 @@
 
         .chart-card.full {
             grid-column: 1 / -1;
+        }
+
+        .insights-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .insight-item {
+            padding: 10px 14px;
+            margin-bottom: 6px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            border-left: 3px solid transparent;
+        }
+
+        .insight-item.good {
+            background: var(--success-light);
+            border-left-color: var(--success);
+            color: #065f46;
+        }
+
+        .insight-item.bad {
+            background: var(--danger-light);
+            border-left-color: var(--danger);
+            color: #991b1b;
+        }
+
+        .insight-item.neutral {
+            background: #f0f4ff;
+            border-left-color: #3b82f6;
+            color: #1e40af;
+        }
+
+        .insight-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-top: 5px;
+            flex-shrink: 0;
+        }
+
+        .insight-item.good .insight-dot { background: var(--success); }
+        .insight-item.bad .insight-dot { background: var(--danger); }
+        .insight-item.neutral .insight-dot { background: var(--primary); }
+
+        .export-btn {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 6px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: inherit;
+        }
+
+        .export-btn:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary-dark);
         }
 
         .chart-title {
@@ -686,7 +766,15 @@
         <div class="tab" data-tab="drilldown">Variance Drill-Down</div>
     </div>
     <div class="panel active" id="panel-overview">
+        <div class="controls">
+            <div class="control-group"><label>Focus Year</label><select id="focusYear"><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option></select></div>
+        </div>
         <div class="kpi-grid" id="kpiGrid"></div>
+        <div class="insights-card" id="insightsCard">
+            <div class="chart-title">Quick Insights</div>
+            <div class="chart-subtitle">Auto-generated analysis of key movements</div>
+            <div id="insightsContent"></div>
+        </div>
         <div class="chart-grid">
             <div class="chart-card"><div class="chart-title">Revenue &amp; Cost Trend</div><div class="chart-subtitle">Net Sales vs COGS vs Gross Margin</div><div class="chart-container"><canvas id="revenueCostChart"></canvas></div></div>
             <div class="chart-card"><div class="chart-title">Margin Analysis</div><div class="chart-subtitle">Gross Margin %, Operating Margin %, Net Income %</div><div class="chart-container"><canvas id="marginChart"></canvas></div></div>
@@ -699,6 +787,7 @@
             <div class="chart-title">Detailed P&amp;L with YoY Variance</div>
             <div class="chart-subtitle">All figures absolute; variance columns show YoY % change</div>
             <div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="plTable"></table></div>
+            <button class="export-btn" onclick="exportCSV('plTable','pl-detail')">Export CSV</button>
         </div>
     </div>
     <div class="panel" id="panel-regional">
@@ -706,20 +795,22 @@
             <div class="control-group"><label>Metric</label><select id="regMetric"><option value="net_sales">Net Sales</option><option value="cost_of_goods_sold">COGS</option><option value="gross_margin">Gross Margin</option><option value="operating_profit">Operating Profit</option><option value="net_income">Net Income</option></select></div>
         </div>
         <div class="chart-grid"><div class="chart-card full"><div class="chart-title">Regional Comparison by Year</div><div class="chart-subtitle">Selected metric across all regions and years</div><div class="chart-container tall"><canvas id="regionalChart"></canvas></div></div></div>
-        <div class="table-card"><div class="chart-title">Regional P&amp;L Detail</div><div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="regionalTable"></table></div></div>
+        <div class="table-card"><div class="chart-title">Regional P&amp;L Detail</div><div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="regionalTable"></table></div>
+            <button class="export-btn" onclick="exportCSV('regionalTable','regional-pl')">Export CSV</button></div>
     </div>
     <div class="panel" id="panel-product">
         <div class="controls">
             <div class="control-group"><label>Year</label><select id="prodYear"><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option></select></div>
             <div class="control-group"><label>Compare With</label><select id="prodYear2"><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025" selected>2025</option><option value="2026">2026</option></select></div>
             <div class="control-group"><label>Metric</label><select id="prodMetric"><option value="net_sales">Net Sales</option><option value="gross_margin">Gross Margin</option><option value="operating_profit">Operating Profit</option><option value="net_income">Net Income</option></select></div>
-            <div class="control-group"><label>&nbsp;</label><button class="btn btn-primary" id="prodBtn">Analyze</button></div>
+            <div class="control-group"><label>&nbsp;</label><button class="btn btn-primary" id="productBtn">Analyze</button></div>
         </div>
         <div class="chart-grid">
             <div class="chart-card"><div class="chart-title">Top Product Groups by Net Sales</div><div class="chart-subtitle">Top 15 product groups</div><div class="chart-container tall"><canvas id="productChart"></canvas></div></div>
             <div class="chart-card"><div class="chart-title">Product Group Margin %</div><div class="chart-subtitle">Gross Margin % by product group</div><div class="chart-container tall"><canvas id="productMarginChart"></canvas></div></div>
         </div>
-        <div class="table-card"><div class="chart-title">Product Group P&amp;L Detail</div><div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="productTable"></table></div></div>
+        <div class="table-card"><div class="chart-title">Product Group P&amp;L Detail</div><div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="productTable"></table></div>
+            <button class="export-btn" onclick="exportCSV('productTable','product-pl')">Export CSV</button></div>
     </div>
     <div class="panel" id="panel-drilldown">
         <div class="controls">
@@ -730,7 +821,8 @@
             <div class="control-group"><label>&nbsp;</label><button class="btn btn-primary" id="ddBtn">Drill Down</button></div>
         </div>
         <div class="chart-grid"><div class="chart-card full"><div class="chart-title">Variance Waterfall - Biggest Contributors</div><div class="chart-subtitle">Top items driving the change</div><div class="chart-container tall"><canvas id="drilldownChart"></canvas></div></div></div>
-        <div class="table-card"><div class="chart-title">Variance Detail Table</div><div class="chart-subtitle">Sorted by absolute change amount</div><div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="drilldownTable"></table></div></div>
+        <div class="table-card"><div class="chart-title">Variance Detail Table</div><div class="chart-subtitle">Sorted by absolute change amount</div><div style="overflow-x:auto;margin-top:12px"><table class="data-table" id="drilldownTable"></table></div>
+            <button class="export-btn" onclick="exportCSV('drilldownTable','drilldown')">Export CSV</button></div>
     </div>
 </div>
 <div class="footer">PL Financial Analysis Dashboard &middot; 790,245 records &middot; Pre-computed Static Backend &middot; Excel COM Automation</div>
