@@ -104,8 +104,11 @@ take from the client, with what, and when?"
   mirroring `excel_com.py`. Saved `.msg`/`.eml` work cross-platform today.
 - **Mapping raw → database.** Spreadsheet raw JSON can be loaded into the
   dashboard's `pl_detail` table with `map_raw_to_db.py` and a small mapping file
-  (see `../mapping.example.json`). Non-spreadsheet sources still need target
-  shapes before they can be mapped safely.
+  (see `../mapping.example.json`). The mapper includes a **post-load validation**
+  step that checks P&L arithmetic identities, duplicate grains, null required
+  columns, and prints a coverage report — so a bad load is caught before the
+  database is swapped in. Non-spreadsheet sources still need target shapes before
+  they can be mapped safely.
 - **COM cannot be tested in Linux/CI.** The COM extractors are written to the
   project's COM conventions (see `Agent.md`) and must be validated on a Windows
   machine with Office installed.

@@ -39,6 +39,12 @@ The management webapp: charts, tables, trends, outlook, CSV export — and a sol
 runnable core that works on any computer with practice data.
 **You have this today.**
 
+> **Production hardening applied:** server binds localhost by default, optional
+> access token, Chart.js vendored locally (no CDN), system fonts, dynamic
+> year/version/outlook detection from the database, report generation API
+> endpoints, spreadsheet formula-injection protection in all exports, and
+> post-load data validation on every database load.
+
 ### Stage 1 — Take in real data (the extraction engine) ⭐ the keystone — *foundation built*
 
 > **Status:** the engine foundation exists in `extractor/` — it captures Excel
@@ -68,8 +74,10 @@ or exported to Excel/PDF.
 > P&L reports plus two **forecast/outlook** reports (full-year outlook vs prior
 > year, and monthly progression) — as self-describing JSON, CSV,
 > **management-ready Excel (.xlsx)** and **PDF**, and bundles them all into a
-> single **board pack** (`--pack`). See `reports/README.md`. Next:
-> client-specific templates.
+> single **board pack** (`--pack`). The six core SQL reports are also available
+> as live API endpoints (`/api/reports`, `/api/reports/generate`). See
+> `reports/README.md`. Next: client-specific templates, report download UI in
+> the dashboard.
 
 ### Stage 3 — Scenarios & forecasting — *first version built*
 "What-if" modelling and forward forecasts — change an assumption and watch the
@@ -103,9 +111,9 @@ automates steps, and suggests better ways of working.
 
 ## Big decisions to keep in mind (not all today)
 
-- **Where it runs & privacy.** Client financial data is sensitive. We decide
-  whether this runs **on your own/their computer (most private)** or in the
-  **cloud (easier to share)**. This shapes everything, so we settle it early.
+- **Where it runs & privacy.** Client financial data is sensitive. The server
+  defaults to `127.0.0.1` (local only) with an optional `ACCESS_TOKEN` for
+  shared deployments. All assets are self-contained (no external CDN).
 - **One client or many.** A tool for one client at a time is much simpler than a
   product that serves many companies at once. We can start with one and grow.
 - **Human-in-the-loop.** Especially for messy PDFs, a person confirming the

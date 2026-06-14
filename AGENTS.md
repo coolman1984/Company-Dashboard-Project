@@ -23,9 +23,15 @@ overwriting each other and breaking the project.
    current status, and what should happen next. **A task is not "done" until the
    journal is updated.**
 4. **DON'T BREAK THE BUILD.** All tests must pass before you push:
-   `npm test` (dashboard) and `python3 -m extractor.test_extractor` (engine).
-   If you can't run a test (e.g. Windows-only COM on a Linux agent), say so
-   explicitly in your journal entry.
+   - `npm test` — dashboard (syntax check + smoke test)
+   - `python3 -m extractor.test_extractor` — extraction engine
+   - `python3 test_map_raw_to_db.py` — raw-to-database mapper (includes post-load validation)
+   - `python3 -m reports.test_reports` — reports engine
+   - `python3 -m reports.test_render` — Excel/PDF rendering
+   - `python3 -m reports.test_scenario` — what-if scenarios
+   - `python3 -m brain.test_brain` — knowledge engine
+   - `python3 -m brain.cli --check` — knowledge link validation
+   If you can't run a test, say so explicitly in your journal entry.
 5. **NEVER COMMIT CLIENT DATA.** Real financial files (`intake/`) and their
    captures (`raw/`) are private and git-ignored. Never commit them, paste their
    contents, or send them to any external service.
@@ -63,7 +69,7 @@ pl_detail.db (SQLite ledger)
 
 | Area | Files | Notes |
 |------|-------|-------|
-| Dashboard server | `server.js` | Node `http`, ONE dependency (`better-sqlite3`), read-only SQLite, CSP + validation. |
+| Dashboard server | `server.js` | Node `http`, ONE dependency (`better-sqlite3`), read-only SQLite, dynamic metadata, CSP, optional access token, reports API. |
 | Dashboard UI | `index.html`, `app.js` | Vanilla JS + Chart.js, lazy-loaded tabs, client cache. |
 | Database schema | `schema.sql` | Canonical table + indexes + views (single source of truth). |
 | Dev/test data | `seed_db.py` | Deterministic **synthetic** `pl_detail.db` — runs anywhere, no Excel. |
@@ -95,7 +101,14 @@ python3 -m brain.cli --check         # validate knowledge links
 ```
 
 ### Conventions everyone must follow
-- **Keep dependencies minimal.** The server has exactly one. Justify any new one.
+- **Keep dependencies minimal.** The server has exactly one (`better-sqlite3`). Justify any new one.
+- **Security by default.** Server binds `127.0.0.1`. Use `HOST=0.0.0.0` only for shared deployments,
+  and set `ACCESS_TOKEN` to gate requests. Never expose financial data to the open internet
+  without auth.
+- **No external CDN.** Chart.js is vendored in `chart.umd.min.js`. System fonts only.
+  No Google Fonts, no jsDelivr. The dashboard works fully offline.
+- **Year/version/outlook are dynamic.** The server reads these from the database at
+  startup — do not hard-code year ranges, outlook year, or period cutoffs.
 - **The raw-JSON envelope is a shared contract** (`extractor/raw.py`). All
   extractors must produce the same outer shape. Changing it affects every agent.
 - **Period encoding:** `period` REAL = `year + period_number/1000`. Versions:

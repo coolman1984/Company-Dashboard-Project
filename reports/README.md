@@ -29,6 +29,24 @@ section per report.
 The source database must exist first — either the synthetic dev data
 (`python3 seed_db.py`) or real client data loaded via `map_raw_to_db.py`.
 
+### Live API access (from the dashboard)
+
+The six core SQL-based reports are also available as live API endpoints:
+
+```bash
+curl http://localhost:3001/api/reports                    # list reports
+curl http://localhost:3001/api/reports/generate?name=yearly_pl  # JSON report
+```
+
+No Python needed — the server runs the report SQL directly against the live database.
+
+### Export safety
+
+All CSV and Excel exports are protected against spreadsheet formula injection:
+string cells beginning with `=`, `+`, `-`, `@`, tab, or carriage return are
+automatically prefixed with `'` before writing. This is handled by `safe_str()`
+in `reports/__init__.py` and applied in both the CSV writer and Excel renderer.
+
 ### Output formats
 
 | Format | Needs | Use |

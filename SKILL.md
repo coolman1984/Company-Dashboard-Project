@@ -30,6 +30,15 @@ last-updated: "2026-06-14"
 - Scenario Stage 3 first version is implemented in `reports/scenario.py`.
 - Knowledge-base Stage 4 first version is implemented in `brain/` + `knowledge/`.
 - Stage 5, the AI agent "Hermes", is not implemented yet.
+- **Production hardening (2026-06-14):** server binds `127.0.0.1` by default
+  (`HOST` env override), optional `ACCESS_TOKEN` gate, Chart.js vendored locally
+  (`chart.umd.min.js`), system fonts replace Google Fonts, CSP self-only, years/
+  versions/outlook year detected dynamically from the database at startup,
+  `/api/filters` and `/api/data-freshness` added to fallback cache, spreadsheet
+  formula-injection protection in CSV/XLSX exports (`safe_str()` in `reports/`),
+  post-load data validation in `map_raw_to_db.py` (P&L identity, duplicate grains,
+  null checks, coverage report), `/api/reports` and `/api/reports/generate`
+  endpoints for 6 SQL-based reports.
 
 The long sections below pre-date parts of this architecture and may describe the
 older precomputed-cache approach as primary. Treat them as legacy background, not

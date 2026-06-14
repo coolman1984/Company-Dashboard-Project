@@ -9,9 +9,13 @@ single-page dashboard (vanilla JS + Chart.js) plus a CFO-grade executive outlook
 
 - **Backend:** `server.js` — Node's built-in `http`, one dependency
   (`better-sqlite3`), read-only queries against `pl_detail.db`.
-- **Frontend:** `index.html` + `app.js` — lazy-loaded tabs, client-side caching.
+- **Frontend:** `index.html` + `app.js` — lazy-loaded tabs, client-side caching,
+  self-contained (Chart.js vendored locally, system fonts, no external CDN).
 - **Data:** `pl_detail.db` — a SQLite ledger keyed by year, version, period,
   region, country, customer and product group.
+- **Security:** server binds `127.0.0.1` by default — no network exposure.
+  Optional `ACCESS_TOKEN` env var gates all requests for shared deployments.
+  Zero external CDN dependencies (all assets served from the project folder).
 
 ## Quick start (any platform)
 
@@ -22,10 +26,18 @@ synthetic database instead — no Excel, no network, standard library only:
 ```bash
 npm install                 # installs better-sqlite3
 python3 seed_db.py --force  # writes a synthetic pl_detail.db
-npm start                    # serves http://localhost:3001
+npm start                    # serves http://localhost:3001 (127.0.0.1 only)
 ```
 
-Then open <http://localhost:3001>.
+Then open <http://localhost:3001>. No internet required after `npm install`.
+
+**Optional env vars for shared/remote access:**
+
+```bash
+HOST=0.0.0.0               # listen on all interfaces (not just localhost)
+ACCESS_TOKEN=my-secret      # require ?access_token= in every request
+PORT=3005 npm start         # use a different port
+```
 
 ## Testing
 
@@ -52,10 +64,11 @@ source of truth shared by the seeder and the production ingestion path.
   - `Actual` — realised periods
   - `T06` — the single forecast bridge period P06
   - `T07` — the forward outlook periods P07–P12
-- **Current-year coverage (FY2026):** Actual P01–P05 + T06 P06 + T07 P07–P12.
-  Prior years are full-year Actual (P01–P12). The executive outlook stitches
-  these together; never infer EBITDA, cash flow or balance-sheet figures from
-  this P&L-only ledger.
+- **Current-year coverage:** the server detects the outlook year and Actual period
+  count from the database at startup (e.g. FY2026 Actual P01–P05 + T06 P06 + T07
+  P07–P12 for the synthetic seed). Prior years are full-year Actual (P01–P12).
+  The executive outlook stitches these together; never infer EBITDA, cash flow
+  or balance-sheet figures from this P&L-only ledger.
 
 ## Production data ingestion (Windows only)
 
@@ -108,21 +121,23 @@ python3 map_raw_to_db.py --mapping mapping.myclient.json --force
 The loader pulls column types from `schema.sql`, validates the required
 `year` / `version` / `period` fields (and the `year + period_number/1000`
 encoding), inserts in bounded batches, builds indexes after the load, runs an
-integrity check, and only then atomically swaps the new database in — so a
-failed load never corrupts an existing dashboard database.
+integrity check plus **post-load data validation** (P&L identity, duplicate
+grains, null checks, coverage report), and only then atomically swaps the new
+database in — so a failed load never corrupts an existing dashboard database.
 
 ## Project layout
 
 | Path | Purpose |
 |------|---------|
-| `server.js` | HTTP server + all `/api/*` endpoints (live SQLite) |
+| `server.js` | HTTP server + all `/api/*` endpoints (live SQLite, dynamic metadata) |
 | `index.html`, `app.js` | Dashboard UI |
+| `chart.umd.min.js` | Vendored Chart.js v4.4.7 (self-contained, no CDN needed) |
 | `schema.sql` | Canonical DB schema (table, indexes, views) |
 | `seed_db.py` | Synthetic database generator (dev/test/CI) |
 | `smoke_test.js` | End-to-end API smoke test (`npm test`) |
 | `reports/` | Reports engine: JSON/CSV/Excel/PDF, board pack, outlook, scenarios |
 | `brain/`, `knowledge/` | Knowledge base ("second brain"): Obsidian-style wiki + graph |
-| `map_raw_to_db.py` | Load extracted raw JSON into `pl_detail` via a mapping |
+| `map_raw_to_db.py` | Load extracted raw JSON into `pl_detail` via a mapping + post-load validation |
 | `ingest_sheet1.py` | Production Excel → SQLite ingestion (Windows) |
 | `precompute_data.py` | Builds `api_data/` JSON fallback cache |
 | `analysis_cfo.py` | Offline CFO analysis utilities |
@@ -146,3 +161,5 @@ All endpoints are `GET` and return JSON. Common filters: `version`, `year`,
 | `/api/executive-outlook` | Reconciled CFO outlook cockpit |
 | `/api/drilldown` | Variance contributors between two years |
 | `/api/top-products`, `/api/portfolio` | Product economics |
+| `/api/reports` | List available saved reports |
+| `/api/reports/generate?name=` | Generate a saved report as JSON (6 core P&L reports) |
