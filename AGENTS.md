@@ -246,6 +246,64 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-14 — Claude Code — claude/docs-updates-7-files-4bs7ux (code-review fixes)
+**Did:** Code-review pass on the production-hardening work; fixed 6 findings.
+(1) `server.js` `/api/executive-outlook` `coverage` was hard-coded to
+`[1..5]`/`[6..12]`/"P01-P05 + T06 P06 + T07 P07-P12" even though the SQL uses the
+dynamic `OUTLOOK_ACTUAL_PERIODS` — now derived from it (`periodRange` helper), so
+the labels match the data for any client. (2) `map_raw_to_db.py` post-load
+validation now **aborts the swap** on structural problems (no rows, duplicate
+grains, nulls in required columns) instead of only printing warnings; P&L
+arithmetic drift stays a non-blocking warning. Added a regression test
+(`test_post_load_validation_aborts_on_duplicate_grain`). (3) Hard-coded year
+defaults in `getPortfolio`/`getDrilldown` (2024/2025) now derive from the live
+`VALID_YEARS` (`latestYear`/`priorYear` helpers). (4) Removed dead code
+(`OUTLOOK_ACTUAL_MAX`, redundant `!dbAvailable` checks in the reports endpoints).
+(5) Access-token comparison is now constant-time (`crypto.timingSafeEqual` via
+`tokenMatches`). (6) Unified version string to `4.2`. Updated `README.md` and
+`extractor/README.md` to describe the fatal-vs-warning validation behaviour.
+**Why:** Three of these (1, 2, 3) were claims the docs now make that the code
+didn't actually honour — the dynamic-metadata convention and the "bad load is
+caught before the swap" guarantee. The rest are hygiene/security cleanups.
+**Status:** ✅ all 8 suites pass — `npm test`, extractor, mapper (incl. new
+test), reports, render, scenario, brain, `brain.cli --check` (0 broken links).
+Verified live: token auth returns 401/401/200, `/api/executive-outlook`
+coverage is computed dynamically, `/api/drilldown` works with no year params.
+**Next:** Reports/scenarios download UI in the dashboard; client-specific report
+templates; OCR stage.
+**Watch out:** Behaviour change — a load with duplicate grains or nulls in
+required columns now FAILS (raises `MappingError`) instead of loading with a
+warning. This is intentional (the dashboard groups by grain), but any existing
+mapping that silently produced such rows will now error until fixed.
+
+### 2026-06-14 — Claude Code — claude/docs-updates-7-files-4bs7ux
+**Did:** Updated all project documentation to reflect the production-hardening
+work (commit 9aa0a21) across 7 files: `README.md` (security/self-contained
+section, env-var examples, `/api/reports` endpoints, `chart.umd.min.js` in the
+layout table, dynamic-coverage description, post-load validation), `AGENTS.md`
+(security/no-CDN/dynamic-metadata conventions + expanded "Don't Break the Build"
+to list all 8 test suites), `ROADMAP.md` (Stage 0 hardening summary, Stage 2
+reports API, privacy decision now reflects localhost+ACCESS_TOKEN),
+`GETTING-STARTED.md` (offline note, pip + HOST/ACCESS_TOKEN dev examples),
+`SKILL.md` (hardening entry in the completion snapshot), `reports/README.md`
+(Live API access + Export safety sections), `extractor/README.md` (post-load
+validation in the mapper description). Also adding this missing journal entry.
+**Why:** The hardening commit changed runtime behaviour (localhost bind, access
+token, vendored Chart.js, dynamic metadata, reports API, export safety,
+post-load validation) but the docs still described the old state; they're the
+first thing every agent and the owner reads.
+**Status:** Documentation-only change — no application code touched. Verified
+each doc claim against the actual source (server.js HOST/ACCESS_TOKEN/reports
+endpoints, vendored Chart.js v4.4.7, `safe_str()` in `reports/__init__.py`,
+`_validate_loaded_data()` in `map_raw_to_db.py`, dynamic `OUTLOOK_YEAR`); all 8
+listed test suites exist as real files. Did not re-run the suites (no code
+changed). The 7-file docs commit was already pushed; this journal entry closes
+the protocol gap (the task was never logged).
+**Next:** Reports/scenarios download UI in the dashboard; client-specific report
+templates; OCR stage.
+**Watch out:** The previous OpenCode journal entry (below) actually contains two
+merged entries with no header between them — left as-is, not mine to rewrite.
+
 ### 2026-06-14 — OpenCode — claude/project-planning-core-8cj4iz (2nd session)
 **Did:** Production hardening pass: (1) bind server to 127.0.0.1 by default with HOST env override, (2) add optional ACCESS_TOKEN gate for non-localhost deployments, (3) remove external CDN — vendor Chart.js locally and switch to system fonts, update CSP, (4) make VALID_YEARS and VALID_VERSIONS dynamic from the database at startup, (5) make outlook year detection dynamic instead of hard-coded 2026, (6) add /api/filters and /api/data-freshness to the fallback cache so "limited mode" boot actually works.
 **Why:** The public repo had unauthenticated financial endpoints, external CDN script/font dependencies on a private finance dashboard, hard-coded FY2026 logic that would break with a new client/year, and a fallback mode that couldn't complete bootstrap — all blockers for real-client use.

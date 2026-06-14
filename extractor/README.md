@@ -105,9 +105,10 @@ take from the client, with what, and when?"
 - **Mapping raw → database.** Spreadsheet raw JSON can be loaded into the
   dashboard's `pl_detail` table with `map_raw_to_db.py` and a small mapping file
   (see `../mapping.example.json`). The mapper includes a **post-load validation**
-  step that checks P&L arithmetic identities, duplicate grains, null required
-  columns, and prints a coverage report — so a bad load is caught before the
-  database is swapped in. Non-spreadsheet sources still need target shapes before
+  step that checks for duplicate grains, nulls in required columns, P&L arithmetic
+  identities, and prints a coverage report. Structural problems abort the load
+  before the database is swapped in; P&L arithmetic drift is reported as a
+  non-blocking warning. Non-spreadsheet sources still need target shapes before
   they can be mapped safely.
 - **COM cannot be tested in Linux/CI.** The COM extractors are written to the
   project's COM conventions (see `Agent.md`) and must be validated on a Windows

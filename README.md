@@ -121,9 +121,11 @@ python3 map_raw_to_db.py --mapping mapping.myclient.json --force
 The loader pulls column types from `schema.sql`, validates the required
 `year` / `version` / `period` fields (and the `year + period_number/1000`
 encoding), inserts in bounded batches, builds indexes after the load, runs an
-integrity check plus **post-load data validation** (P&L identity, duplicate
-grains, null checks, coverage report), and only then atomically swaps the new
-database in — so a failed load never corrupts an existing dashboard database.
+integrity check plus **post-load data validation**, and only then atomically
+swaps the new database in — so a failed load never corrupts an existing
+dashboard database. Validation aborts the swap on structural problems (no rows,
+duplicate grains, nulls in required columns) and prints a coverage report; P&L
+arithmetic drift is surfaced as a non-blocking warning.
 
 ## Project layout
 
