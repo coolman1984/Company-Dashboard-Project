@@ -1,5 +1,8 @@
 # Company Dashboard
 
+> 🤝 **Multiple AI agents work on this project.** Any agent (Claude, Codex,
+> DeepSeek, …) MUST read [`AGENTS.md`](AGENTS.md) first and log its work there.
+
 A profit-and-loss analytics dashboard. A dependency-light Node.js server runs
 live, parameterized SQLite queries over a P&L detail ledger and serves a
 single-page dashboard (vanilla JS + Chart.js) plus a CFO-grade executive outlook.

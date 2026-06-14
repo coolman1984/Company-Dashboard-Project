@@ -1,0 +1,274 @@
+# AGENTS.md — Mandatory Shared Protocol for All AI Agents
+
+> **This is the single source of truth for every AI agent working on this
+> project — Claude Code, OpenAI Codex, DeepSeek, and any other.**
+> It is the contract that keeps us all synced. It is read automatically by
+> Codex (`AGENTS.md`) and by Claude Code (via `CLAUDE.md`, which points here).
+
+---
+
+## 🛑 THE RULES (read before you touch anything)
+
+These are **mandatory**. Following them is what keeps multiple agents from
+overwriting each other and breaking the project.
+
+1. **READ FIRST.** Before doing ANY work, read this entire file **and**
+   [`ROADMAP.md`](ROADMAP.md). They tell you what the project is and what to do.
+2. **CLAIM YOUR WORK.** Before starting, add your task to the **Task Board**
+   (move it to *In Progress* with your agent name). If another agent already
+   owns it, pick something else or coordinate — do not work on the same file at
+   the same time.
+3. **LOG WHEN YOU FINISH.** Before you end your session / hand off, add a new
+   entry at the TOP of the **Work Journal** describing what you did, why, the
+   current status, and what should happen next. **A task is not "done" until the
+   journal is updated.**
+4. **DON'T BREAK THE BUILD.** All tests must pass before you push:
+   `npm test` (dashboard) and `python3 -m extractor.test_extractor` (engine).
+   If you can't run a test (e.g. Windows-only COM on a Linux agent), say so
+   explicitly in your journal entry.
+5. **NEVER COMMIT CLIENT DATA.** Real financial files (`intake/`) and their
+   captures (`raw/`) are private and git-ignored. Never commit them, paste their
+   contents, or send them to any external service.
+6. **STAY IN YOUR LANE ON BRANCHES.** Use a feature branch named
+   `<agent>/<short-task>` (e.g. `codex/ocr-stage`, `claude/reports-engine`).
+   Do not push to another agent's branch. Do not force-push shared history.
+7. **SMALL, REVERSIBLE STEPS.** Prefer additive changes. If you must change
+   something load-bearing (the DB schema, the server API, the raw-JSON
+   envelope), flag it loudly in your journal entry because it affects everyone.
+
+---
+
+## 1. What this project is (so you understand it like the rest of us)
+
+A platform that takes a company's **messy files → clean data → a management
+dashboard → a knowledge base → an AI assistant**. Built in stages; each stage is
+useful on its own. The full vision and staged plan live in
+[`ROADMAP.md`](ROADMAP.md) — **read it.**
+
+### Current architecture (what exists today)
+
+```
+intake/ (messy files)
+   │
+   ▼  extractor/  ── Stage 1: faithful capture to JSON ──►  raw/*.raw.json + manifest.jsonl
+   │
+   ▼  (NEXT: map raw JSON into the database — not built yet)
+   │
+pl_detail.db (SQLite ledger)
+   │
+   ▼  server.js  ── live parameterized SQLite queries, JSON API ──►  index.html + app.js (dashboard)
+```
+
+| Area | Files | Notes |
+|------|-------|-------|
+| Dashboard server | `server.js` | Node `http`, ONE dependency (`better-sqlite3`), read-only SQLite, CSP + validation. |
+| Dashboard UI | `index.html`, `app.js` | Vanilla JS + Chart.js, lazy-loaded tabs, client cache. |
+| Database schema | `schema.sql` | Canonical table + indexes + views (single source of truth). |
+| Dev/test data | `seed_db.py` | Deterministic **synthetic** `pl_detail.db` — runs anywhere, no Excel. |
+| Production ingest | `ingest_sheet1.py` | Windows + Excel COM, real `.xlsb` (790K rows). Not the dev path. |
+| **Extraction engine** | `extractor/` | **Stage 1**: messy files → raw JSON. See `extractor/README.md`. |
+| Tests | `smoke_test.js`, `extractor/test_extractor.py` | Run both before pushing. |
+| CI | `.github/workflows/ci.yml` | install → seed → both test suites, on every push/PR. |
+| Lessons learned | `Agent.md` | COM gotchas, perf patterns, pitfalls. Worth reading. |
+
+### Run & test it (any platform)
+
+```bash
+npm install
+pip install -r extractor/requirements.txt
+python3 seed_db.py --force          # build synthetic dev database
+npm start                            # dashboard at http://localhost:3001
+npm test                             # dashboard smoke tests
+python3 -m extractor.cli --list      # show which extractors are available
+python3 -m extractor.test_extractor  # extraction engine tests
+```
+
+### Conventions everyone must follow
+- **Keep dependencies minimal.** The server has exactly one. Justify any new one.
+- **The raw-JSON envelope is a shared contract** (`extractor/raw.py`). All
+  extractors must produce the same outer shape. Changing it affects every agent.
+- **Period encoding:** `period` REAL = `year + period_number/1000`. Versions:
+  `Actual`, `T06` (P06 bridge), `T07` (P07–P12 outlook). Don't break these.
+- **Do not invent financial metrics** the source ledger can't support (no EBITDA,
+  cash flow, or balance-sheet figures from this P&L-only data).
+- **Match the existing code style.** Plain, dependency-light, well-commented only
+  where a constraint isn't obvious.
+
+---
+
+## 2. The agent team — who is good at what
+
+We are a team with different strengths. Use the right agent for the right job.
+(Grounded in research as of June 2026; see Sources at the bottom.)
+
+### Claude Code (Anthropic)
+- **Strengths:** fast on filesystem/repo-heavy work, strong codebase
+  comprehension and multi-file edits, good at careful refactors, docs, and UX.
+  Reads `CLAUDE.md`. Tight MCP/tooling integration.
+- **Weaknesses:** runs on Linux containers in this setup — **cannot execute
+  Windows-only COM** (Excel/Word/Outlook automation), so it writes that code but
+  cannot test it here.
+- **Best for:** the dashboard, the engine's cross-platform code, schema/data
+  modelling, documentation, code review, anything filesystem-heavy.
+
+### OpenAI Codex (GPT-5.5)
+- **Strengths:** top of 2026 agent benchmarks (Terminal-Bench 2.0 ≈ 82.7%);
+  excellent at **very long autonomous multi-step tasks** (1,000+ sequential tool
+  calls); strong **sandboxed safety**; native `AGENTS.md` + `.codex/skills` +
+  MCP; ChatGPT cloud hand-off.
+- **Weaknesses:** a bit slower than Claude on filesystem-heavy tasks (IPC
+  overhead); no native IDE/GUI; **can spiral into retry loops on flaky tests or
+  circular dependencies** — cap turns/tokens on automated runs.
+- **Best for:** large, well-specified end-to-end builds that run unattended; jobs
+  needing strong sandbox isolation; long test-fix-repeat loops (with caps).
+
+### DeepSeek (V3.2 / V4)
+- **Strengths:** very strong **cost-to-performance**; solid reasoning and
+  math/programming; efficient long-context via sparse attention; integrates
+  reasoning directly into tool-use.
+- **Weaknesses:** smaller context window (~131K) than some peers; **less mature
+  agent-harness / IDE ecosystem** and no standard agent-file convention, so it
+  needs more explicit instruction and tighter task scoping; verify its output
+  carefully on complex repo-wide changes.
+- **Best for:** well-scoped, self-contained tasks — algorithms, calculations,
+  data transforms, report logic, unit tests — where cost efficiency matters and
+  the task fits in a clear box. **Always point it at this file first.**
+
+### Suggested division of labour
+- **Claude:** dashboard + UI, cross-platform engine code, schema/data mapping,
+  docs, reviews.
+- **Codex:** big autonomous builds (e.g. the OCR stage, the reports engine),
+  long green-the-CI loops, sandbox-sensitive work.
+- **DeepSeek:** discrete, well-defined units — a single calculation module, a
+  report template, a transform, a batch of tests.
+- **Windows-only COM work** (Excel/Word/Outlook automation) must be run/validated
+  on a Windows machine with Office by whoever has that environment.
+
+---
+
+## 3. Coordination rules (avoiding collisions)
+
+- **One owner per task.** The Task Board's *In Progress* column shows who owns
+  what. Don't touch a file another agent is actively changing.
+- **Branch naming:** `<agent>/<short-task>`. Open a PR; don't merge another
+  agent's PR without reason.
+- **Shared contracts are sacred.** Before changing `schema.sql`, the server API,
+  or `extractor/raw.py`, announce it in a journal entry FIRST (these ripple to
+  everyone).
+- **If you're blocked or unsure, write it in the journal** rather than guessing
+  on something load-bearing.
+- **Leave the build green.** Never push red tests without a journal note saying
+  why and what's needed to fix it.
+
+---
+
+## 4. 📋 TASK BOARD
+
+> Move items between columns and put your agent name on anything you take.
+
+### Backlog (not started)
+- **Map raw JSON → database** — turn `raw/*.raw.json` (e.g. an Excel sheet's
+  rows) into typed `pl_detail` records so a real client's files reach the
+  dashboard. *(Recommended next; client-specific mapping.)*
+- **OCR stage for scanned PDFs / photos** — detect image-only pages (the
+  `pdf-text` extractor already flags them) and run text-recognition + AI.
+- **Validate COM extractors on Windows** — run `excel_com.py` against real
+  `.xlsx`/`.xlsb` on a Windows machine with Office; record results.
+- **Live Outlook COM** — read a live mailbox / `.pst` (saved `.msg`/`.eml`
+  already work cross-platform).
+- **Enable PDF + Outlook extractors in CI** — once a clean install path exists
+  (this container's `pdfplumber`/`cryptography` is broken; a normal machine is
+  fine).
+- **Reports engine (Stage 2)**, **Scenarios (Stage 3)**, **Knowledge base
+  (Stage 4)**, **AI agent "Hermes" (Stage 5)** — see ROADMAP.
+
+### In Progress (owner)
+- _(none currently)_
+
+### Done
+- Runnable core (synthetic seed, canonical schema, CI, docs, hygiene).
+- Dashboard first-run UX (clear data-not-loaded alert) + non-technical guide.
+- Vision & staged roadmap documented.
+- Extraction engine Stage 1 foundation (Excel + Word capture, tested).
+
+---
+
+## 5. 📓 WORK JOURNAL  (newest first — add your entry at the TOP)
+
+> Template for a new entry:
+> ```
+> ### YYYY-MM-DD — <Agent> — <branch>
+> **Did:** what changed (and which files).
+> **Why:** the reason / what it enables.
+> **Status:** tests passing? anything left half-done?
+> **Next:** what the next agent should pick up.
+> **Watch out:** gotchas, shared-contract changes, things you couldn't test.
+> ```
+
+### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
+**Did:** Created this `AGENTS.md` (shared protocol + agent comparison + task
+board + journal) and a `CLAUDE.md` stub pointing here. Researched Codex and
+DeepSeek to ground the division-of-labour section.
+**Why:** The project now has multiple agents (Claude, Codex, DeepSeek). This is
+the mandatory sync document so everyone shares the same understanding and logs
+their work.
+**Status:** Docs only — no code touched; existing tests unaffected.
+**Next:** First real multi-agent task is recommended to be "Map raw JSON →
+database" (see Task Board). Any agent: read this file, then ROADMAP.md.
+**Watch out:** Keep the raw-JSON envelope and DB schema stable — they're shared
+contracts. Don't commit `intake/` or `raw/` data.
+
+### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
+**Did:** Built the **extraction engine** (`extractor/`): a pluggable, COM-first
+pipeline that captures messy Excel/Word/PDF/Outlook files into one common
+raw-JSON envelope (`raw.py`) plus an append-only audit manifest. Excel
+(`excel-openpyxl`) and Word (`word-docx`) tested end-to-end; `excel-com`
+(Windows COM, full control, reads `.xlsb`), `pdf-text`, and `outlook-msg`
+written with graceful availability checks. Added `extractor/test_extractor.py`,
+wired it into CI, gitignored client data.
+**Why:** Stage 1 of the roadmap — the keystone that lets us take a real client's
+files and turn them into data.
+**Status:** ✅ `python3 -m extractor.test_extractor` and `npm test` both pass.
+**Next:** Map raw JSON into `pl_detail`; add OCR for scanned docs; validate COM
+on Windows.
+**Watch out:** COM (`excel_com.py`) is Windows-only and was NOT executed here
+(Linux) — needs validation on a Windows machine with Office. The engine must
+never crash on a bad file — keep extractors' `is_available()` defensive.
+
+### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
+**Did:** Documented the full **vision & staged roadmap** (`ROADMAP.md`): intake →
+database → dashboard → knowledge base → AI agent, built in independent stages.
+**Why:** Capture the big picture so every agent (and the owner) shares one plan.
+**Status:** Docs only.
+**Next:** Execute stages in order; Stage 1 first.
+
+### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
+**Did:** Improved **first-run experience**: a clear, persistent "couldn't load
+data / running in limited mode" banner with a Try-again button
+(`index.html`, `app.js`), plus a plain-language `GETTING-STARTED.md` and a
+`Create Sample Data.bat` double-click helper for non-technical Windows users.
+**Why:** Before, a first-time user with no data saw a cryptic, vanishing error.
+**Status:** ✅ tests pass; verified both the working and no-database paths.
+**Next:** —
+
+### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
+**Did:** Made the project **runnable from a fresh clone**: extracted the DB schema
+to `schema.sql`, added `seed_db.py` (deterministic synthetic `pl_detail.db`, no
+Excel needed), wrote a real `README.md`, added GitHub Actions CI, and stopped
+tracking throwaway QA artifacts.
+**Why:** Previously the database could only be built on Windows from a
+proprietary Excel file, so nobody could run, test, or build on the project.
+**Status:** ✅ `npm test` passes against the synthetic database.
+**Next:** Build out the extraction engine (done in a later entry above).
+**Watch out:** `runtime/node.exe` (91MB) is intentionally kept for the Windows
+"portable" launcher — owner's decision; leave it unless told otherwise.
+
+---
+
+## Sources (agent research, June 2026)
+- [OpenAI Codex CLI guide (shareuhack)](https://www.shareuhack.com/en/posts/openai-codex-cli-agent-guide-2026)
+- [OpenAI Codex CLI review — pros & cons (vibecoding.gallery)](https://vibecoding.gallery/en/tools/openai-codex-cli/)
+- [Top CLI coding agents 2026 (Pinggy)](https://pinggy.io/blog/top_cli_based_ai_coding_agents/)
+- [DeepSeek-V3.2 release notes (DeepSeek API docs)](https://api-docs.deepseek.com/news/news251201)
+- [DeepSeek V3.2 pricing & benchmarks (OpenRouter)](https://openrouter.ai/deepseek/deepseek-v3.2)
+- [DeepSeek V4 context window for agents (DEV)](https://dev.to/o96a/deepseek-v4-finally-a-context-window-built-for-agents-228f)

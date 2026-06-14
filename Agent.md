@@ -1,5 +1,9 @@
 # Agent.md — Best Practices & Problem-Solving Patterns
 
+> ⚠️ **Multi-agent project.** The mandatory coordination protocol (rules, task
+> board, shared work journal) is in [`AGENTS.md`](AGENTS.md) — read it first.
+> This file is technical lessons only, not the rules.
+
 > This file captures lessons learned, best practices, and problem-solving patterns from building the Company Dashboard project. Read this at the start of any task to avoid repeating mistakes and to apply proven patterns.
 
 ## Current v4 Direction
