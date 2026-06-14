@@ -25,8 +25,8 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Install extractor dependencies (cross-platform)
-        run: pip install openpyxl python-docx
+      - name: Install extractor + report-render dependencies
+        run: pip install openpyxl python-docx reportlab
 
       - name: Seed synthetic database
         run: python3 seed_db.py --force
@@ -42,3 +42,6 @@ jobs:
 
       - name: Run reports engine tests
         run: python3 -m reports.test_reports
+
+      - name: Run report render tests (Excel/PDF)
+        run: python3 -m reports.test_render

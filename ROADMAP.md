@@ -64,9 +64,10 @@ Define report templates once, then generate them from the database on demand.
 Each report is also saved as JSON (your "target" format) and shown in the webapp
 or exported to Excel/PDF.
 
-> **Status:** `reports/` generates six core P&L reports as self-describing JSON
-> (and CSV) from the database — see `reports/README.md`. Next: client-specific
-> report templates, richer/forecast reports, and rendering bundles (board pack).
+> **Status:** `reports/` generates six core P&L reports from the database as
+> self-describing JSON, CSV, **management-ready Excel (.xlsx)**, and
+> **PDF** — see `reports/README.md`. Next: client-specific report templates,
+> richer/forecast reports, and a bundled "board pack".
 
 ### Stage 3 — Scenarios & forecasting
 "What-if" modelling and forward forecasts — change an assumption and watch the

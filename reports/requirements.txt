@@ -1,0 +1,6 @@
+# Optional dependencies for rendering reports to office formats.
+#   pip install -r reports/requirements.txt
+#
+# JSON and CSV output need nothing beyond the standard library.
+openpyxl     # .xlsx Excel output (also used by the extractor)
+reportlab    # .pdf output

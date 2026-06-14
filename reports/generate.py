@@ -14,6 +14,7 @@ import json
 import os
 import sqlite3
 
+from . import render
 from .definitions import REPORTS, REPORTS_BY_NAME
 
 
@@ -63,12 +64,21 @@ def write_csv(envelope, out_dir):
     return path
 
 
+def _check_formats(formats):
+    """Fail fast with an actionable message if a render library is missing."""
+    if "xlsx" in formats and not render.excel_available():
+        raise RuntimeError("Excel output needs openpyxl (pip install openpyxl).")
+    if "pdf" in formats and not render.pdf_available():
+        raise RuntimeError("PDF output needs reportlab (pip install reportlab).")
+
+
 def generate(db_path, out_dir, names=None, formats=("json",), verbose=True):
     """Generate the requested reports. Returns a list of result dicts."""
     if not os.path.exists(db_path):
         raise FileNotFoundError(
             f"Database not found: {db_path}. Seed it (python3 seed_db.py) or load "
             "client data (python3 map_raw_to_db.py) first.")
+    _check_formats(formats)
 
     selected = REPORTS if not names else [REPORTS_BY_NAME[n] for n in names]
     results = []
@@ -83,6 +93,12 @@ def generate(db_path, out_dir, names=None, formats=("json",), verbose=True):
                 written.append(write_json(envelope, out_dir))
             if "csv" in formats:
                 written.append(write_csv(envelope, out_dir))
+            if "xlsx" in formats:
+                written.append(render.render_excel(
+                    envelope, os.path.join(out_dir, f"{report.name}.xlsx")))
+            if "pdf" in formats:
+                written.append(render.render_pdf(
+                    envelope, os.path.join(out_dir, f"{report.name}.pdf")))
             results.append({"report": report.name, "rows": len(rows), "files": written})
             if verbose:
                 print(f"  {report.name:<18} {len(rows):>4} rows -> "

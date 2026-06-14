@@ -191,8 +191,8 @@ We are a team with different strengths. Use the right agent for the right job.
 - Extraction engine Stage 1 foundation (Excel + Word capture, tested).
 - **Map raw JSON → database** (`map_raw_to_db.py`): spreadsheet captures load
   into `pl_detail` via a reviewed per-client mapping. Tested + in CI.
-- **Reports engine first version** (`reports/`): six core P&L reports saved as
-  self-describing JSON/CSV from the database. Tested + in CI.
+- **Reports engine** (`reports/`): six core P&L reports saved from the database
+  as JSON/CSV and **management-ready Excel (.xlsx) + PDF**. Tested + in CI.
 
 ---
 
@@ -209,6 +209,21 @@ We are a team with different strengths. Use the right agent for the right job.
 > ```
 
 ### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
+**Did:** Added **Excel + PDF rendering** to the reports engine (`reports/render.py`):
+management-ready `.xlsx` (openpyxl: titled, formatted, real numbers, frozen
+header) and `.pdf` (reportlab: landscape, shaded header, right-aligned formatted
+numbers). Wired into `reports.cli` (`--format json csv xlsx pdf`) and `generate`.
+Added `reports/test_render.py` + `reports/requirements.txt`; CI now installs
+reportlab and runs the render test.
+**Why:** Stage 2 follow-up — reports ready to hand to management as-is.
+**Status:** ✅ all suites pass; generated a real PDF + XLSX from the synthetic DB.
+**Next:** Board-pack bundle, forecast/outlook reports, client-specific templates.
+**Watch out:** Excel/PDF libs are OPTIONAL and degrade gracefully (missing lib →
+clear error, not a crash). reportlab works on normal machines/CI; this dev
+container's `cryptography` is broken so `fpdf2`/`pdfplumber` can't load here, but
+reportlab does.
+
+### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
 **Did:** Built the **reports engine** (`reports/`): generates six core P&L
 reports (yearly, regional, product group, country, customer, YoY variance) as
 self-describing JSON + CSV from `pl_detail.db`, reading the Actual-only views in
@@ -218,7 +233,7 @@ wired into CI, gitignored generated output, updated README/ROADMAP/Task Board.
 shareable report artifacts distinct from the live dashboard.
 **Status:** ✅ all suites pass (dashboard, extractor, mapper, reports).
 **Next:** Client-specific report templates, forecast/outlook reports, a bundled
-"board pack"; optionally render to PDF/Excel.
+"board pack"; render to PDF/Excel (done in the entry above).
 **Watch out:** Generated reports (`output/reports/`) can contain real client
 figures — they're gitignored; keep it that way. To add a report, append to
 `reports/definitions.py` only.

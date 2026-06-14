@@ -10,15 +10,28 @@ email, or archive — each a self-describing file that stands on its own.
 ## How to run it
 
 ```bash
-python3 -m reports.cli --list                # show available reports
-python3 -m reports.cli                        # generate all as JSON -> output/reports/
-python3 -m reports.cli --report yearly_pl     # just one
-python3 -m reports.cli --format json csv      # JSON and CSV
-python3 -m reports.test_reports               # run the tests
+python3 -m reports.cli --list                  # show available reports
+python3 -m reports.cli                          # generate all as JSON -> output/reports/
+python3 -m reports.cli --report yearly_pl       # just one
+python3 -m reports.cli --format json csv xlsx pdf   # all four formats
+python3 -m reports.test_reports                 # run the tests
 ```
 
 The source database must exist first — either the synthetic dev data
 (`python3 seed_db.py`) or real client data loaded via `map_raw_to_db.py`.
+
+### Output formats
+
+| Format | Needs | Use |
+|--------|-------|-----|
+| `json` | nothing (stdlib) | the durable "target report" envelope; feeds other tools |
+| `csv`  | nothing (stdlib) | open in any spreadsheet |
+| `xlsx` | `openpyxl` | **management-ready Excel** — titled, formatted, real numbers |
+| `pdf`  | `reportlab` | **management-ready PDF** — landscape, formatted table |
+
+Install the office-format libraries with `pip install -r reports/requirements.txt`.
+Excel/PDF rendering is optional and degrades gracefully — if a library is
+missing, the CLI says so instead of crashing.
 
 ## What a report looks like (the "target" JSON envelope)
 

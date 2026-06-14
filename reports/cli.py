@@ -29,7 +29,8 @@ def main(argv=None):
     parser.add_argument("--report", action="append", dest="reports",
                         help="Report name (repeatable). Default: all.")
     parser.add_argument("--format", nargs="+", default=["json"],
-                        choices=["json", "csv"], help="Output format(s).")
+                        choices=["json", "csv", "xlsx", "pdf"],
+                        help="Output format(s): json, csv, xlsx, pdf.")
     parser.add_argument("--list", action="store_true", help="List reports and exit.")
     args = parser.parse_args(argv)
 
@@ -48,7 +49,7 @@ def main(argv=None):
     print(f"Generating reports from {os.path.basename(args.db)} -> {args.out}")
     try:
         generate(args.db, args.out, names=args.reports, formats=tuple(args.format))
-    except FileNotFoundError as error:
+    except (FileNotFoundError, RuntimeError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
     return 0
