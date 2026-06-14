@@ -69,12 +69,21 @@ when it was made, from which database).
 | `country_pl` | P&L by country and year |
 | `customer_pl` | P&L by customer and year |
 | `yoy_variance` | Year-over-year change in key P&L lines |
+| `outlook_pl` | **Forecast** full-year P&L (Actual P01-P05 + T06 P06 + T07 P07-P12) vs prior-year actual, with variance |
+| `outlook_monthly` | Monthly net sales / gross margin, flagged actual vs outlook |
 
-All read the Actual-only views in `schema.sql`, so figures tie out with the
-dashboard by construction.
+Most read the Actual-only views in `schema.sql`, so figures tie out with the
+dashboard. The `outlook_*` reports are *computed* (forecast) reports defined in
+`reports/outlook.py` — they stitch the version/period coverage into a
+forward-looking full-year view, the same way the dashboard's executive outlook
+does.
 
 ## Adding a report
 
-Append a `Report` to `reports/definitions.py` (name, title, description, SQL).
+Append a `Report` to `reports/definitions.py`. A report is either:
+- **SQL-backed:** pass `sql="SELECT ..."` (usually over a `schema.sql` view), or
+- **computed:** pass `builder=fn`, where `fn(conn) -> (columns, rows[, extra])`
+  (see `reports/outlook.py`). `extra` adds envelope metadata such as `basis`.
+
 No other code changes needed. Generated files go to `output/reports/` and are
 git-ignored (they can derive from real client data).

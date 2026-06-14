@@ -38,7 +38,50 @@ def _make_db(path):
     conn.close()
 
 
+def _make_outlook_db(path):
+    """Prior year (2024) full actual + current year (2025) Actual+T06+T07."""
+    conn = sqlite3.connect(path)
+    with open(SCHEMA_PATH, encoding="utf-8") as fh:
+        conn.executescript(fh.read())
+    rows = []
+    for p in range(1, 13):  # 2024 actual full -> net_sales total 1000
+        rows.append((2024, "Actual", round(2024 + p / 1000, 3), "Africa",
+                     1000 / 12, 400 / 12, 200 / 12, 150 / 12))
+    for p in range(1, 6):   # 2025 Actual P01-05 (500)
+        rows.append((2025, "Actual", round(2025 + p / 1000, 3), "Africa", 100, 40, 20, 15))
+    rows.append((2025, "T06", 2025.006, "Africa", 100, 40, 20, 15))  # T06 P06 (100)
+    for p in range(7, 13):  # T07 P07-12 (600)
+        rows.append((2025, "T07", round(2025 + p / 1000, 3), "Africa", 100, 40, 20, 15))
+    conn.executemany(
+        "INSERT INTO pl_detail (year, version, period, region_desc, net_sales, "
+        "gross_margin, operating_profit, net_income) VALUES (?,?,?,?,?,?,?,?)", rows)
+    conn.commit()
+    conn.close()
+
+
+def test_outlook_reports():
+    from .generate import compute_envelopes
+    with tempfile.TemporaryDirectory() as tmp:
+        db = os.path.join(tmp, "pl_detail.db")
+        _make_outlook_db(db)
+        envs = {e["report"]: e for e in compute_envelopes(db)}
+
+        pl = envs["outlook_pl"]
+        assert pl["basis"] == "FY2025 full-year outlook vs FY2024 actual", pl.get("basis")
+        net = next(r for r in pl["rows"] if r["line_item"] == "Net Sales")
+        assert round(net["outlook"]) == 1200, net      # 500 + 100 + 600
+        assert round(net["prior_year"]) == 1000, net
+        assert round(net["variance"]) == 200, net
+        assert net["variance_pct"] == 20.0, net
+
+        monthly = envs["outlook_monthly"]
+        assert monthly["row_count"] == 12, monthly["row_count"]
+        statuses = [r["status"] for r in monthly["rows"]]
+        assert statuses.count("actual") == 5 and statuses.count("outlook") == 7, statuses
+
+
 def main():
+    test_outlook_reports()
     with tempfile.TemporaryDirectory() as tmp:
         db = os.path.join(tmp, "pl_detail.db")
         out = os.path.join(tmp, "reports")

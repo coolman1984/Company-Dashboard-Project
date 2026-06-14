@@ -23,15 +23,20 @@ def _utc_now_iso():
 
 
 def run_report(conn, report):
-    """Execute one report -> (columns, rows-as-dicts)."""
+    """Execute one report -> (columns, rows-as-dicts, extra-metadata)."""
+    if report.builder is not None:
+        result = report.builder(conn)
+        columns, rows = result[0], result[1]
+        extra = result[2] if len(result) > 2 else {}
+        return columns, rows, extra
     cursor = conn.execute(report.sql)
     columns = [c[0] for c in cursor.description]
     rows = [dict(zip(columns, values)) for values in cursor.fetchall()]
-    return columns, rows
+    return columns, rows, {}
 
 
-def build_envelope(report, columns, rows, db_path, ledger_rows):
-    return {
+def build_envelope(report, columns, rows, db_path, ledger_rows, extra=None):
+    envelope = {
         "report": report.name,
         "title": report.title,
         "description": report.description,
@@ -44,6 +49,9 @@ def build_envelope(report, columns, rows, db_path, ledger_rows):
         "row_count": len(rows),
         "rows": rows,
     }
+    if extra:
+        envelope.update(extra)
+    return envelope
 
 
 def write_json(envelope, out_dir):
@@ -82,8 +90,11 @@ def compute_envelopes(db_path, names=None):
     conn = sqlite3.connect(db_path)
     try:
         ledger_rows = conn.execute("SELECT COUNT(*) FROM pl_detail").fetchone()[0]
-        return [build_envelope(report, *run_report(conn, report), db_path, ledger_rows)
-                for report in selected]
+        envelopes = []
+        for report in selected:
+            columns, rows, extra = run_report(conn, report)
+            envelopes.append(build_envelope(report, columns, rows, db_path, ledger_rows, extra))
+        return envelopes
     finally:
         conn.close()
 

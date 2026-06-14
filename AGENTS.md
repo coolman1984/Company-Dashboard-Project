@@ -191,9 +191,10 @@ We are a team with different strengths. Use the right agent for the right job.
 - Extraction engine Stage 1 foundation (Excel + Word capture, tested).
 - **Map raw JSON → database** (`map_raw_to_db.py`): spreadsheet captures load
   into `pl_detail` via a reviewed per-client mapping. Tested + in CI.
-- **Reports engine** (`reports/`): six core P&L reports saved from the database
-  as JSON/CSV and **management-ready Excel (.xlsx) + PDF**, plus a bundled
-  **board pack** (`--pack`: one workbook / one PDF). Tested + in CI.
+- **Reports engine** (`reports/`): eight reports (six core P&L + two
+  forecast/outlook) saved from the database as JSON/CSV and **management-ready
+  Excel (.xlsx) + PDF**, plus a bundled **board pack** (`--pack`). Supports both
+  SQL-backed and computed (`builder`) reports. Tested + in CI.
 
 ---
 
@@ -208,6 +209,22 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
+**Did:** Added **forecast/outlook reports** (`reports/outlook.py`): `outlook_pl`
+(full-year outlook = Actual P01-P05 + T06 P06 + T07 P07-P12, vs prior-year
+actual, with variance) and `outlook_monthly` (per-month net sales / gross margin
+flagged actual vs outlook). Extended the engine to support **computed reports**
+via `Report(builder=fn)` returning `(columns, rows[, extra])`; `extra` adds
+envelope metadata (e.g. `basis`). Updated tests/README/ROADMAP/Task Board.
+**Why:** Forward-looking "where the year is heading vs last year" as saved
+reports; rounds out Stage 2 and feeds Stage 3.
+**Status:** ✅ all suites pass; outlook figures tie out with the dashboard
+(FY2026 outlook $127.7M vs FY2025 $120.3M, +6.2%).
+**Next:** Stage 3 what-if scenarios; client-specific templates.
+**Watch out:** Outlook treats the LATEST year as the forecast year (stitched
+coverage) and falls back to full-year Actual if it has no T06/T07 rows. Builders
+must stay read-only.
 
 ### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
 **Did:** Added the **board pack** — bundle all reports into one file. Refactored

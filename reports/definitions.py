@@ -9,6 +9,9 @@ code changes needed.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Callable, Optional
+
+from .outlook import build_outlook_monthly, build_outlook_pl
 
 
 @dataclass(frozen=True)
@@ -16,7 +19,8 @@ class Report:
     name: str          # file-safe identifier
     title: str         # human title
     description: str
-    sql: str
+    sql: Optional[str] = None              # SQL query against pl_detail.db, OR
+    builder: Optional[Callable] = None     # builder(conn) -> (columns, rows[, extra])
 
 
 REPORTS = [
@@ -55,6 +59,19 @@ REPORTS = [
         title="Year-over-Year Variance",
         description="Year-on-year change in key P&L lines (Actual).",
         sql="SELECT * FROM v_yoy_variance ORDER BY year",
+    ),
+    Report(
+        name="outlook_pl",
+        title="Full-Year Outlook vs Prior Year",
+        description="Forecast full-year P&L (Actual P01-P05 + T06 P06 + T07 "
+                    "P07-P12) versus prior-year actual, with variance.",
+        builder=build_outlook_pl,
+    ),
+    Report(
+        name="outlook_monthly",
+        title="Monthly Outlook Progression",
+        description="Net sales and gross margin by month, flagged actual vs outlook.",
+        builder=build_outlook_monthly,
     ),
 ]
 
