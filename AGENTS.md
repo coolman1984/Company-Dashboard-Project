@@ -167,6 +167,8 @@ We are a team with different strengths. Use the right agent for the right job.
 > Move items between columns and put your agent name on anything you take.
 
 ### Backlog (not started)
+- **Scenarios — extend** (Stage 3 first version is Done): multi-scenario
+  comparison, scenarios surfaced in the live dashboard, volume/price split.
 - **OCR stage for scanned PDFs / photos** — detect image-only pages (the
   `pdf-text` extractor already flags them) and run text-recognition + AI.
 - **Validate COM extractors on Windows** — run `excel_com.py` against real
@@ -176,10 +178,8 @@ We are a team with different strengths. Use the right agent for the right job.
 - **Enable PDF + Outlook extractors in CI** — once a clean install path exists
   (this container's `pdfplumber`/`cryptography` is broken; a normal machine is
   fine).
-- **Scenarios (Stage 3)**, **Knowledge base (Stage 4)**, **AI agent "Hermes"
-  (Stage 5)** — see ROADMAP.
-- **Reports engine — extend** (Stage 2 first version is Done): client-specific
-  templates, forecast/outlook reports, a bundled "board pack".
+- **Knowledge base (Stage 4)**, **AI agent "Hermes" (Stage 5)** — see ROADMAP.
+- **Reports engine — extend** (Stage 2 Done): client-specific templates.
 
 ### In Progress (owner)
 - _(none currently)_
@@ -195,6 +195,9 @@ We are a team with different strengths. Use the right agent for the right job.
   forecast/outlook) saved from the database as JSON/CSV and **management-ready
   Excel (.xlsx) + PDF**, plus a bundled **board pack** (`--pack`). Supports both
   SQL-backed and computed (`builder`) reports. Tested + in CI.
+- **What-if scenarios** (`reports/scenario.py`, Stage 3): apply a reviewable
+  JSON of assumption "levers" to the baseline outlook → baseline-vs-scenario
+  P&L (JSON/CSV/Excel/PDF). Zero-adjustment = baseline. Tested + in CI.
 
 ---
 
@@ -209,6 +212,23 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
+**Did:** Built the **what-if scenario engine** (`reports/scenario.py` +
+`scenario.example.json`): applies a reviewable JSON of assumption levers
+(per-dimension % changes to net sales / COGS / opex, COGS optionally scaling
+with revenue, marginal tax rate) to the baseline outlook and produces a
+baseline-vs-scenario P&L in JSON/CSV/Excel/PDF. Model is delta-based so a
+zero-adjustment scenario reproduces the baseline exactly. Added
+`reports/test_scenario.py`; wired into CI; updated README/ROADMAP/Task Board.
+**Why:** Stage 3 — let management test a decision before taking it.
+**Status:** ✅ all suites pass. Example "Conservative 2026" cuts net income
+-21.6% from a -3% revenue move (operating leverage).
+**Next:** Multi-scenario comparison; surface scenarios in the live dashboard;
+volume/price decomposition; Stage 4 knowledge base.
+**Watch out:** Scenario adjusts only net_sales/COGS/opex directly; lines below
+operating profit move by identity on the delta (flat marginal tax). Keep
+`run_scenario` read-only.
 
 ### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
 **Did:** Added **forecast/outlook reports** (`reports/outlook.py`): `outlook_pl`

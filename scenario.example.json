@@ -1,0 +1,12 @@
+{
+  "name": "Conservative 2026",
+  "description": "Asia Pacific demand softens while costs creep up.",
+  "cogs_scales_with_revenue": true,
+  "tax_rate": 0.22,
+  "adjustments": [
+    {"metric": "net_sales", "change_pct": -10, "where": {"region_desc": "Asia Pacific"}},
+    {"metric": "net_sales", "change_pct": 5, "where": {"m_group_desc": "Robotics"}},
+    {"metric": "operating_expense", "change_pct": 3},
+    {"metric": "cost_of_goods_sold", "change_pct": 2}
+  ]
+}

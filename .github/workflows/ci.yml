@@ -45,3 +45,6 @@ jobs:
 
       - name: Run report render tests (Excel/PDF)
         run: python3 -m reports.test_render
+
+      - name: Run what-if scenario tests
+        run: python3 -m reports.test_scenario

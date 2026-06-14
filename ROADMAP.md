@@ -71,9 +71,16 @@ or exported to Excel/PDF.
 > single **board pack** (`--pack`). See `reports/README.md`. Next:
 > client-specific templates.
 
-### Stage 3 — Scenarios & forecasting
+### Stage 3 — Scenarios & forecasting — *first version built*
 "What-if" modelling and forward forecasts — change an assumption and watch the
 outlook update. (The dashboard's outlook tab is an early piece of this.)
+
+> **Status:** `reports/scenario.py` applies a reviewable JSON of assumption
+> "levers" (e.g. "Asia Pacific net sales -10%", "opex +3%") to the baseline
+> outlook and produces a baseline-vs-scenario P&L (JSON/CSV/Excel/PDF) — see
+> `scenario.example.json`. Zero-adjustment scenarios reproduce the baseline
+> exactly. Next: multi-scenario comparison, scenarios in the live dashboard,
+> volume/price decomposition.
 
 ### Stage 4 — The "second brain" (Obsidian-style wiki)
 A linked knowledge base of the company: how things work, definitions, decisions,

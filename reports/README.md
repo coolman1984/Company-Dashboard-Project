@@ -78,6 +78,23 @@ dashboard. The `outlook_*` reports are *computed* (forecast) reports defined in
 forward-looking full-year view, the same way the dashboard's executive outlook
 does.
 
+## What-if scenarios
+
+`reports/scenario.py` models a decision before you take it: apply a small,
+reviewable JSON of assumption "levers" to the baseline outlook and get a
+baseline-vs-scenario P&L (JSON/CSV/Excel/PDF). See `scenario.example.json`.
+
+```bash
+python3 -m reports.scenario --scenario scenario.example.json
+python3 -m reports.scenario --scenario scenario.example.json --format json xlsx pdf
+```
+
+Levers are per-dimension percentage changes to net sales, COGS, or operating
+expense (e.g. `{"metric": "net_sales", "change_pct": -10, "where": {"region_desc": "Asia Pacific"}}`).
+COGS optionally scales with revenue volume. Lines below operating profit move by
+identity on the delta, so a scenario with no adjustments reproduces the baseline
+exactly.
+
 ## Adding a report
 
 Append a `Report` to `reports/definitions.py`. A report is either:
