@@ -176,8 +176,10 @@ We are a team with different strengths. Use the right agent for the right job.
 - **Enable PDF + Outlook extractors in CI** — once a clean install path exists
   (this container's `pdfplumber`/`cryptography` is broken; a normal machine is
   fine).
-- **Reports engine (Stage 2)**, **Scenarios (Stage 3)**, **Knowledge base
-  (Stage 4)**, **AI agent "Hermes" (Stage 5)** — see ROADMAP.
+- **Scenarios (Stage 3)**, **Knowledge base (Stage 4)**, **AI agent "Hermes"
+  (Stage 5)** — see ROADMAP.
+- **Reports engine — extend** (Stage 2 first version is Done): client-specific
+  templates, forecast/outlook reports, a bundled "board pack".
 
 ### In Progress (owner)
 - _(none currently)_
@@ -189,6 +191,8 @@ We are a team with different strengths. Use the right agent for the right job.
 - Extraction engine Stage 1 foundation (Excel + Word capture, tested).
 - **Map raw JSON → database** (`map_raw_to_db.py`): spreadsheet captures load
   into `pl_detail` via a reviewed per-client mapping. Tested + in CI.
+- **Reports engine first version** (`reports/`): six core P&L reports saved as
+  self-describing JSON/CSV from the database. Tested + in CI.
 
 ---
 
@@ -203,6 +207,21 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
+**Did:** Built the **reports engine** (`reports/`): generates six core P&L
+reports (yearly, regional, product group, country, customer, YoY variance) as
+self-describing JSON + CSV from `pl_detail.db`, reading the Actual-only views in
+`schema.sql` so figures tie out with the dashboard. Added `reports/test_reports.py`,
+wired into CI, gitignored generated output, updated README/ROADMAP/Task Board.
+**Why:** Stage 2 — the "target reports as JSON" the owner asked for: durable,
+shareable report artifacts distinct from the live dashboard.
+**Status:** ✅ all suites pass (dashboard, extractor, mapper, reports).
+**Next:** Client-specific report templates, forecast/outlook reports, a bundled
+"board pack"; optionally render to PDF/Excel.
+**Watch out:** Generated reports (`output/reports/`) can contain real client
+figures — they're gitignored; keep it that way. To add a report, append to
+`reports/definitions.py` only.
 
 ### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
 **Did:** Built `map_raw_to_db.py` (+ `mapping.example.json`,

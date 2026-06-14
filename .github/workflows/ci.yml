@@ -39,3 +39,6 @@ jobs:
 
       - name: Run raw-to-database mapper tests
         run: python3 test_map_raw_to_db.py
+
+      - name: Run reports engine tests
+        run: python3 -m reports.test_reports

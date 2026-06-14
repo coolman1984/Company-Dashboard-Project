@@ -59,10 +59,14 @@ Every original is also saved **exactly as-is in JSON** so nothing is ever lost.
   text-recognition (OCR) and AI, and usually a quick **"check what was
   extracted"** step before trusting it. We start with the easy wins and grow.
 
-### Stage 2 — The reports engine
+### Stage 2 — The reports engine — *first version built*
 Define report templates once, then generate them from the database on demand.
 Each report is also saved as JSON (your "target" format) and shown in the webapp
 or exported to Excel/PDF.
+
+> **Status:** `reports/` generates six core P&L reports as self-describing JSON
+> (and CSV) from the database — see `reports/README.md`. Next: client-specific
+> report templates, richer/forecast reports, and rendering bundles (board pack).
 
 ### Stage 3 — Scenarios & forecasting
 "What-if" modelling and forward forecasts — change an assumption and watch the
