@@ -284,20 +284,26 @@ _GRAIN_COLS = ("year", "version", "period",
 
 
 def _validate_loaded_data(conn, stats):
-    issues = []
+    # Fatal issues mean the database is structurally unusable for the dashboard
+    # (no data, ambiguous grain, missing required keys) — these abort the load
+    # so the live database is never swapped out for a broken one. Warnings flag
+    # data-quality concerns (e.g. P&L arithmetic drift) that are worth surfacing
+    # but may be legitimate source artifacts, so they don't block the swap.
+    fatal = []
+    warnings = []
 
     row = conn.execute("SELECT COUNT(*) FROM pl_detail").fetchone()
     total = row[0] if row else 0
     if total == 0:
-        issues.append("No rows loaded.")
+        fatal.append("No rows loaded.")
 
-    gross_margin_ok = conn.execute("""
+    gross_margin_failures = conn.execute("""
         SELECT COUNT(*) FROM pl_detail
         WHERE ABS(gross_margin - (net_sales - cost_of_goods_sold)) > ?
     """, (_PL_IDENTITY_TOLERANCE,)).fetchone()[0]
-    if gross_margin_ok > 0:
-        issues.append(f"{gross_margin_ok} rows where gross_margin != net_sales - cogs "
-                      f"(tolerance {_PL_IDENTITY_TOLERANCE}).")
+    if gross_margin_failures > 0:
+        warnings.append(f"{gross_margin_failures} rows where gross_margin != net_sales - cogs "
+                        f"(tolerance {_PL_IDENTITY_TOLERANCE}).")
 
     grain_cols_expr = ", ".join(_GRAIN_COLS)
     dups = conn.execute(f"""
@@ -309,7 +315,7 @@ def _validate_loaded_data(conn, stats):
         LIMIT 1
     """).fetchone()
     if dups:
-        issues.append(
+        fatal.append(
             f"Duplicate grain rows found (sample: {dict(zip(_GRAIN_COLS, dups))}).")
 
     null_counts = {}
@@ -319,7 +325,7 @@ def _validate_loaded_data(conn, stats):
         if n > 0:
             null_counts[col] = n
     if null_counts:
-        issues.append(f"Null values in required columns: {null_counts}.")
+        fatal.append(f"Null values in required columns: {null_counts}.")
 
     coverage = conn.execute("""
         SELECT year, version, COUNT(DISTINCT period) AS periods, COUNT(*) AS rows
@@ -338,19 +344,30 @@ def _validate_loaded_data(conn, stats):
         "versions": versions,
         "coverage": [{"year": r[0], "version": r[1], "periods": r[2], "rows": r[3]}
                      for r in coverage],
-        "pandl_identity_failures": gross_margin_ok,
-        "issues": issues,
+        "pandl_identity_failures": gross_margin_failures,
+        "fatal": fatal,
+        "warnings": warnings,
+        # Back-compat: combined view of everything flagged.
+        "issues": fatal + warnings,
     }
 
     print(f"  validation    : {total:,d} rows, {len(years)} years, {len(versions)} versions")
-    if issues:
-        print(f"  WARNINGS:")
-        for issue in issues:
-            print(f"    - {issue}")
+    if warnings:
+        print("  WARNINGS:")
+        for warning in warnings:
+            print(f"    - {warning}")
     else:
         print("  WARNINGS      : none")
     for line in coverage_lines:
         print(line)
+
+    if fatal:
+        print("  FATAL:")
+        for issue in fatal:
+            print(f"    - {issue}")
+        raise MappingError(
+            "Post-load validation failed; database not swapped in. "
+            + " ".join(fatal))
 
 
 def load(mapping_path, raw_dir=DEFAULT_RAW_DIR, db_path=DEFAULT_DB_PATH,

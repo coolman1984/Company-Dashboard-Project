@@ -1,5 +1,5 @@
 /**
- * Company Dashboard v4.1 - dynamic SQLite and CFO outlook analytics server.
+ * Company Dashboard v4.2 - dynamic SQLite and CFO outlook analytics server.
  *
  * Every dashboard endpoint queries pl_detail.db at request time. Precomputed
  * JSON is retained only as a cache-only fallback when SQLite is unavailable.
@@ -8,6 +8,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
+const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -57,7 +58,6 @@ const OUTLOOK_PERIOD_SQL = function () {
     OR (version = 'T07' AND ${PERIOD_NUMBER_SQL} BETWEEN ${OUTLOOK_ACTUAL_PERIODS + 2} AND 12)
 )`;
 };
-const OUTLOOK_ACTUAL_MAX = OUTLOOK_ACTUAL_PERIODS;
 
 const METRIC_SELECT = [
     'SUM(net_sales) AS net_sales',
@@ -232,6 +232,29 @@ function parseInteger(value, fallback = null) {
 
 function parseLimit(value, fallback = 50) {
     return Math.min(Math.max(parseInteger(value, fallback), 1), MAX_LIMIT);
+}
+
+// Default year selection derived from the live data, never hard-coded.
+function latestYear() {
+    return VALID_YEARS[VALID_YEARS.length - 1];
+}
+
+function priorYear(year) {
+    const idx = VALID_YEARS.indexOf(year);
+    return idx > 0 ? VALID_YEARS[idx - 1] : year - 1;
+}
+
+function periodRange(start, end) {
+    const out = [];
+    for (let p = start; p <= end; p += 1) out.push(p);
+    return out;
+}
+
+// Constant-time comparison so the access token can't be probed by timing.
+function tokenMatches(provided, expected) {
+    const a = Buffer.from(String(provided));
+    const b = Buffer.from(String(expected));
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 function validateVersion(version) {
@@ -523,10 +546,12 @@ function getExecutiveOutlook(query) {
             year: selectedYear,
             priorYear: priorYearNum,
             isOutlookYear,
-            actualPeriods: isOutlookYear ? [1, 2, 3, 4, 5] : null,
-            outlookPeriods: isOutlookYear ? [6, 7, 8, 9, 10, 11, 12] : null,
+            actualPeriods: isOutlookYear ? periodRange(1, OUTLOOK_ACTUAL_PERIODS) : null,
+            outlookPeriods: isOutlookYear ? periodRange(OUTLOOK_ACTUAL_PERIODS + 1, 12) : null,
             definition: isOutlookYear
-                ? 'Actual P01-P05 + T06 P06 + T07 P07-P12'
+                ? `Actual P01-P${String(OUTLOOK_ACTUAL_PERIODS).padStart(2, '0')} + ` +
+                  `T06 P${String(OUTLOOK_ACTUAL_PERIODS + 1).padStart(2, '0')} + ` +
+                  `T07 P${String(OUTLOOK_ACTUAL_PERIODS + 2).padStart(2, '0')}-P12`
                 : `FY${selectedYear} Full Year Actual`
         },
         monthly,
@@ -540,8 +565,8 @@ function getExecutiveOutlook(query) {
 }
 
 function getPortfolio(query) {
-    const yearNum = parseInteger(query.year, 2025);
-    const priorYearNum = parseInteger(query.priorYear, yearNum - 1);
+    const yearNum = parseInteger(query.year, latestYear());
+    const priorYearNum = parseInteger(query.priorYear, priorYear(yearNum));
     validateYear(yearNum);
     validateYear(priorYearNum);
 
@@ -613,8 +638,8 @@ function getSummary() {
 function getDrilldown(query) {
     const dimension = query.dimension || 'region_desc';
     const metric = query.metric || 'net_sales';
-    const year1 = parseInteger(query.year1, 2024);
-    const year2 = parseInteger(query.year2, 2025);
+    const year2 = parseInteger(query.year2, latestYear());
+    const year1 = parseInteger(query.year1, priorYear(year2));
     const limit = parseLimit(query.limit, 50);
 
     if (!VALID_DIMENSIONS.includes(dimension)) {
@@ -683,7 +708,7 @@ function handleApi(pathname, query, res) {
             backend: dbAvailable ? 'sqlite-live' : 'fallback-cache',
             database: dbAvailable ? 'connected' : 'unavailable',
             cachedFiles: Object.keys(fallbackCache).length,
-            serverVersion: '4.1-cfo'
+            serverVersion: '4.2-cfo'
         });
     }
 
@@ -755,14 +780,12 @@ function handleApi(pathname, query, res) {
     }
 
     if (pathname === '/api/reports') {
-        if (!dbAvailable) return errorResponse(res, 503, 'Reports need the database.');
         return jsonResponse(res, {
             reports: REPORT_DEFINITIONS.map(r => ({ name: r.name, title: r.title, description: r.description }))
         });
     }
 
     if (pathname === '/api/reports/generate') {
-        if (!dbAvailable) return errorResponse(res, 503, 'Reports need the database.');
         const reportName = query.name;
         const def = REPORT_DEFINITIONS.find(r => r.name === reportName);
         if (!def) return errorResponse(res, 404, `Unknown report: ${reportName}. Use /api/reports to list.`);
@@ -793,7 +816,7 @@ const server = http.createServer((req, res) => {
     if (ACCESS_TOKEN) {
         const provided = (url.parse(req.url, true).query.access_token || '');
         const headerToken = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
-        if (provided !== ACCESS_TOKEN && headerToken !== ACCESS_TOKEN) {
+        if (!tokenMatches(provided, ACCESS_TOKEN) && !tokenMatches(headerToken, ACCESS_TOKEN)) {
             return errorResponse(res, 401, 'Access token required. Use ?access_token= or Authorization: Bearer header.');
         }
     }

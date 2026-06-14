@@ -150,6 +150,28 @@ def test_overwrite_protection_and_force_preserves_on_failure():
         assert not leftovers, f"temp files left behind: {leftovers}"
 
 
+def test_post_load_validation_aborts_on_duplicate_grain():
+    with tempfile.TemporaryDirectory() as tmp:
+        raw = os.path.join(tmp, "raw")
+        db = os.path.join(tmp, "pl_detail.db")
+        mp = os.path.join(tmp, "map.json")
+        # Two rows with an identical grain (same year/version/period/region;
+        # country/customer/product all NULL) -> ambiguous, must be rejected.
+        _write_capture(raw, "dup_PL.raw.json", "Ledger", HEADER, [
+            [2025, "Actual", 1, "Africa", 100],
+            [2025, "Actual", 1, "Africa", 200],
+        ])
+        with open(mp, "w", encoding="utf-8") as fh:
+            json.dump(_base_mapping(), fh)
+
+        _expect_error(
+            lambda: m.load(mp, raw_dir=raw, db_path=db, verbose=False),
+            "validation")
+        assert not os.path.exists(db), "failed validation must not write a database"
+        leftovers = [f for f in os.listdir(tmp) if f.startswith(".pl_detail.")]
+        assert not leftovers, f"temp files left behind: {leftovers}"
+
+
 def test_mapping_validation():
     cols = m.load_schema_columns()
 
@@ -170,6 +192,7 @@ def main():
     test_dry_run_and_load()
     test_multiple_batches()
     test_overwrite_protection_and_force_preserves_on_failure()
+    test_post_load_validation_aborts_on_duplicate_grain()
     test_mapping_validation()
     print("map_raw_to_db tests passed.")
     return 0

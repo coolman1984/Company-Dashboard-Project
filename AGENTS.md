@@ -246,6 +246,36 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-14 — Claude Code — claude/docs-updates-7-files-4bs7ux (code-review fixes)
+**Did:** Code-review pass on the production-hardening work; fixed 6 findings.
+(1) `server.js` `/api/executive-outlook` `coverage` was hard-coded to
+`[1..5]`/`[6..12]`/"P01-P05 + T06 P06 + T07 P07-P12" even though the SQL uses the
+dynamic `OUTLOOK_ACTUAL_PERIODS` — now derived from it (`periodRange` helper), so
+the labels match the data for any client. (2) `map_raw_to_db.py` post-load
+validation now **aborts the swap** on structural problems (no rows, duplicate
+grains, nulls in required columns) instead of only printing warnings; P&L
+arithmetic drift stays a non-blocking warning. Added a regression test
+(`test_post_load_validation_aborts_on_duplicate_grain`). (3) Hard-coded year
+defaults in `getPortfolio`/`getDrilldown` (2024/2025) now derive from the live
+`VALID_YEARS` (`latestYear`/`priorYear` helpers). (4) Removed dead code
+(`OUTLOOK_ACTUAL_MAX`, redundant `!dbAvailable` checks in the reports endpoints).
+(5) Access-token comparison is now constant-time (`crypto.timingSafeEqual` via
+`tokenMatches`). (6) Unified version string to `4.2`. Updated `README.md` and
+`extractor/README.md` to describe the fatal-vs-warning validation behaviour.
+**Why:** Three of these (1, 2, 3) were claims the docs now make that the code
+didn't actually honour — the dynamic-metadata convention and the "bad load is
+caught before the swap" guarantee. The rest are hygiene/security cleanups.
+**Status:** ✅ all 8 suites pass — `npm test`, extractor, mapper (incl. new
+test), reports, render, scenario, brain, `brain.cli --check` (0 broken links).
+Verified live: token auth returns 401/401/200, `/api/executive-outlook`
+coverage is computed dynamically, `/api/drilldown` works with no year params.
+**Next:** Reports/scenarios download UI in the dashboard; client-specific report
+templates; OCR stage.
+**Watch out:** Behaviour change — a load with duplicate grains or nulls in
+required columns now FAILS (raises `MappingError`) instead of loading with a
+warning. This is intentional (the dashboard groups by grain), but any existing
+mapping that silently produced such rows will now error until fixed.
+
 ### 2026-06-14 — Claude Code — claude/docs-updates-7-files-4bs7ux
 **Did:** Updated all project documentation to reflect the production-hardening
 work (commit 9aa0a21) across 7 files: `README.md` (security/self-contained
