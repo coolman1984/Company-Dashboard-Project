@@ -120,6 +120,9 @@ failed load never corrupts an existing dashboard database.
 | `schema.sql` | Canonical DB schema (table, indexes, views) |
 | `seed_db.py` | Synthetic database generator (dev/test/CI) |
 | `smoke_test.js` | End-to-end API smoke test (`npm test`) |
+| `reports/` | Reports engine: JSON/CSV/Excel/PDF, board pack, outlook, scenarios |
+| `brain/`, `knowledge/` | Knowledge base ("second brain"): Obsidian-style wiki + graph |
+| `map_raw_to_db.py` | Load extracted raw JSON into `pl_detail` via a mapping |
 | `ingest_sheet1.py` | Production Excel → SQLite ingestion (Windows) |
 | `precompute_data.py` | Builds `api_data/` JSON fallback cache |
 | `analysis_cfo.py` | Offline CFO analysis utilities |

@@ -167,6 +167,8 @@ We are a team with different strengths. Use the right agent for the right job.
 > Move items between columns and put your agent name on anything you take.
 
 ### Backlog (not started)
+- **Knowledge base — extend** (Stage 4 first version is Done): more curated
+  content, full-text search, HTML/graph viewer, note→report deep links.
 - **Scenarios — extend** (Stage 3 first version is Done): multi-scenario
   comparison, scenarios surfaced in the live dashboard, volume/price split.
 - **OCR stage for scanned PDFs / photos** — detect image-only pages (the
@@ -178,7 +180,7 @@ We are a team with different strengths. Use the right agent for the right job.
 - **Enable PDF + Outlook extractors in CI** — once a clean install path exists
   (this container's `pdfplumber`/`cryptography` is broken; a normal machine is
   fine).
-- **Knowledge base (Stage 4)**, **AI agent "Hermes" (Stage 5)** — see ROADMAP.
+- **AI agent "Hermes" (Stage 5)** — see ROADMAP.
 - **Reports engine — extend** (Stage 2 Done): client-specific templates.
 
 ### In Progress (owner)
@@ -198,6 +200,9 @@ We are a team with different strengths. Use the right agent for the right job.
 - **What-if scenarios** (`reports/scenario.py`, Stage 3): apply a reviewable
   JSON of assumption "levers" to the baseline outlook → baseline-vs-scenario
   P&L (JSON/CSV/Excel/PDF). Zero-adjustment = baseline. Tested + in CI.
+- **Knowledge base** (`brain/` + `knowledge/`, Stage 4): Obsidian-compatible
+  Markdown wiki with a parser/graph (backlinks, orphans, broken-link check, tag
+  index, auto index) and region notes generated from the DB. Tested + in CI.
 
 ---
 
@@ -212,6 +217,24 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
+**Did:** Built the **knowledge base / "second brain"** (Stage 4): `knowledge/`
+holds Obsidian-compatible Markdown notes (`[[wiki-links]]`, `#tags`,
+frontmatter — glossary, conventions, reports, data-pipeline, an ADR, plus an
+auto-generated index). `brain/` parses them into a graph: backlinks, orphans,
+broken-link validation, tag index, JSON graph export, and **region notes
+generated from the DB** (`data_notes.py`) that link into the curated wiki.
+Added `brain/test_brain.py`; CI now runs the tests AND `brain.cli --check`.
+**Why:** A linked company knowledge base where curated knowledge and live
+numbers share one space — openable directly in Obsidian.
+**Status:** ✅ all suites pass; committed wiki has 0 broken links / 0 orphans.
+**Next:** More curated content; full-text search; HTML/graph viewer;
+note→report deep links; Stage 5 the AI agent.
+**Watch out:** `knowledge/data/` notes are generated from data (may contain
+client figures) and are git-ignored — never commit them. Keep curated notes
+link-clean so `brain.cli --check` (a CI gate) stays green; no external YAML dep
+(minimal frontmatter parser in `parse.py`).
 
 ### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
 **Did:** Built the **what-if scenario engine** (`reports/scenario.py` +

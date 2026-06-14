@@ -48,3 +48,9 @@ jobs:
 
       - name: Run what-if scenario tests
         run: python3 -m reports.test_scenario
+
+      - name: Run knowledge base tests
+        run: python3 -m brain.test_brain
+
+      - name: Validate knowledge base links
+        run: python3 -m brain.cli --check

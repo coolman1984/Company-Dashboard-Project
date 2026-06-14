@@ -82,9 +82,16 @@ outlook update. (The dashboard's outlook tab is an early piece of this.)
 > exactly. Next: multi-scenario comparison, scenarios in the live dashboard,
 > volume/price decomposition.
 
-### Stage 4 — The "second brain" (Obsidian-style wiki)
+### Stage 4 — The "second brain" (Obsidian-style wiki) — *first version built*
 A linked knowledge base of the company: how things work, definitions, decisions,
 meeting notes — connected to the live data so knowledge and numbers live together.
+
+> **Status:** `knowledge/` holds Obsidian-compatible Markdown notes
+> (`[[wiki-links]]`, `#tags`, frontmatter) and `brain/` parses them into a graph
+> — backlinks, orphans, broken-link validation, a tag index, an auto-generated
+> index, and **region notes generated from the database** so knowledge links to
+> live numbers. See `brain/README.md`. Next: more curated content, full-text
+> search, an HTML/graph viewer, links from notes into specific reports.
 
 ### Stage 5 — The AI agent ("Hermes")
 An assistant that learns the company's workflows, does the repetitive work,

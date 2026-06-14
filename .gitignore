@@ -29,6 +29,10 @@ output/playwright/
 # Generated reports may derive from real client data — keep local.
 output/reports/
 
+# Knowledge notes generated from data can contain client figures; graph is derived.
+knowledge/data/
+output/knowledge-graph.json
+
 # Extraction engine — client source files and their raw captures stay local.
 # Client financial data must never be committed.
 intake/*
