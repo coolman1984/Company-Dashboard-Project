@@ -43,9 +43,11 @@ runnable core that works on any computer with practice data.
 
 > **Status:** the engine foundation exists in `extractor/` — it captures Excel
 > and Word into faithful raw JSON today (tested), with COM-first Excel for
-> Windows and PDF/Outlook extractors written and ready to switch on. Still to do:
-> the scanned-PDF OCR path, live-Outlook COM, and mapping raw JSON into the
-> database. See `extractor/README.md`.
+> Windows and PDF/Outlook extractors written and ready to switch on. Captured
+> **spreadsheet** raw JSON can now reach the dashboard database via
+> `map_raw_to_db.py` and a reviewed per-client mapping (`mapping.example.json`).
+> Still to do: the scanned-PDF OCR path, live-Outlook COM, and mappings for
+> non-spreadsheet sources. See `extractor/README.md`.
 
 A drop-folder where you put a client's **Excel, PDF, and Word** files. The system
 reads them, pulls out the real numbers, and loads them into the fast database.

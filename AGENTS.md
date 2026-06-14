@@ -167,9 +167,6 @@ We are a team with different strengths. Use the right agent for the right job.
 > Move items between columns and put your agent name on anything you take.
 
 ### Backlog (not started)
-- **Map raw JSON → database** — turn `raw/*.raw.json` (e.g. an Excel sheet's
-  rows) into typed `pl_detail` records so a real client's files reach the
-  dashboard. *(Recommended next; client-specific mapping.)*
 - **OCR stage for scanned PDFs / photos** — detect image-only pages (the
   `pdf-text` extractor already flags them) and run text-recognition + AI.
 - **Validate COM extractors on Windows** — run `excel_com.py` against real
@@ -190,6 +187,8 @@ We are a team with different strengths. Use the right agent for the right job.
 - Dashboard first-run UX (clear data-not-loaded alert) + non-technical guide.
 - Vision & staged roadmap documented.
 - Extraction engine Stage 1 foundation (Excel + Word capture, tested).
+- **Map raw JSON → database** (`map_raw_to_db.py`): spreadsheet captures load
+  into `pl_detail` via a reviewed per-client mapping. Tested + in CI.
 
 ---
 
@@ -204,6 +203,27 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
+**Did:** Built `map_raw_to_db.py` (+ `mapping.example.json`,
+`test_map_raw_to_db.py`): loads extractor spreadsheet raw JSON into `pl_detail`
+via a reviewable per-client mapping. Column types come from `schema.sql`; strict
+validation of required `year`/`version`/`period` fields and the
+`year + period_number/1000` encoding; constants (e.g. `currency=USD`); bounded
+10k-row batches; indexes built after load; temp-file build + integrity check +
+atomic replace so a failed load never corrupts the live DB. Updated README, CI,
+ROADMAP, Task Board.
+**Why:** The recommended next step — captured spreadsheet data now reaches the
+dashboard. Proven end to end: messy `.xlsx` → extractor → raw JSON → mapper → DB.
+**Status:** ✅ all suites pass (`npm test`, extractor, mapper).
+**Next:** Per-client mappings for real workbooks; OCR; map non-spreadsheet
+sources (Word/PDF/email) once their target shape is decided.
+**Watch out — multi-agent note:** Codex independently built a similar mapper in
+its own sandbox (commits d743b9b / 7a5c8de / 8c5604f) but its environment is
+network-blocked (HTTP 403) and **never pushed to GitHub** — none of it reached
+the repo, no PR exists. This entry's implementation was written fresh on the
+GitHub side from Codex's described spec. If Codex's branch is ever pushed,
+reconcile the two `map_raw_to_db.py` versions rather than blind-merging.
 
 ### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
 **Did:** Created this `AGENTS.md` (shared protocol + agent comparison + task

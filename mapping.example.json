@@ -1,0 +1,29 @@
+{
+  "name": "Example client mapping",
+  "description": "Maps a client's spreadsheet (captured by the extractor into raw/*.raw.json) onto the canonical pl_detail ledger. Copy this per client and adjust the headers, sheet, and constants to match their workbook. Always review with a dry run before loading.",
+
+  "source_glob": "*PL*.raw.json",
+  "sheet": "Ledger",
+  "header_row": 0,
+  "skip_blank_rows": true,
+
+  "columns": {
+    "Year": "year",
+    "Version": "version",
+    "Period": "period",
+    "Region": "region_desc",
+    "Country": "country_name",
+    "Customer": "customer_name",
+    "Product Group": "m_group_desc",
+    "Net Sales": "net_sales",
+    "COGS": "cost_of_goods_sold",
+    "Gross Margin": "gross_margin",
+    "Operating Expense": "operating_expense",
+    "Operating Profit": "operating_profit",
+    "Net Income": "net_income"
+  },
+
+  "constants": {
+    "currency": "USD"
+  }
+}

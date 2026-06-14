@@ -87,6 +87,30 @@ python3 -m extractor.cli          # capture intake/ -> raw/
 See [extractor/README.md](extractor/README.md) for the architecture. Client
 source files (`intake/`) and their raw captures (`raw/`) are never committed.
 
+### Loading captured data into the dashboard database
+
+`map_raw_to_db.py` turns the extractor's `raw/*.raw.json` into the canonical
+`pl_detail` database using a small, reviewable per-client mapping
+(see `mapping.example.json`). Because every client's spreadsheet is laid out
+differently, the column mapping is configuration, not code.
+
+```bash
+# 1. Copy the example and edit it to match the client's columns/sheet:
+cp mapping.example.json mapping.myclient.json
+
+# 2. Dry run first — validates and converts everything, writes nothing:
+python3 map_raw_to_db.py --mapping mapping.myclient.json --dry-run
+
+# 3. Load for real (build the dashboard database):
+python3 map_raw_to_db.py --mapping mapping.myclient.json --force
+```
+
+The loader pulls column types from `schema.sql`, validates the required
+`year` / `version` / `period` fields (and the `year + period_number/1000`
+encoding), inserts in bounded batches, builds indexes after the load, runs an
+integrity check, and only then atomically swaps the new database in — so a
+failed load never corrupts an existing dashboard database.
+
 ## Project layout
 
 | Path | Purpose |
