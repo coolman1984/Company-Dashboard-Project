@@ -1,15 +1,41 @@
 ---
 name: company-dashboard
-description: Full-stack financial analysis platform that extracts PL data from Excel, stores 790K+ records in SQLite, and serves a responsive live-query analytics dashboard. Use for building, extending, or troubleshooting the PL analysis pipeline.
-version: "4.1"
-last-updated: "2026-06-08"
+description: Legacy deep-dive notes for the Company Dashboard financial analysis platform. Use README.md, ROADMAP.md, and AGENTS.md as the authoritative current project state.
+version: "5.0"
+last-updated: "2026-06-14"
 ---
 
 # Company Dashboard — PL Financial Analysis Platform
 
-> **Living Document**: This SKILL.md is the master reference for the entire PL analysis system. Update it whenever the pipeline, database, server, or dashboard changes.
+> **Status note:** This file contains useful historical implementation notes,
+> especially around Excel COM and the original dashboard build. It is **not** the
+> current master reference. For current completion status and work coordination,
+> use [`README.md`](README.md), [`ROADMAP.md`](ROADMAP.md), and
+> [`AGENTS.md`](AGENTS.md).
 
-## Current Architecture (v4)
+## Current Completion Snapshot
+
+- Dashboard foundation is implemented: `server.js` serves live, parameterized
+  SQLite queries to `index.html` + `app.js`, with JSON fallback only when SQLite
+  is unavailable.
+- Synthetic dev/test data is implemented via `seed_db.py`; production Excel COM
+  ingestion remains Windows-only.
+- Extraction Stage 1 foundation is implemented in `extractor/`: Excel/Word are
+  tested cross-platform; PDF/Outlook saved-file extractors are written but need
+  optional dependencies; COM extractors require Windows validation.
+- Raw spreadsheet JSON can be mapped into `pl_detail` with `map_raw_to_db.py` and
+  `mapping.example.json`; non-spreadsheet source mapping is still future work.
+- Reports Stage 2 is implemented in `reports/`: eight reports, JSON/CSV/XLSX/PDF
+  output, board packs, and computed outlook reports.
+- Scenario Stage 3 first version is implemented in `reports/scenario.py`.
+- Knowledge-base Stage 4 first version is implemented in `brain/` + `knowledge/`.
+- Stage 5, the AI agent "Hermes", is not implemented yet.
+
+The long sections below pre-date parts of this architecture and may describe the
+older precomputed-cache approach as primary. Treat them as legacy background, not
+as the current source of truth.
+
+## Current Architecture (v5)
 
 - `server.js` queries `pl_detail.db` directly with `better-sqlite3` in read-only mode.
 - Global `version`, `year`, `region`, and `country` filters are applied to live SQL on every dashboard endpoint.
@@ -40,9 +66,9 @@ last-updated: "2026-06-08"
 
 ---
 
-## System Overview
+## System Overview (Legacy v2 Snapshot)
 
-A complete financial analysis platform that:
+Historical notes from an earlier build of the financial analysis platform:
 
 1. **Extracts** data from `PL 2022~2026.xlsb` using Excel COM automation
 2. **Stores** 790,245 detail records in a high-performance SQLite database
@@ -68,7 +94,7 @@ A complete financial analysis platform that:
 
 ---
 
-## Architecture
+## Architecture (Legacy v2 Snapshot)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -108,7 +134,7 @@ A complete financial analysis platform that:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### Key Architecture Decision: Pre-Computed Static Backend (v2)
+### Legacy Architecture Decision: Pre-Computed Static Backend (v2)
 
 **Problem**: v1 used Python subprocess for every API call (1-5 seconds per query). This made the dashboard feel sluggish and some drill-down choices didn't work (timeout).
 
@@ -555,9 +581,9 @@ Open `http://localhost:3001` in a browser.
 | Problem | Solution |
 |---------|----------|
 | Port in use | `taskkill /F /IM node.exe` |
-| `api_data/ not found` | Run `python precompute_data.py` first |
-| API returns 404 for drill-down | Specific combination not pre-computed. Run `python precompute_data.py` |
-| Slow responses | Should be 2-35ms. If slow, check server console for errors |
+| `api_data/ not found` | This is only a fallback path now; normally seed/load `pl_detail.db` and use live SQLite. |
+| API returns 404 for drill-down | Check endpoint parameters and whether `pl_detail.db` has matching rows. |
+| Slow responses | Check server console, SQLite availability, and relevant indexes/views. |
 
 ### Dashboard Issues
 
@@ -574,7 +600,7 @@ Open `http://localhost:3001` in a browser.
 
 ```
 Company Dashboard/
-├── SKILL.md                  ← This documentation (master reference)
+├── SKILL.md                  ← Legacy deep-dive notes; README/ROADMAP/AGENTS are authoritative
 ├── PL 2022~2026.xlsb         ← Source Excel file (binary, DO NOT MODIFY)
 ├── pl_detail.db              ← SQLite database (362 MB, 790K rows)
 ├── pl_data.json              ← Sheet3 pivot summary (extracted)
@@ -583,15 +609,15 @@ Company Dashboard/
 ├── extract_pl_data.py        ← Step 2: Extract pivot summary
 ├── ingest_sheet1.py          ← Step 3: Ingest 790K rows into SQLite
 ├── create_indexes_views.py   ← Step 4: Create indexes and views
-├── precompute_data.py        ← Step 5: Pre-compute all dashboard data as JSON
+├── precompute_data.py        ← Optional fallback cache generation
 │
-├── server.js                 ← Step 6: Node.js API server v2 (static JSON backend)
+├── server.js                 ← Node.js API server (live SQLite, JSON fallback)
 ├── index.html                ← Step 7: Dashboard HTML
 ├── app.js                    ← Step 7: Dashboard JavaScript (separated from HTML)
 ├── package.json              ← Node scripts and dependencies
 ├── smoke_test.js             ← API, metadata, and static-file security smoke tests
 │
-├── api_data/                 ← Pre-computed JSON files (133 files)
+├── api_data/                 ← Optional pre-computed JSON fallback files
 │   ├── summary.json
 │   ├── yearly-pl.json
 │   ├── regional-pl.json

@@ -20,6 +20,8 @@ import datetime as _dt
 import os
 import re
 
+from . import safe_str as _safe
+
 
 # --------------------------------------------------------------------------- #
 # Shared number formatting
@@ -103,7 +105,7 @@ def _excel_write_sheet(ws, envelope):
     for r, row in enumerate(rows, start=header_row + 1):
         for c, column in enumerate(columns, start=1):
             value = row.get(column)
-            cell = ws.cell(row=r, column=c, value=value)
+            cell = ws.cell(row=r, column=c, value=_safe(value) if not _is_number(value) else value)
             if _is_number(value):
                 cell.number_format = excel_number_format(column)
                 cell.alignment = Alignment(horizontal="right")

@@ -10,23 +10,54 @@ const path = require('path');
 const url = require('url');
 
 const PORT = Number(process.env.PORT) || 3001;
+const HOST = process.env.HOST || '127.0.0.1';
+const ACCESS_TOKEN = process.env.ACCESS_TOKEN || null;
 const PROJECT_ROOT = path.resolve(__dirname);
 const PROJECT_ROOT_PREFIX = PROJECT_ROOT.endsWith(path.sep) ? PROJECT_ROOT : PROJECT_ROOT + path.sep;
 const DB_PATH = path.join(__dirname, 'pl_detail.db');
 const API_DATA_DIR = path.join(__dirname, 'api_data');
+const CHART_JS_PATH = path.join(__dirname, 'chart.umd.min.js');
 const PUBLIC_FILES = new Set(['index.html', 'app.js']);
+
+if (fs.existsSync(CHART_JS_PATH)) {
+    PUBLIC_FILES.add('chart.umd.min.js');
+}
 
 const VALID_DIMENSIONS = ['region_desc', 'country_name', 'm_group_desc', 'customer_name', 'class'];
 const VALID_METRICS = ['net_sales', 'cost_of_goods_sold', 'gross_margin', 'operating_expense', 'operating_profit', 'net_income'];
-const VALID_VERSIONS = ['Actual', 'T06', 'T07'];
-const VALID_YEARS = [2022, 2023, 2024, 2025, 2026];
+const HARDCODED_VERSIONS = ['Actual', 'T06', 'T07'];
+
+const reportDefs = [
+    { name: 'yearly_pl', title: 'Yearly P&L Summary', description: 'Group-wide P&L by fiscal year (Actual).',
+      sql: 'SELECT * FROM v_yearly_pl ORDER BY year' },
+    { name: 'regional_pl', title: 'Regional P&L', description: 'P&L by region and year (Actual).',
+      sql: 'SELECT * FROM v_regional_pl ORDER BY year, net_sales DESC' },
+    { name: 'product_group_pl', title: 'Product Group P&L', description: 'P&L by product group and year (Actual).',
+      sql: 'SELECT * FROM v_mgroup_pl ORDER BY year, net_sales DESC' },
+    { name: 'country_pl', title: 'Country P&L', description: 'P&L by country and year (Actual).',
+      sql: 'SELECT * FROM v_country_pl ORDER BY year, net_sales DESC' },
+    { name: 'customer_pl', title: 'Customer P&L', description: 'P&L by customer and year (Actual).',
+      sql: 'SELECT * FROM v_customer_pl ORDER BY year, net_sales DESC' },
+    { name: 'yoy_variance', title: 'Year-over-Year Variance', description: 'YoY change in key P&L lines (Actual).',
+      sql: 'SELECT * FROM v_yoy_variance ORDER BY year' },
+];
+const REPORT_DEFINITIONS = reportDefs;
+const HARDCODED_YEARS = [2022, 2023, 2024, 2025, 2026];
 const MAX_LIMIT = 500;
+
+let VALID_VERSIONS = [...HARDCODED_VERSIONS];
+let VALID_YEARS = [...HARDCODED_YEARS];
+let OUTLOOK_YEAR = null;
+let OUTLOOK_ACTUAL_PERIODS = 5;  // number of Actual periods already closed (P01-this)
 const PERIOD_NUMBER_SQL = 'CAST(ROUND((period - CAST(period AS INTEGER)) * 1000) AS INTEGER)';
-const OUTLOOK_PERIOD_SQL = `(
-    (version = 'Actual' AND ${PERIOD_NUMBER_SQL} BETWEEN 1 AND 5)
-    OR (version = 'T06' AND ${PERIOD_NUMBER_SQL} = 6)
-    OR (version = 'T07' AND ${PERIOD_NUMBER_SQL} BETWEEN 7 AND 12)
+const OUTLOOK_PERIOD_SQL = function () {
+    return `(
+    (version = 'Actual' AND ${PERIOD_NUMBER_SQL} BETWEEN 1 AND ${OUTLOOK_ACTUAL_PERIODS})
+    OR (version = 'T06' AND ${PERIOD_NUMBER_SQL} = ${OUTLOOK_ACTUAL_PERIODS + 1})
+    OR (version = 'T07' AND ${PERIOD_NUMBER_SQL} BETWEEN ${OUTLOOK_ACTUAL_PERIODS + 2} AND 12)
 )`;
+};
+const OUTLOOK_ACTUAL_MAX = OUTLOOK_ACTUAL_PERIODS;
 
 const METRIC_SELECT = [
     'SUM(net_sales) AS net_sales',
@@ -65,6 +96,47 @@ try {
     db.pragma('cache_size = -64000');
     dbAvailable = true;
     console.log(`SQLite connected in read-only mode: ${DB_PATH}`);
+
+    const dbYears = db.prepare(
+        'SELECT DISTINCT year FROM pl_detail ORDER BY year'
+    ).all().map(r => r.year);
+    if (dbYears.length > 0) VALID_YEARS = dbYears;
+
+    const dbVersions = db.prepare(
+        'SELECT DISTINCT version FROM pl_detail ORDER BY version'
+    ).all().map(r => r.version);
+    if (dbVersions.length > 0) VALID_VERSIONS = dbVersions;
+
+    const outlookCandidate = db.prepare(`
+        SELECT year FROM pl_detail
+        WHERE version IN ('T06', 'T07')
+        GROUP BY year
+        ORDER BY year DESC
+        LIMIT 1
+    `).all();
+    if (outlookCandidate.length > 0) {
+        OUTLOOK_YEAR = outlookCandidate[0].year;
+    } else {
+        const latestActual = db.prepare(
+            'SELECT MAX(year) AS year FROM pl_detail'
+        ).all();
+        OUTLOOK_YEAR = latestActual[0] && latestActual[0].year
+            ? latestActual[0].year
+            : HARDCODED_YEARS[HARDCODED_YEARS.length - 1];
+    }
+
+    const actualCount = db.prepare(`
+        SELECT COUNT(DISTINCT ${PERIOD_NUMBER_SQL}) AS cnt
+        FROM pl_detail
+        WHERE year = ? AND version = 'Actual'
+    `).get(OUTLOOK_YEAR);
+    OUTLOOK_ACTUAL_PERIODS = actualCount && actualCount.cnt ? actualCount.cnt : 5;
+
+    console.log(
+        `Years: ${VALID_YEARS.map(String).join(',')}  |  ` +
+        `Versions: ${VALID_VERSIONS.join(',')}  |  ` +
+        `Outlook year: ${OUTLOOK_YEAR} (Actual P01-P${String(OUTLOOK_ACTUAL_PERIODS).padStart(2, '0')})`
+    );
 } catch (error) {
     console.warn(`WARN: SQLite unavailable: ${error.message}`);
 }
@@ -94,9 +166,9 @@ function securityHeaders(res) {
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     res.setHeader('Content-Security-Policy', [
         "default-src 'self'",
-        "script-src 'self' https://cdn.jsdelivr.net",
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        "font-src https://fonts.gstatic.com",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "font-src 'self'",
         "img-src 'self' data:",
         "connect-src 'self'"
     ].join('; '));
@@ -254,7 +326,7 @@ function getDataFreshness() {
     return {
         source: 'sqlite-live',
         years,
-        note: '2026 Actual covers P01-P05, T06 covers P06, and T07 covers P07-P12.'
+        note: `FY${OUTLOOK_YEAR} Actual covers P01-P${String(OUTLOOK_ACTUAL_PERIODS).padStart(2, '0')}, T06 covers P${String(OUTLOOK_ACTUAL_PERIODS + 1).padStart(2, '0')}, and T07 covers P${String(OUTLOOK_ACTUAL_PERIODS + 2).padStart(2, '0')}-P12.`
     };
 }
 
@@ -332,12 +404,13 @@ function metricSnapshot(row = {}) {
 function getExecutiveOutlook(query) {
     const where = getExecutiveFilter(query);
     const reqYear = parseInteger(query.ovYear);
-    const selectedYear = (reqYear && VALID_YEARS.includes(reqYear)) ? reqYear : 2026;
+    const selectedYear = (reqYear && VALID_YEARS.includes(reqYear)) ? reqYear : OUTLOOK_YEAR;
     const priorYearNum = selectedYear - 1;
-    const isOutlookYear = selectedYear === 2026;
+    const isOutlookYear = selectedYear === OUTLOOK_YEAR;
 
+    const outlookSql = OUTLOOK_PERIOD_SQL();
     const monthlyWhere = isOutlookYear
-        ? appendCondition(where, `year = ${selectedYear} AND ${OUTLOOK_PERIOD_SQL}`)
+        ? appendCondition(where, `year = ${selectedYear} AND ${outlookSql}`)
         : appendCondition(where, `year = ${selectedYear} AND version = 'Actual'`);
 
     const actualYtdWhere = isOutlookYear
@@ -617,6 +690,8 @@ function handleApi(pathname, query, res) {
     if (!dbAvailable) {
         const fallbackRoutes = {
             '/api/summary': ['summary', {}],
+            '/api/filters': ['filters', {}],
+            '/api/data-freshness': ['data-freshness', { source: 'fallback-cache', years: {}, note: 'SQLite metadata unavailable.' }],
             '/api/yearly-pl': ['yearly-pl', []],
             '/api/regional-pl': ['regional-pl', []],
             '/api/mgroup-pl': ['mgroup-pl', []],
@@ -679,11 +754,49 @@ function handleApi(pathname, query, res) {
         return jsonResponse(res, rows.slice(0, limit));
     }
 
+    if (pathname === '/api/reports') {
+        if (!dbAvailable) return errorResponse(res, 503, 'Reports need the database.');
+        return jsonResponse(res, {
+            reports: REPORT_DEFINITIONS.map(r => ({ name: r.name, title: r.title, description: r.description }))
+        });
+    }
+
+    if (pathname === '/api/reports/generate') {
+        if (!dbAvailable) return errorResponse(res, 503, 'Reports need the database.');
+        const reportName = query.name;
+        const def = REPORT_DEFINITIONS.find(r => r.name === reportName);
+        if (!def) return errorResponse(res, 404, `Unknown report: ${reportName}. Use /api/reports to list.`);
+        try {
+            const rows = runDynamic(def.sql);
+            const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+            return jsonResponse(res, {
+                report: def.name,
+                title: def.title,
+                description: def.description,
+                generated_at: new Date().toISOString(),
+                source: { database: path.basename(DB_PATH), rows_in_ledger: getSummary().totalRows },
+                columns: columns,
+                row_count: rows.length,
+                rows: rows
+            });
+        } catch (error) {
+            return errorResponse(res, 500, `Report generation failed: ${error.message}`);
+        }
+    }
+
     return errorResponse(res, 404, 'Unknown API endpoint');
 }
 
 const server = http.createServer((req, res) => {
     securityHeaders(res);
+
+    if (ACCESS_TOKEN) {
+        const provided = (url.parse(req.url, true).query.access_token || '');
+        const headerToken = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
+        if (provided !== ACCESS_TOKEN && headerToken !== ACCESS_TOKEN) {
+            return errorResponse(res, 401, 'Access token required. Use ?access_token= or Authorization: Bearer header.');
+        }
+    }
     const parsed = url.parse(req.url, true);
     const pathname = parsed.pathname;
     const startedAt = Date.now();
@@ -739,7 +852,8 @@ function shutdown(signal) {
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
-server.listen(PORT, () => {
-    console.log(`Company Dashboard v4.1 listening at http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+    console.log(`Company Dashboard v4.2 listening at http://${HOST}:${PORT}`);
+    if (ACCESS_TOKEN) console.log('Access token required for all requests.');
     console.log(`Backend: ${dbAvailable ? 'live SQLite queries' : 'fallback cache only'}`);
 });

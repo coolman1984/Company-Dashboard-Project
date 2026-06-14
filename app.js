@@ -317,7 +317,7 @@ function renderExecutiveKPIs(data) {
             value: formatCompact(outlook.net_sales),
             sub: signedPercent(revenueGrowth) + ' vs ' + priorLabel + (cov.isOutlookYear ? ' | ' + formatPercent(actualShare) + ' completed' : ''),
             tone: 'blue',
-            icon: 'trending_up',
+            icon: '\u2191',
             metric: 'net_sales',
             change: revenueGrowth
         },
@@ -326,7 +326,7 @@ function renderExecutiveKPIs(data) {
             value: formatCompact(outlook.gross_margin),
             sub: signedPercent(grossGrowth) + ' vs ' + priorLabel + ' | Margin ' + formatPercent(ratio(outlook.gross_margin, outlook.net_sales)),
             tone: 'cyan',
-            icon: 'paid',
+            icon: '$',
             metric: 'gross_margin',
             change: grossGrowth
         },
@@ -335,7 +335,7 @@ function renderExecutiveKPIs(data) {
             value: formatCompact(outlook.operating_profit),
             sub: formatCompact(opVariance) + ' vs ' + priorLabel + ' | Margin ' + formatPercent(ratio(outlook.operating_profit, outlook.net_sales)),
             tone: 'violet',
-            icon: 'monitoring',
+            icon: '\u25C9',
             metric: 'operating_profit',
             change: opVariance
         },
@@ -344,7 +344,7 @@ function renderExecutiveKPIs(data) {
             value: formatCompact(outlook.net_income),
             sub: formatCompact(netVariance) + ' vs ' + priorLabel + ' | Margin ' + formatPercent(ratio(outlook.net_income, outlook.net_sales)),
             tone: 'green',
-            icon: 'account_balance_wallet',
+            icon: '\u25C6',
             metric: 'net_income',
             change: netVariance
         },
@@ -353,7 +353,7 @@ function renderExecutiveKPIs(data) {
             value: formatPercent(lossRevenueShare),
             sub: Number(risk.loss_making_products || 0) + ' product groups forecast below operating break-even',
             tone: 'amber',
-            icon: 'warning',
+            icon: '\u26A0',
             metric: 'operating_profit',
             change: -Number(risk.loss_making_revenue || 0)
         }
@@ -361,8 +361,8 @@ function renderExecutiveKPIs(data) {
 
     el('executiveKpiGrid').innerHTML = cards.map(function (card) {
         return '<article class="kpi-card">' +
-            '<div class="kpi-top"><span class="kpi-icon ' + card.tone + '"><span class="material-symbols-rounded">' +
-            escapeHtml(card.icon) + '</span></span><div><div class="kpi-label">' + escapeHtml(card.label) +
+            '<div class="kpi-top"><span class="kpi-icon ' + card.tone + '">' +
+            escapeHtml(card.icon) + '</span><div><div class="kpi-label">' + escapeHtml(card.label) +
             '</div><div class="kpi-value">' + escapeHtml(card.value) + '</div></div></div>' +
             '<div class="kpi-sub ' + valueClass(card.metric, card.change) + '">' + escapeHtml(card.sub) + '</div>' +
             '</article>';
@@ -1477,7 +1477,7 @@ function configureCharts() {
     if (!window.Chart) throw new Error('Chart.js did not load');
     Chart.defaults.color = '#66758a';
     Chart.defaults.borderColor = '#edf1f6';
-    Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+    Chart.defaults.font.family = 'system-ui, -apple-system, sans-serif';
     Chart.defaults.animation.duration = 420;
 }
 

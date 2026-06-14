@@ -1,7 +1,8 @@
 # Reports Engine (Stage 2)
 
-**Generate saved report files (JSON + CSV) from the dashboard database** — the
-"target reports as JSON" stage of [ROADMAP.md](../ROADMAP.md).
+**Generate saved report files (JSON, CSV, Excel, and PDF) from the dashboard
+database** — the "target reports as JSON" stage of [ROADMAP.md](../ROADMAP.md),
+extended into management-ready artifacts.
 
 The dashboard (`server.js`) serves analytics *live* in the browser. This engine
 produces **durable, shareable report artifacts** you can attach to a board pack,

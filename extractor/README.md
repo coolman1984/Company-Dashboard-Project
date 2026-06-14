@@ -4,8 +4,9 @@
 faithful JSON — the first station of the assembly line in [ROADMAP.md](../ROADMAP.md).**
 
 This is Stage 1: *intake*. It captures every original document into a single,
-consistent JSON shape and keeps an audit trail. Mapping that raw JSON into the
-analytics database (so it powers the dashboard) is the next step.
+consistent JSON shape and keeps an audit trail. Spreadsheet captures can then be
+mapped into the analytics database with `map_raw_to_db.py` and a reviewed,
+client-specific mapping JSON.
 
 ---
 
@@ -101,9 +102,10 @@ take from the client, with what, and when?"
   warning; a dedicated **OCR stage** (text-recognition + AI) is the follow-up.
 - **Live Outlook mailboxes / .pst** (vs. saved `.msg`) want a Windows COM path,
   mirroring `excel_com.py`. Saved `.msg`/`.eml` work cross-platform today.
-- **Mapping raw → database.** This engine stops at faithful capture. Turning a
-  sheet's rows into typed ledger records (the dashboard's `pl_detail`) is the
-  next station, and is necessarily client-specific.
+- **Mapping raw → database.** Spreadsheet raw JSON can be loaded into the
+  dashboard's `pl_detail` table with `map_raw_to_db.py` and a small mapping file
+  (see `../mapping.example.json`). Non-spreadsheet sources still need target
+  shapes before they can be mapped safely.
 - **COM cannot be tested in Linux/CI.** The COM extractors are written to the
   project's COM conventions (see `Agent.md`) and must be validated on a Windows
   machine with Office installed.

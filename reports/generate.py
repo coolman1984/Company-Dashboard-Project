@@ -15,6 +15,7 @@ import os
 import sqlite3
 
 from . import render
+from . import safe_str as _safe
 from .definitions import REPORTS, REPORTS_BY_NAME
 
 
@@ -68,7 +69,10 @@ def write_csv(envelope, out_dir):
     with open(path, "w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=envelope["columns"])
         writer.writeheader()
-        writer.writerows(envelope["rows"])
+        safe_rows = [
+            {k: _safe(v) for k, v in row.items()} for row in envelope["rows"]
+        ]
+        writer.writerows(safe_rows)
     return path
 
 

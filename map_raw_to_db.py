@@ -278,6 +278,81 @@ def iter_records(mapping, schema_columns, raw_dir):
 # --------------------------------------------------------------------------- #
 # Database build (temp file -> integrity check -> atomic replace)
 # --------------------------------------------------------------------------- #
+_PL_IDENTITY_TOLERANCE = 1.0
+_GRAIN_COLS = ("year", "version", "period",
+               "region_desc", "country_name", "customer_name", "m_group_desc")
+
+
+def _validate_loaded_data(conn, stats):
+    issues = []
+
+    row = conn.execute("SELECT COUNT(*) FROM pl_detail").fetchone()
+    total = row[0] if row else 0
+    if total == 0:
+        issues.append("No rows loaded.")
+
+    gross_margin_ok = conn.execute("""
+        SELECT COUNT(*) FROM pl_detail
+        WHERE ABS(gross_margin - (net_sales - cost_of_goods_sold)) > ?
+    """, (_PL_IDENTITY_TOLERANCE,)).fetchone()[0]
+    if gross_margin_ok > 0:
+        issues.append(f"{gross_margin_ok} rows where gross_margin != net_sales - cogs "
+                      f"(tolerance {_PL_IDENTITY_TOLERANCE}).")
+
+    grain_cols_expr = ", ".join(_GRAIN_COLS)
+    dups = conn.execute(f"""
+        SELECT {grain_cols_expr}, COUNT(*) AS cnt
+        FROM pl_detail
+        WHERE year IS NOT NULL
+        GROUP BY {grain_cols_expr}
+        HAVING cnt > 1
+        LIMIT 1
+    """).fetchone()
+    if dups:
+        issues.append(
+            f"Duplicate grain rows found (sample: {dict(zip(_GRAIN_COLS, dups))}).")
+
+    null_counts = {}
+    for col in ("year", "version", "period", "net_sales"):
+        n = conn.execute(
+            f"SELECT COUNT(*) FROM pl_detail WHERE {col} IS NULL").fetchone()[0]
+        if n > 0:
+            null_counts[col] = n
+    if null_counts:
+        issues.append(f"Null values in required columns: {null_counts}.")
+
+    coverage = conn.execute("""
+        SELECT year, version, COUNT(DISTINCT period) AS periods, COUNT(*) AS rows
+        FROM pl_detail
+        GROUP BY year, version
+        ORDER BY year, version
+    """).fetchall()
+    coverage_lines = [f"  {r[0]} {r[1]:6s}  {r[2]:2d} periods  {r[3]:,d} rows"
+                      for r in coverage]
+
+    years = sorted(set(r[0] for r in coverage))
+    versions = sorted(set(r[1] for r in coverage))
+    stats["validation"] = {
+        "total_rows": total,
+        "years": years,
+        "versions": versions,
+        "coverage": [{"year": r[0], "version": r[1], "periods": r[2], "rows": r[3]}
+                     for r in coverage],
+        "pandl_identity_failures": gross_margin_ok,
+        "issues": issues,
+    }
+
+    print(f"  validation    : {total:,d} rows, {len(years)} years, {len(versions)} versions")
+    if issues:
+        print(f"  WARNINGS:")
+        for issue in issues:
+            print(f"    - {issue}")
+    else:
+        print("  WARNINGS      : none")
+    for line in coverage_lines:
+        print(line)
+
+
 def load(mapping_path, raw_dir=DEFAULT_RAW_DIR, db_path=DEFAULT_DB_PATH,
          dry_run=False, force=False, batch_size=INSERT_BATCH, verbose=True):
     schema_columns = load_schema_columns()
@@ -340,6 +415,8 @@ def load(mapping_path, raw_dir=DEFAULT_RAW_DIR, db_path=DEFAULT_DB_PATH,
             integrity = conn.execute("PRAGMA integrity_check").fetchone()[0]
             if integrity != "ok":
                 raise MappingError(f"Integrity check failed on new database: {integrity}")
+
+            _validate_loaded_data(conn, stats)
         finally:
             conn.close()
 

@@ -52,11 +52,13 @@ intake/ (messy files)
    │
    ▼  extractor/  ── Stage 1: faithful capture to JSON ──►  raw/*.raw.json + manifest.jsonl
    │
-   ▼  (NEXT: map raw JSON into the database — not built yet)
+   ▼  map_raw_to_db.py + mapping JSON ──► typed ledger records
    │
 pl_detail.db (SQLite ledger)
    │
-   ▼  server.js  ── live parameterized SQLite queries, JSON API ──►  index.html + app.js (dashboard)
+   ├─► server.js  ── live parameterized SQLite queries, JSON API ──►  index.html + app.js (dashboard)
+   ├─► reports/   ── JSON/CSV/XLSX/PDF reports, board packs, scenarios
+   └─► brain/     ── linked knowledge base + data-generated notes
 ```
 
 | Area | Files | Notes |
@@ -67,20 +69,29 @@ pl_detail.db (SQLite ledger)
 | Dev/test data | `seed_db.py` | Deterministic **synthetic** `pl_detail.db` — runs anywhere, no Excel. |
 | Production ingest | `ingest_sheet1.py` | Windows + Excel COM, real `.xlsb` (790K rows). Not the dev path. |
 | **Extraction engine** | `extractor/` | **Stage 1**: messy files → raw JSON. See `extractor/README.md`. |
-| Tests | `smoke_test.js`, `extractor/test_extractor.py` | Run both before pushing. |
-| CI | `.github/workflows/ci.yml` | install → seed → both test suites, on every push/PR. |
+| Raw-to-DB mapper | `map_raw_to_db.py` | Spreadsheet raw JSON → `pl_detail` via reviewed mapping config. |
+| Reports/scenarios | `reports/` | Saved reports, outlook reports, board packs, what-if scenarios. |
+| Knowledge base | `brain/`, `knowledge/` | Obsidian-style wiki, graph validation, generated data notes. |
+| Tests | `smoke_test.js`, `extractor/test_extractor.py`, mapper/reports/brain tests | Run the relevant suite before pushing. |
+| CI | `.github/workflows/ci.yml` | install → seed → dashboard, extractor, mapper, reports, scenario, brain checks. |
 | Lessons learned | `Agent.md` | COM gotchas, perf patterns, pitfalls. Worth reading. |
 
 ### Run & test it (any platform)
 
 ```bash
 npm install
-pip install -r extractor/requirements.txt
+pip install -r extractor/requirements.txt -r reports/requirements.txt
 python3 seed_db.py --force          # build synthetic dev database
 npm start                            # dashboard at http://localhost:3001
 npm test                             # dashboard smoke tests
 python3 -m extractor.cli --list      # show which extractors are available
 python3 -m extractor.test_extractor  # extraction engine tests
+python3 test_map_raw_to_db.py        # raw-to-database mapper tests
+python3 -m reports.test_reports      # reports engine tests
+python3 -m reports.test_render       # Excel/PDF render tests
+python3 -m reports.test_scenario     # what-if scenario tests
+python3 -m brain.test_brain          # knowledge engine tests
+python3 -m brain.cli --check         # validate knowledge links
 ```
 
 ### Conventions everyone must follow
@@ -203,6 +214,10 @@ We are a team with different strengths. Use the right agent for the right job.
 - **Knowledge base** (`brain/` + `knowledge/`, Stage 4): Obsidian-compatible
   Markdown wiki with a parser/graph (backlinks, orphans, broken-link check, tag
   index, auto index) and region notes generated from the DB. Tested + in CI.
+- **Production hardening**: server binds to localhost by default (HOST env override),
+  optional ACCESS_TOKEN gate, Chart.js vendored locally, system fonts replace
+  Google Fonts, dynamic year/version/outlook metadata from database, fallback
+  mode now serves /api/filters and /api/data-freshness. Tested.
 
 ---
 
@@ -217,6 +232,18 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-14 — OpenCode — claude/project-planning-core-8cj4iz (2nd session)
+**Did:** Production hardening pass: (1) bind server to 127.0.0.1 by default with HOST env override, (2) add optional ACCESS_TOKEN gate for non-localhost deployments, (3) remove external CDN — vendor Chart.js locally and switch to system fonts, update CSP, (4) make VALID_YEARS and VALID_VERSIONS dynamic from the database at startup, (5) make outlook year detection dynamic instead of hard-coded 2026, (6) add /api/filters and /api/data-freshness to the fallback cache so "limited mode" boot actually works.
+**Why:** The public repo had unauthenticated financial endpoints, external CDN script/font dependencies on a private finance dashboard, hard-coded FY2026 logic that would break with a new client/year, and a fallback mode that couldn't complete bootstrap — all blockers for real-client use.
+**Status:** ✅ all suites pass (`npm test`, extractor, mapper, reports, render, scenario, brain). Server starts cleanly with dynamic metadata ("Years: 2022,2023,2024,2025,2026 | Versions: Actual,T06,T07 | Outlook year: 2026 (Actual P01-P05)").
+**Next:** Commit all changes; then data validation, export safety, reports/scenarios in dashboard.
+**Watch out:** Chart.js v4.4.7 is now vendored at `chart.umd.min.js` (205 KB, must be tracked). Changing HOST default from 0.0.0.0 to 127.0.0.1 means remote/LAN access now requires explicit `HOST=0.0.0.0`; documented in the server help text. ACCESS_TOKEN is optional — no token means no auth gate. The KPI cards now use Unicode symbols (↑ $ ◉ ◆ ⚠) instead of Material Icons ligatures; icon appearance is the colored background circle, not the glyph shape.
+**Did:** Checked the documentation against the implemented code level and fixed stale completion notes in `AGENTS.md`, `extractor/README.md`, `reports/README.md`, and `SKILL.md`. The docs now reflect that raw spreadsheet JSON mapping, reports/board packs/scenarios, and the knowledge base are implemented and tested, while OCR/live Outlook/Stage 5 remain future work.
+**Why:** The public repo had several docs still describing completed work as future work, especially the raw-to-database mapper and the older precomputed-cache architecture.
+**Status:** Documentation-only change; no code changed. Verification: `npm test` passed after seeding/installing dependencies; extractor test passed in a temporary venv.
+**Next:** If `SKILL.md` is still needed as an active skill, fully rewrite the long legacy sections or remove the file from active references.
+**Watch out:** `SKILL.md` remains a legacy deep-dive with historical sections; the top now points contributors to `README.md`, `ROADMAP.md`, and `AGENTS.md` as authoritative.
 
 ### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
 **Did:** Built the **knowledge base / "second brain"** (Stage 4): `knowledge/`
