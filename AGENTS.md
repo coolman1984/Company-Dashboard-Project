@@ -192,7 +192,8 @@ We are a team with different strengths. Use the right agent for the right job.
 - **Map raw JSON → database** (`map_raw_to_db.py`): spreadsheet captures load
   into `pl_detail` via a reviewed per-client mapping. Tested + in CI.
 - **Reports engine** (`reports/`): six core P&L reports saved from the database
-  as JSON/CSV and **management-ready Excel (.xlsx) + PDF**. Tested + in CI.
+  as JSON/CSV and **management-ready Excel (.xlsx) + PDF**, plus a bundled
+  **board pack** (`--pack`: one workbook / one PDF). Tested + in CI.
 
 ---
 
@@ -207,6 +208,18 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
+**Did:** Added the **board pack** — bundle all reports into one file. Refactored
+`reports/render.py` so single reports and bundles share formatting; added
+`render_excel_pack` (Contents sheet + a tab per report) and `render_pdf_pack`
+(cover page + a section per report). New `generate_board_pack` + `--pack`/`--title`
+CLI. Extended `test_render.py`; generated a real 13-page PDF and 7-sheet workbook.
+**Why:** A single management-ready artifact to hand to leadership.
+**Status:** ✅ all suites pass.
+**Next:** Forecast/outlook reports; client-specific templates; Stage 3 scenarios.
+**Watch out:** `compute_envelopes` in generate.py is now shared by per-report and
+pack paths — keep it pure (no file writes).
 
 ### 2026-06-14 — Claude Code — claude/project-planning-core-8cj4iz
 **Did:** Added **Excel + PDF rendering** to the reports engine (`reports/render.py`):

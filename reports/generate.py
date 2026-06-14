@@ -72,37 +72,59 @@ def _check_formats(formats):
         raise RuntimeError("PDF output needs reportlab (pip install reportlab).")
 
 
-def generate(db_path, out_dir, names=None, formats=("json",), verbose=True):
-    """Generate the requested reports. Returns a list of result dicts."""
+def compute_envelopes(db_path, names=None):
+    """Run the selected reports and return their envelopes (no files written)."""
     if not os.path.exists(db_path):
         raise FileNotFoundError(
             f"Database not found: {db_path}. Seed it (python3 seed_db.py) or load "
             "client data (python3 map_raw_to_db.py) first.")
-    _check_formats(formats)
-
     selected = REPORTS if not names else [REPORTS_BY_NAME[n] for n in names]
-    results = []
     conn = sqlite3.connect(db_path)
     try:
         ledger_rows = conn.execute("SELECT COUNT(*) FROM pl_detail").fetchone()[0]
-        for report in selected:
-            columns, rows = run_report(conn, report)
-            envelope = build_envelope(report, columns, rows, db_path, ledger_rows)
-            written = []
-            if "json" in formats:
-                written.append(write_json(envelope, out_dir))
-            if "csv" in formats:
-                written.append(write_csv(envelope, out_dir))
-            if "xlsx" in formats:
-                written.append(render.render_excel(
-                    envelope, os.path.join(out_dir, f"{report.name}.xlsx")))
-            if "pdf" in formats:
-                written.append(render.render_pdf(
-                    envelope, os.path.join(out_dir, f"{report.name}.pdf")))
-            results.append({"report": report.name, "rows": len(rows), "files": written})
-            if verbose:
-                print(f"  {report.name:<18} {len(rows):>4} rows -> "
-                      + ", ".join(os.path.basename(f) for f in written))
+        return [build_envelope(report, *run_report(conn, report), db_path, ledger_rows)
+                for report in selected]
     finally:
         conn.close()
+
+
+def generate(db_path, out_dir, names=None, formats=("json",), verbose=True):
+    """Generate the requested reports, one file per report. Returns result dicts."""
+    _check_formats(formats)
+    envelopes = compute_envelopes(db_path, names)
+    results = []
+    for envelope in envelopes:
+        name = envelope["report"]
+        written = []
+        if "json" in formats:
+            written.append(write_json(envelope, out_dir))
+        if "csv" in formats:
+            written.append(write_csv(envelope, out_dir))
+        if "xlsx" in formats:
+            written.append(render.render_excel(envelope, os.path.join(out_dir, f"{name}.xlsx")))
+        if "pdf" in formats:
+            written.append(render.render_pdf(envelope, os.path.join(out_dir, f"{name}.pdf")))
+        results.append({"report": name, "rows": envelope["row_count"], "files": written})
+        if verbose:
+            print(f"  {name:<18} {envelope['row_count']:>4} rows -> "
+                  + ", ".join(os.path.basename(f) for f in written))
     return results
+
+
+def generate_board_pack(db_path, out_dir, names=None, formats=("xlsx", "pdf"),
+                        title="Board Pack", verbose=True):
+    """Bundle all selected reports into single combined file(s)."""
+    _check_formats(formats)
+    envelopes = compute_envelopes(db_path, names)
+    os.makedirs(out_dir, exist_ok=True)
+    written = []
+    if "xlsx" in formats:
+        written.append(render.render_excel_pack(
+            envelopes, os.path.join(out_dir, "board-pack.xlsx"), title=title))
+    if "pdf" in formats:
+        written.append(render.render_pdf_pack(
+            envelopes, os.path.join(out_dir, "board-pack.pdf"), title=title))
+    if verbose:
+        print(f"  Board pack ({len(envelopes)} reports) -> "
+              + ", ".join(os.path.basename(f) for f in written))
+    return written

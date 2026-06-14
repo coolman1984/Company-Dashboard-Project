@@ -15,7 +15,7 @@ import os
 import sys
 
 from .definitions import REPORTS, REPORTS_BY_NAME
-from .generate import generate
+from .generate import generate, generate_board_pack
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_DB = os.path.join(BASE_DIR, "pl_detail.db")
@@ -32,6 +32,10 @@ def main(argv=None):
                         choices=["json", "csv", "xlsx", "pdf"],
                         help="Output format(s): json, csv, xlsx, pdf.")
     parser.add_argument("--list", action="store_true", help="List reports and exit.")
+    parser.add_argument("--pack", action="store_true",
+                        help="Bundle all reports into a single board-pack file per format.")
+    parser.add_argument("--title", default="Board Pack",
+                        help="Title for the board pack cover.")
     args = parser.parse_args(argv)
 
     if args.list:
@@ -48,7 +52,13 @@ def main(argv=None):
 
     print(f"Generating reports from {os.path.basename(args.db)} -> {args.out}")
     try:
-        generate(args.db, args.out, names=args.reports, formats=tuple(args.format))
+        if args.pack:
+            # Default a pack to both office formats unless the user narrowed it.
+            formats = tuple(args.format) if args.format != ["json"] else ("xlsx", "pdf")
+            generate_board_pack(args.db, args.out, names=args.reports,
+                                formats=formats, title=args.title)
+        else:
+            generate(args.db, args.out, names=args.reports, formats=tuple(args.format))
     except (FileNotFoundError, RuntimeError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1

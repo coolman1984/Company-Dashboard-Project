@@ -65,9 +65,10 @@ Each report is also saved as JSON (your "target" format) and shown in the webapp
 or exported to Excel/PDF.
 
 > **Status:** `reports/` generates six core P&L reports from the database as
-> self-describing JSON, CSV, **management-ready Excel (.xlsx)**, and
-> **PDF** — see `reports/README.md`. Next: client-specific report templates,
-> richer/forecast reports, and a bundled "board pack".
+> self-describing JSON, CSV, **management-ready Excel (.xlsx)** and **PDF**, and
+> bundles them all into a single **board pack** (`--pack`: one workbook / one
+> PDF) — see `reports/README.md`. Next: client-specific templates and
+> forecast/outlook reports.
 
 ### Stage 3 — Scenarios & forecasting
 "What-if" modelling and forward forecasts — change an assumption and watch the

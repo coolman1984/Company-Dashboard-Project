@@ -15,7 +15,15 @@ python3 -m reports.cli                          # generate all as JSON -> output
 python3 -m reports.cli --report yearly_pl       # just one
 python3 -m reports.cli --format json csv xlsx pdf   # all four formats
 python3 -m reports.test_reports                 # run the tests
+
+# Board pack: bundle ALL reports into ONE file you hand to management.
+python3 -m reports.cli --pack                    # board-pack.xlsx + board-pack.pdf
+python3 -m reports.cli --pack --title "FY2026 Board Pack"
 ```
+
+The **board pack** is a single combined artifact: one Excel workbook with a
+Contents sheet plus a tab per report, and/or one PDF with a cover page and a
+section per report.
 
 The source database must exist first — either the synthetic dev data
 (`python3 seed_db.py`) or real client data loaded via `map_raw_to_db.py`.

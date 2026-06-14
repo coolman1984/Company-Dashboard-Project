@@ -69,10 +69,45 @@ def test_pdf():
             assert fh.read(5) == b"%PDF-", "not a valid PDF file"
 
 
+SECOND = {
+    "report": "regional_pl", "title": "Regional P&L", "description": "By region.",
+    "generated_at": "2026-06-14T09:00:00Z",
+    "source": {"database": "pl_detail.db", "rows_in_ledger": 7560},
+    "columns": ["year", "region_desc", "net_sales"], "row_count": 1,
+    "rows": [{"year": 2025, "region_desc": "Africa", "net_sales": 1200.0}],
+}
+
+
+def test_excel_pack():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "board-pack.xlsx")
+        render.render_excel_pack([ENVELOPE, SECOND], path, title="Test Pack")
+        import openpyxl
+        wb = openpyxl.load_workbook(path)
+        # Contents sheet + one per report.
+        assert wb.sheetnames == ["Contents", "yearly_pl", "regional_pl"], wb.sheetnames
+        assert wb["Contents"]["A1"].value == "Test Pack"
+        assert wb["regional_pl"].cell(row=6, column=3).value == 1200.0
+
+
+def test_pdf_pack():
+    if not render.pdf_available():
+        print("SKIP: reportlab not installed; PDF pack not tested here.")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "board-pack.pdf")
+        render.render_pdf_pack([ENVELOPE, SECOND], path, title="Test Pack")
+        with open(path, "rb") as fh:
+            assert fh.read(5) == b"%PDF-"
+        assert os.path.getsize(path) > 0
+
+
 def main():
     test_number_formatting()
     test_excel()
     test_pdf()
+    test_excel_pack()
+    test_pdf_pack()
     print("render tests passed.")
     return 0
 
