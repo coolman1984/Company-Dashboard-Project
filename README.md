@@ -68,6 +68,22 @@ python precompute_data.py        # optional: api_data/*.json fallback cache
 If `pl_detail.db` is unavailable at runtime, the server falls back to any
 precomputed JSON in `api_data/` for a subset of endpoints.
 
+## Extraction engine (data intake)
+
+`extractor/` turns messy client files (Excel, Word, digital PDF, Outlook email)
+into faithful raw JSON plus an audit manifest — the first stage of the broader
+platform (see [ROADMAP.md](ROADMAP.md)). It prefers Windows Office COM for full
+control and falls back to cross-platform Python readers everywhere else.
+
+```bash
+pip install -r extractor/requirements.txt
+python3 -m extractor.cli --list   # show which file types are ready
+python3 -m extractor.cli          # capture intake/ -> raw/
+```
+
+See [extractor/README.md](extractor/README.md) for the architecture. Client
+source files (`intake/`) and their raw captures (`raw/`) are never committed.
+
 ## Project layout
 
 | Path | Purpose |

@@ -1,0 +1,14 @@
+# Optional extraction dependencies.
+# Install only what you need for the file types you actually handle.
+#
+#   pip install -r extractor/requirements.txt
+#
+# Cross-platform (work everywhere, including CI and non-Windows machines):
+openpyxl          # .xlsx / .xlsm Excel  (fallback when Excel/COM is absent)
+python-docx       # .docx Word documents
+pdfplumber        # digital (text-based) PDFs
+extract-msg       # Outlook .msg / .eml emails
+#
+# Windows only - the primary "full control" path via Microsoft Office COM.
+# Uncomment on a Windows machine that has Office installed:
+# pywin32         # Excel / Word / Outlook automation (excel_com.py, future word/outlook COM)

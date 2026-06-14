@@ -39,7 +39,14 @@ The management webapp: charts, tables, trends, outlook, CSV export — and a sol
 runnable core that works on any computer with practice data.
 **You have this today.**
 
-### Stage 1 — Take in real data (the extraction engine) ⭐ the keystone
+### Stage 1 — Take in real data (the extraction engine) ⭐ the keystone — *foundation built*
+
+> **Status:** the engine foundation exists in `extractor/` — it captures Excel
+> and Word into faithful raw JSON today (tested), with COM-first Excel for
+> Windows and PDF/Outlook extractors written and ready to switch on. Still to do:
+> the scanned-PDF OCR path, live-Outlook COM, and mapping raw JSON into the
+> database. See `extractor/README.md`.
+
 A drop-folder where you put a client's **Excel, PDF, and Word** files. The system
 reads them, pulls out the real numbers, and loads them into the fast database.
 Every original is also saved **exactly as-is in JSON** so nothing is ever lost.

@@ -25,3 +25,13 @@ Desktop.ini
 # QA / debug artifacts
 .playwright-cli/
 output/playwright/
+
+# Extraction engine — client source files and their raw captures stay local.
+# Client financial data must never be committed.
+intake/*
+!intake/.gitkeep
+raw/*
+!raw/.gitkeep
+
+# Python packaging metadata from local installs
+*.egg-info/
