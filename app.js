@@ -118,6 +118,16 @@ function setStatus(ok, message) {
     el('statusLabel').textContent = message;
 }
 
+function showAlert(title, body) {
+    el('appAlertTitle').textContent = title;
+    el('appAlertBody').textContent = body;
+    el('appAlert').classList.add('show');
+}
+
+function hideAlert() {
+    el('appAlert').classList.remove('show');
+}
+
 function setLoading(id, label) {
     el(id).innerHTML = '<div class="loading"><span><span class="loading-spinner"></span>' +
         escapeHtml(label || 'Loading live data...') + '</span></div>';
@@ -1448,6 +1458,7 @@ function bindEvents() {
         requestCache.clear();
         loadActiveTab(true);
     });
+    el('appAlertRetry').addEventListener('click', function () { window.location.reload(); });
     el('globalRegion').addEventListener('change', refreshCountryOptions);
     el('regMetric').addEventListener('change', function () { loadRegional(false); });
     el('productBtn').addEventListener('click', renderProduct);
@@ -1488,11 +1499,18 @@ function bootstrap() {
         configureGlobalFiltersForTab(activeTab);
         renderSummaryMeta();
         renderFreshness();
+        if (status.backend === 'sqlite-live') {
+            hideAlert();
+        } else {
+            showAlert('Running in limited mode',
+                'The live database is not connected, so the dashboard is showing only saved summary data. Some sections may be empty until the database is set up.');
+        }
         setStatus(status.database === 'connected', status.backend === 'sqlite-live' ? 'Live SQLite' : 'Fallback cache');
         return loadOverview(false);
-    }).catch(function (error) {
+    }).catch(function () {
         setStatus(false, 'Connection failed');
-        showToast(error.message, true);
+        showAlert('We couldn’t load the dashboard data',
+            'The data service may still be starting up, or it has not been set up yet. Wait a moment and click Try again. If this is a fresh setup, the database needs to be created first — see the Getting Started guide.');
     });
 }
 

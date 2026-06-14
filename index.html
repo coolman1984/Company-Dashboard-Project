@@ -321,6 +321,37 @@
         }
         .data-note svg { width: 17px; height: 17px; flex: none; color: var(--green); }
 
+        .app-alert {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: linear-gradient(90deg, #fff4e9, #fffaf3);
+            border: 1px solid #f3d6ad;
+            color: #8a5316;
+            font-size: 12.5px;
+            line-height: 1.5;
+        }
+        .app-alert.show { display: flex; }
+        .app-alert svg { width: 22px; height: 22px; flex: none; color: var(--amber); }
+        .app-alert-text { display: flex; flex-direction: column; gap: 2px; }
+        .app-alert-text strong { font-size: 13px; color: #7a4910; }
+        .app-alert-retry {
+            margin-left: auto;
+            flex: none;
+            border: 1px solid #e7b270;
+            background: #ffffff;
+            color: #8a5316;
+            border-radius: 9px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .app-alert-retry:hover { background: #fff6ec; }
+
         .section-head {
             display: flex;
             align-items: flex-end;
@@ -759,6 +790,11 @@
         </section>
 
         <div class="workspace">
+            <div class="app-alert" id="appAlert" role="alert">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 8v5m0 3h.01"/></svg>
+                <div class="app-alert-text"><strong id="appAlertTitle">We couldn't load the data</strong><span id="appAlertBody"></span></div>
+                <button class="app-alert-retry" type="button" id="appAlertRetry">Try again</button>
+            </div>
             <section class="panel active" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
                 <div class="data-note" id="dataFreshnessNote" role="status">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 10v6m0-9h.01"/></svg>
