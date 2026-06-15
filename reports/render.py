@@ -287,7 +287,7 @@ def _pdf_report_flowables(envelope, styles, doc_width):
     style = [
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F3B57")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), f"{body_font}-Bold" if is_arabic else "Helvetica-Bold"),
+        ("FONTNAME", (0, 0), (-1, 0), body_font if is_arabic else "Helvetica-Bold"),
         ("FONTNAME", (0, 1), (-1, -1), body_font),
         ("FONTSIZE", (0, 0), (-1, -1), font_size),
         ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CCCCCC")),

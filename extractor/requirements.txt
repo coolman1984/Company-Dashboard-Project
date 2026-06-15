@@ -5,6 +5,8 @@
 #
 # Cross-platform (work everywhere, including CI and non-Windows machines):
 openpyxl          # .xlsx / .xlsm Excel  (fallback when Excel/COM is absent)
+pyxlsb            # .xlsb binary Excel workbooks on non-Windows machines
+xlrd              # legacy .xls Excel workbooks
 python-docx       # .docx Word documents
 pdfplumber        # digital (text-based) PDFs
 extract-msg       # Outlook .msg / .eml emails

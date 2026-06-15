@@ -210,17 +210,20 @@ We are a team with different strengths. Use the right agent for the right job.
 - **Reports engine — extend** (Stage 2 Done): client-specific templates.
 
 ### In Progress (owner)
-- **Arabic-first extraction & RTL dashboard** (Claude Code) — staged plan in
-  `ROADMAP.md` (Stage 6). Stages 1, 2, 3, 4a and 5 (RTL UI first version) are
-  **Done**; remaining: 4b (Arabic PDF — needs a font decision), Arabic seed data,
-  and RTL visual polish.
-  Decisions locked: Gregorian only; full RTL UI; support
-  `.xlsx/.xlsm/.xlsb/.xls/CSV`; **keep spellings exactly as typed — do NOT merge
-  variants in totals** (owner decision, 6.2b declined); user-toggleable digits;
-  vendored **Cairo** font (no CDN).
 - _(none currently)_
 
 ### Done
+- **Arabic Stage 6 documentation + visual QA refresh** (OpenAI Codex on `main`):
+  reviewed Arabic desktop/mobile and English desktop in a running browser,
+  fixed the initial Arabic page heading and additional dynamic UI translations,
+  synced docs with current code, added Arabic PDF render coverage, and aligned
+  extractor requirements with the file readers in CI.
+- **Arabic PDF rendering** (Stage 6.4b first version): reports use vendored
+  Noto Naskh Arabic plus `arabic-reshaper` and `python-bidi` when available;
+  Arabic report text is shaped/bidi-corrected for PDF, and render tests create
+  Arabic PDF artifacts.
+- **Arabic sample seed data**: `python3 seed_db.py --force --locale ar` creates
+  an Arabic-dimension demo database while preserving the default English seed.
 - **Arabic RTL dashboard** (Stage 6.5 first version): defaults to Arabic
   right-to-left with an EN toggle (falls back to the original LTR layout);
   vendored Cairo font (`cairo.ttf`, served locally); `i18n.js` translates the
@@ -283,6 +286,13 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — OpenAI Codex — main (Stage 6 docs + visual QA refresh)
+**Did:** Reviewed the current `main` only, ran the dashboard with Arabic seed data, checked Arabic desktop/mobile and English desktop in Playwright, fixed the initial Arabic page heading (`app.js`), expanded dynamic Arabic UI translations (`i18n.js`), added Arabic PDF render coverage (`reports/test_render.py`), aligned `extractor/requirements.txt` with the `.xlsb`/`.xls` readers, and updated `README.md`, `GETTING-STARTED.md`, `ROADMAP.md`, `reports/README.md`, `ARABIC_STAGE6_HANDOFF.md`, and this task board/journal to match the current code.
+**Why:** The docs still described Arabic PDF/seed/deep translation work as pending even though code had moved forward; browser QA also showed visible English text in Arabic mode.
+**Status:** ✅ verified locally: `npm test`, extractor availability, extractor tests, Arabic normalization tests, mapper tests, reports tests, render tests (including Arabic PDF), scenario tests, brain tests, `brain.cli --check`, and `git diff --check` all passed.
+**Next:** Deeper browser QA across every tab and dense Arabic board-pack visual review with real report layouts.
+**Watch out:** Work was intentionally committed directly on `main` per owner instruction for this pass; future multi-agent work should return to feature branches unless owner repeats the direct-main instruction.
 
 ### 2026-06-15 — OpenCode — main (Arabic: remaining translation, seed data, PDF)
 **Did:** Executed the ARABIC_STAGE6_HANDOFF.md plan: (1) covered remaining untranslated dynamic labels — KPI card sub-strings via `tr()`, signal card labels, trend KPI captions, and `translateText()` regex rules for dynamic phrases; (2) added Arabic sample seed data to `seed_db.py` with `--locale ar` flag producing Arabic dimensions (regions, countries, customers, product groups, classes) while preserving English default and financial calculations; (3) downloaded Noto Naskh Arabic variable font (307 KB, OFL) to `fonts/`; (4) implemented Arabic PDF shaping in `reports/render.py` using arabic-reshaper + python-bidi with lazy-loading and graceful degradation — Arabic text is reshaped/bidi-corrected, and the Arabic font is registered and used for all table cells; (5) updated `reports/requirements.txt` and CI workflow for new dependencies; (6) updated `README.md` with `--locale ar` usage and font layout; wrote `ARABIC_STAGE6_HANDOFF.md`.

@@ -113,6 +113,9 @@
     var AR_TEXT = {
         "Loading...": "جارٍ التحميل...",
         "Live SQLite": "قاعدة SQLite مباشرة",
+        "Executive Overview": "النظرة التنفيذية",
+        "Live profit and loss performance from the SQLite detail ledger": "أداء الأرباح والخسائر مباشرة من سجل قاعدة بيانات SQLite",
+        "Data is fresh.": "البيانات محدّثة.",
         "Year": "السنة",
         "Metric": "المؤشر",
         "Primary year": "السنة الأساسية",
@@ -152,6 +155,7 @@
         "Revenue trend: Actual to outlook": "اتجاه الإيرادات: من الفعلي إلى التوقع",
         "Cumulative monthly revenue with completed and remaining periods separated": "الإيرادات الشهرية التراكمية مع فصل الفترات المكتملة والمتبقية",
         "Actual through P05, outlook begins P06": "الفعلي حتى P05، والتوقع يبدأ من P06",
+        "Actual P01-P05 + T06 P06 + T07 P07-P12, compared with FY2025": "فعلي P01-P05 + T06 P06 + T07 P07-P12، مقارنة بالسنة المالية 2025",
         "Gross margin %: Actual to outlook": "نسبة هامش الربح الإجمالي: من الفعلي إلى التوقع",
         "Monthly margin quality and second-half profitability risk": "جودة الهامش الشهرية ومخاطر ربحية النصف الثاني",
         "Solid Actual, dashed operating outlook": "خط متصل للفعلي، وخط متقطع للتوقع التشغيلي",
@@ -313,6 +317,31 @@
         "Growth %": "نسبة النمو",
         "Op margin %": "نسبة الهامش التشغيلي",
         "Recommended action": "الإجراء المقترح",
+        "Account": "البند",
+        "ACCOUNT": "البند",
+        "Status": "الحالة",
+        "STATUS": "الحالة",
+        "MANAGEMENT ACTION": "إجراء الإدارة",
+        "Management action": "إجراء الإدارة",
+        "Amount": "القيمة",
+        "% Revenue": "نسبة الإيرادات",
+        "CHANGE VS FY2025": "التغير مقابل السنة المالية 2025",
+        "ACTUAL 2026 P01-P05": "فعلي 2026 P01-P05",
+        "2026 OUTLOOK P01-P12": "توقعات 2026 P01-P12",
+        "2025 FULL YEAR": "كامل سنة 2025",
+        "VARIANCE VS 2025": "الانحراف مقابل 2025",
+        "AMOUNT": "القيمة",
+        "% REVENUE": "نسبة الإيرادات",
+        "Operating Expenses": "المصروفات التشغيلية",
+        "Strong growth": "نمو قوي",
+        "Growing but margin eroding": "نمو مع تآكل الهامش",
+        "Declining — margin also falling": "انخفاض مع تراجع الهامش أيضًا",
+        "Revenue declining": "انخفاض الإيرادات",
+        "High-margin product with stable or improving economics. Prioritise volume growth and defend price positioning.": "منتج عالي الهامش باقتصاديات مستقرة أو متحسنة. أعطِ أولوية لنمو الحجم ودافع عن تموضع السعر.",
+        "Margins healthy and stable. Defend pricing discipline and look for selective volume growth opportunities.": "الهوامش صحية ومستقرة. حافظ على انضباط التسعير وابحث عن فرص نمو انتقائية في الحجم.",
+        "Operating loss despite positive gross margin. OpEx exceeds the margin contribution — review fixed cost allocation.": "خسارة تشغيلية رغم هامش ربح إجمالي موجب. المصروفات التشغيلية تتجاوز مساهمة الهامش — راجع توزيع التكلفة الثابتة.",
+        "Negative gross margin — losing money on every unit sold. Reprice, renegotiate COGS, or exit this volume.": "هامش ربح إجمالي سلبي — خسارة على كل وحدة مباعة. أعد التسعير أو تفاوض على تكلفة المبيعات أو اخرج من هذا الحجم.",
+        "Gross margin below 10% — insufficient buffer to absorb operating expense. Target repricing or direct cost reduction.": "هامش الربح الإجمالي أقل من 10% — لا توجد مساحة كافية لامتصاص المصروفات التشغيلية. استهدف إعادة التسعير أو خفض التكلفة المباشرة.",
         "Combined outlook": "التوقع المجمّع",
         "Actual share": "حصة الفعلي",
         "Change vs FY": "التغير مقابل السنة المالية",
@@ -354,6 +383,26 @@
 
         var dynamic = core
             .replace(/^FY(\d{4})$/, "السنة المالية $1")
+            .replace(/^(\d{4}) executive outlook$/, "التوقع التنفيذي $1")
+            .replace(/^(\d{4}) executive performance$/, "الأداء التنفيذي $1")
+            .replace(/^FY(\d{4}) Actual$/, "فعلي السنة المالية $1")
+            .replace(/^FY(\d{4}) Full Year$/, "كامل السنة المالية $1")
+            .replace(/^(\d{4}) Full Year$/, "كامل سنة $1")
+            .replace(/^Variance vs (\d{4})$/, "الانحراف مقابل $1")
+            .replace(/^FY(\d{4}) full-year Actual, compared with FY(\d{4})$/, "فعلي كامل السنة المالية $1، مقارنة بالسنة المالية $2")
+            .replace(/^Top product groups by (\d{4}) revenue — margin quality, COGS efficiency, and YoY movement with management action tiers$/, "أهم مجموعات المنتجات حسب إيرادات $1 — جودة الهامش، وكفاءة تكلفة المبيعات، والحركة السنوية مع مستويات إجراءات الإدارة")
+            .replace(/^FY(\d{4}) REVENUE$/, "إيرادات السنة المالية $1")
+            .replace(/^CHANGE VS FY(\d{4})$/, "التغير مقابل السنة المالية $1")
+            .replace(/^ACTUAL (\d{4}) P(\d{2})-P(\d{2})$/, "فعلي $1 P$2-P$3")
+            .replace(/^(\d{4}) OUTLOOK P(\d{2})-P(\d{2})$/, "توقعات $1 P$2-P$3")
+            .replace(/^(\d{4}) FULL YEAR$/, "كامل سنة $1")
+            .replace(/^VARIANCE VS (\d{4})$/, "الانحراف مقابل $1")
+            .replace(/^Source: live SQLite \(([0-9,]+) records\)\s*\|\s*Actual: P(\d{2})-P(\d{2})\s*\|\s*(\d{4}) outlook: Actual P(\d{2})-P(\d{2}) \+ T06 P06 \+ T07 P07-P12\.$/, "المصدر: SQLite مباشر ($1 سجل) | الفعلي: P$2-P$3 | توقعات $4: فعلي P$5-P$6 + T06 P06 + T07 P07-P12.")
+            .replace(/^Actual P(\d{2})-P(\d{2}) \+ T06 P06 \+ T07 P07-P12, compared with FY(\d{4})$/, "فعلي P$1-P$2 + T06 P06 + T07 P07-P12، مقارنة بالسنة المالية $3")
+            .replace(/^(\d+(?:\.\d+)?)% of outlook$/, "$1% من التوقع")
+            .replace(/^(\d+) product groups forecast below operating break-even$/, "$1 مجموعات منتجات متوقعة دون نقطة التعادل التشغيلي")
+            .replace(/^Top (\d+) groups by (\d{4}) outlook revenue · (\d+) loss-making \((.*) revenue at risk\)$/, "أكبر $1 مجموعات حسب إيرادات توقعات $2 · $3 خاسرة ($4 إيرادات معرضة للخطر)")
+            .replace(/^FY(\d{4}) outlook$/, "توقعات السنة المالية $1")
             .replace(/^P&L summary: (\d{4}) outlook$/, "ملخص الأرباح والخسائر: توقعات $1")
             .replace(/^Profit bridge vs FY(\d{4})$/, "جسر الربح مقارنة بالسنة المالية $1")
             .replace(/^Share of (\d{4}) outlook held by the largest customers$/, "حصة أكبر العملاء من توقعات $1")

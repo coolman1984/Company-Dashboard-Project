@@ -53,12 +53,14 @@ in `reports/__init__.py` and applied in both the CSV writer and Excel renderer.
 |--------|-------|-----|
 | `json` | nothing (stdlib) | the durable "target report" envelope; feeds other tools |
 | `csv`  | nothing (stdlib) | open in any spreadsheet |
-| `xlsx` | `openpyxl` | **management-ready Excel** — titled, formatted, real numbers |
-| `pdf`  | `reportlab` | **management-ready PDF** — landscape, formatted table |
+| `xlsx` | `openpyxl` | **management-ready Excel** — titled, formatted, real numbers, Arabic sheets marked right-to-left |
+| `pdf`  | `reportlab`; Arabic text also uses `arabic-reshaper` + `python-bidi` + vendored Noto Naskh Arabic | **management-ready PDF** — landscape, formatted table, Arabic text shaped/bidi-corrected when dependencies are installed |
 
 Install the office-format libraries with `pip install -r reports/requirements.txt`.
 Excel/PDF rendering is optional and degrades gracefully — if a library is
-missing, the CLI says so instead of crashing.
+missing, the CLI says so instead of crashing. Arabic PDF rendering uses the
+local font at `fonts/NotoNaskhArabic.ttf`; keep this font and its license/source
+note with the repo so reports stay offline and CDN-free.
 
 ## What a report looks like (the "target" JSON envelope)
 

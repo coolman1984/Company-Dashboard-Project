@@ -58,14 +58,16 @@ To close it, double-click **`Stop Dashboard.bat`**.
 
 ## What you'll see
 
-A finance dashboard with sections down the left side:
+A finance dashboard with sections down the side. It opens in Arabic by default,
+with buttons to switch to English and to switch number shapes:
 
 - **Executive Overview** — the headline numbers and this year's outlook.
 - **Regional / Product / Customer** — performance broken down different ways.
 - **Trends** — five years of history.
 - **Portfolio** — which products to grow vs. fix.
 
-Each table has an **Export CSV** button to open the data in Excel.
+Each table has an **Export CSV** button to open the data in Excel. Technical
+helpers can also generate Excel and PDF management packs from the reports engine.
 
 ---
 

@@ -35,6 +35,11 @@ For an Arabic-language demo database (Arabic regions, countries, customers, prod
 python3 seed_db.py --force --locale ar
 ```
 
+The dashboard defaults to Arabic right-to-left mode with a language toggle for
+English and a digit toggle for Western ↔ Arabic-Indic numerals. Arabic exports
+are supported in CSV (UTF-8 BOM), Excel (RTL sheets), and PDF (vendored Noto
+Naskh Arabic font with shaping/bidi dependencies from `reports/requirements.txt`).
+
 Then open <http://localhost:3001>. No internet required after `npm install`.
 
 **Optional env vars for shared/remote access:**
@@ -135,6 +140,9 @@ arithmetic drift is surfaced as a non-blocking warning.
 
 ## Project layout
 
+For a blunt end-client readiness critique and development plan, see
+[`CLIENT_READINESS_REVIEW.md`](CLIENT_READINESS_REVIEW.md).
+
 | Path | Purpose |
 |------|---------|
 | `server.js` | HTTP server + all `/api/*` endpoints (live SQLite, dynamic metadata) |
@@ -151,7 +159,8 @@ arithmetic drift is surfaced as a non-blocking warning.
 | `analysis_cfo.py` | Offline CFO analysis utilities |
 | `Start Dashboard.bat` | Windows one-click launcher |
 | `fonts/` | Vendored fonts: Cairo (UI), Noto Naskh Arabic (PDF) |
-| `ARABIC_STAGE6_HANDOFF.md` | Remaining Arabic work plan for next agent |
+| `ARABIC_STAGE6_HANDOFF.md` | Current Arabic Stage 6 state, QA notes, and remaining work |
+| `CLIENT_READINESS_REVIEW.md` | Blunt end-client critique and development plan |
 
 ## API endpoints
 

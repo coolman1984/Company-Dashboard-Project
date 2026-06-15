@@ -89,6 +89,10 @@ function tr(text) {
     return (window.I18N && window.I18N.translateText) ? window.I18N.translateText(text) : text;
 }
 
+function isArabicUi() {
+    return window.I18N && window.I18N.lang && window.I18N.lang() === 'ar';
+}
+
 function formatCompact(value) {
     if (value == null || !Number.isFinite(Number(value))) return '--';
     var number = Number(value);
@@ -259,13 +263,22 @@ function renderFreshness() {
     var note = el('dataFreshnessNote');
     var actual2026 = getActualYearMeta(2026);
     if (actual2026 && !actual2026.isFullYear) {
-        note.innerHTML =
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 10v6m0-9h.01"/></svg>' +
-            '<span><strong>Data is fresh.</strong> Source: live SQLite (' +
-            (summary ? Number(summary.totalRows).toLocaleString('en-US') : '--') +
-            ' records) &nbsp;|&nbsp; Actual: P01-P' +
-            String(actual2026.maxPeriodNumber).padStart(2, '0') +
-            ' &nbsp;|&nbsp; 2026 outlook: Actual P01-P05 + T06 P06 + T07 P07-P12.</span>';
+        var period = String(actual2026.maxPeriodNumber).padStart(2, '0');
+        if (isArabicUi()) {
+            note.innerHTML =
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 10v6m0-9h.01"/></svg>' +
+                '<span><strong>' + escapeHtml(tr('Data is fresh.')) + '</strong> ' +
+                'المصدر: SQLite مباشر (' + (summary ? Number(summary.totalRows).toLocaleString('en-US') : '--') +
+                ' سجل) &nbsp;|&nbsp; الفعلي: P01-P' + period +
+                ' &nbsp;|&nbsp; توقعات 2026: فعلي P01-P05 + T06 P06 + T07 P07-P12.</span>';
+        } else {
+            note.innerHTML =
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 10v6m0-9h.01"/></svg>' +
+                '<span><strong>Data is fresh.</strong> Source: live SQLite (' +
+                (summary ? Number(summary.totalRows).toLocaleString('en-US') : '--') +
+                ' records) &nbsp;|&nbsp; Actual: P01-P' + period +
+                ' &nbsp;|&nbsp; 2026 outlook: Actual P01-P05 + T06 P06 + T07 P07-P12.</span>';
+        }
     } else {
         note.textContent = freshness ? freshness.note : 'Database coverage is unavailable.';
     }
@@ -380,7 +393,7 @@ function renderExecutiveKPIs(data) {
     el('executiveKpiGrid').innerHTML = cards.map(function (card) {
         return '<article class="kpi-card">' +
             '<div class="kpi-top"><span class="kpi-icon ' + card.tone + '">' +
-            escapeHtml(card.icon) + '</span><div><div class="kpi-label">' + escapeHtml(card.label) +
+            escapeHtml(card.icon) + '</span><div><div class="kpi-label">' + escapeHtml(tr(card.label)) +
             '</div><div class="kpi-value">' + escapeHtml(card.value) + '</div></div></div>' +
             '<div class="kpi-sub ' + valueClass(card.metric, card.change) + '">' + escapeHtml(card.sub) + '</div>' +
             '</article>';
@@ -485,17 +498,17 @@ function renderExecutivePL(data) {
     ];
     var html;
     if (cov.isOutlookYear) {
-        html = '<thead><tr><th rowspan="2">Account</th>' +
-            '<th colspan="2">Actual ' + cov.year + ' P01-P05</th><th colspan="2">' + cov.year + ' Outlook P01-P12</th>' +
-            '<th colspan="2">' + cov.priorYear + ' Full Year</th><th colspan="2">Variance vs ' + cov.priorYear + '</th></tr>' +
-            '<tr><th>Amount</th><th>% Revenue</th><th>Amount</th><th>% Revenue</th>' +
-            '<th>Amount</th><th>% Revenue</th><th>Amount</th><th>%</th></tr></thead><tbody>';
+        html = '<thead><tr><th rowspan="2">' + tr('Account') + '</th>' +
+            '<th colspan="2">' + tr('Actual ' + cov.year + ' P01-P05') + '</th><th colspan="2">' + tr(cov.year + ' Outlook P01-P12') + '</th>' +
+            '<th colspan="2">' + tr(cov.priorYear + ' Full Year') + '</th><th colspan="2">' + tr('Variance vs ' + cov.priorYear) + '</th></tr>' +
+            '<tr><th>' + tr('Amount') + '</th><th>' + tr('% Revenue') + '</th><th>' + tr('Amount') + '</th><th>' + tr('% Revenue') + '</th>' +
+            '<th>' + tr('Amount') + '</th><th>' + tr('% Revenue') + '</th><th>' + tr('Amount') + '</th><th>%</th></tr></thead><tbody>';
     } else {
-        html = '<thead><tr><th rowspan="2">Account</th>' +
-            '<th colspan="2">FY' + cov.year + ' Actual</th>' +
-            '<th colspan="2">FY' + cov.priorYear + ' Full Year</th><th colspan="2">Variance vs ' + cov.priorYear + '</th></tr>' +
-            '<tr><th>Amount</th><th>% Revenue</th>' +
-            '<th>Amount</th><th>% Revenue</th><th>Amount</th><th>%</th></tr></thead><tbody>';
+        html = '<thead><tr><th rowspan="2">' + tr('Account') + '</th>' +
+            '<th colspan="2">' + tr('FY' + cov.year + ' Actual') + '</th>' +
+            '<th colspan="2">' + tr('FY' + cov.priorYear + ' Full Year') + '</th><th colspan="2">' + tr('Variance vs ' + cov.priorYear) + '</th></tr>' +
+            '<tr><th>' + tr('Amount') + '</th><th>' + tr('% Revenue') + '</th>' +
+            '<th>' + tr('Amount') + '</th><th>' + tr('% Revenue') + '</th><th>' + tr('Amount') + '</th><th>%</th></tr></thead><tbody>';
     }
 
     definitions.forEach(function (definition) {
@@ -506,14 +519,14 @@ function renderExecutivePL(data) {
         var variance = outlookValue - priorValue;
         var variancePct = percentChange(priorValue, outlookValue);
         if (cov.isOutlookYear) {
-            html += '<tr class="' + definition[2] + '"><td>' + escapeHtml(definition[0]) + '</td>' +
+            html += '<tr class="' + definition[2] + '"><td>' + escapeHtml(tr(definition[0])) + '</td>' +
                 '<td>' + escapeHtml(formatFull(actualValue)) + '</td><td>' + formatPercent(ratio(actualValue, actual.net_sales)) + '</td>' +
                 '<td>' + escapeHtml(formatFull(outlookValue)) + '</td><td>' + formatPercent(ratio(outlookValue, outlook.net_sales)) + '</td>' +
                 '<td>' + escapeHtml(formatFull(priorValue)) + '</td><td>' + formatPercent(ratio(priorValue, prior.net_sales)) + '</td>' +
                 '<td class="' + valueClass(key, variance) + '">' + escapeHtml(formatFull(variance)) + '</td>' +
                 '<td class="' + valueClass(key, variance) + '">' + signedPercent(variancePct) + '</td></tr>';
         } else {
-            html += '<tr class="' + definition[2] + '"><td>' + escapeHtml(definition[0]) + '</td>' +
+            html += '<tr class="' + definition[2] + '"><td>' + escapeHtml(tr(definition[0])) + '</td>' +
                 '<td>' + escapeHtml(formatFull(outlookValue)) + '</td><td>' + formatPercent(ratio(outlookValue, outlook.net_sales)) + '</td>' +
                 '<td>' + escapeHtml(formatFull(priorValue)) + '</td><td>' + formatPercent(ratio(priorValue, prior.net_sales)) + '</td>' +
                 '<td class="' + valueClass(key, variance) + '">' + escapeHtml(formatFull(variance)) + '</td>' +
@@ -730,7 +743,7 @@ function renderTopMovers(data) {
             '<td class="' + revCls + '">' + (r.change >= 0 ? '+' : '') + escapeHtml(formatCompact(r.change)) + '</td>' +
             '<td class="' + revCls + '">' + (r.pct != null ? signedPercent(r.pct) : '--') + '</td>' +
             '<td class="' + gmCls + '">' + (r.gmPpChange != null ? (r.gmPpChange >= 0 ? '+' : '') + r.gmPpChange.toFixed(1) + ' pp' : '--') + '</td>' +
-            '<td>' + escapeHtml(signal) + '</td></tr>';
+            '<td>' + escapeHtml(tr(signal)) + '</td></tr>';
     });
     el('moversTable').innerHTML = html + '</tbody>';
 }
@@ -741,9 +754,9 @@ function renderProfitabilityTable(data) {
     var critCount = 0, critRev = 0, erodCount = 0, watchCount = 0;
 
     var html = '<thead><tr>' +
-        '<th>Product group</th><th>Revenue</th><th>vs 2025</th><th>COGS %</th>' +
-        '<th>Gross margin %</th><th>GM Δ</th><th>Op margin %</th>' +
-        '<th>Status</th><th>Management action</th>' +
+        '<th>' + tr('Product group') + '</th><th>' + tr('Revenue') + '</th><th>' + tr('vs') + ' 2025</th><th>' + tr('COGS %') + '</th>' +
+        '<th>' + tr('Gross margin %') + '</th><th>' + tr('GM Δ') + '</th><th>' + tr('Op margin %') + '</th>' +
+        '<th>' + tr('Status') + '</th><th>' + tr('Management action') + '</th>' +
         '</tr></thead><tbody>';
 
     rows.forEach(function (row) {
@@ -771,7 +784,7 @@ function renderProfitabilityTable(data) {
             '<tr' + rowCls + '>' +
             '<td>' + escapeHtml(cleanDimensionLabel(row.label)) + '</td>' +
             '<td>' + escapeHtml(formatCompact(row.net_sales)) +
-                '<span class="cell-sub">' + shareOfTotal.toFixed(1) + '% of outlook</span></td>' +
+                '<span class="cell-sub">' + (isArabicUi() ? shareOfTotal.toFixed(1) + '% من التوقع' : shareOfTotal.toFixed(1) + '% of outlook') + '</span></td>' +
             '<td class="' + valueClass('net_sales', Number(row.net_sales) - Number(row.prior_net_sales)) + '">' +
                 signedPercent(revenueChange) + '</td>' +
             '<td>' + formatPercent(cogsRate) + '</td>' +
@@ -783,8 +796,8 @@ function renderProfitabilityTable(data) {
             '<td class="' + gmChangeCls + '">' +
                 (gmChange == null ? '--' : (gmChange >= 0 ? '+' : '') + gmChange.toFixed(1) + ' pp') + '</td>' +
             '<td class="' + (opRate < 0 ? 'neg' : '') + '">' + formatPercent(opRate) + '</td>' +
-            '<td><span class="risk-tag ' + risk.cls + '">' + escapeHtml(risk.label) + '</span></td>' +
-            '<td>' + escapeHtml(risk.action) + '</td>' +
+            '<td><span class="risk-tag ' + risk.cls + '">' + escapeHtml(tr(risk.label)) + '</span></td>' +
+            '<td>' + escapeHtml(tr(risk.action)) + '</td>' +
             '</tr>';
     });
 
@@ -816,16 +829,16 @@ function loadOverview(force) {
             executiveData = data;
             var cov = data.coverage;
             var isOutlook = cov.isOutlookYear;
-            el('overviewHeading').textContent = cov.year + ' executive ' + (isOutlook ? 'outlook' : 'performance');
+            el('overviewHeading').textContent = tr(cov.year + ' executive ' + (isOutlook ? 'outlook' : 'performance'));
             el('overviewSubtext').textContent = isOutlook
-                ? cov.definition + ', compared with FY' + cov.priorYear
-                : 'FY' + cov.year + ' full-year Actual, compared with FY' + cov.priorYear;
+                ? tr(cov.definition + ', compared with FY' + cov.priorYear)
+                : tr('FY' + cov.year + ' full-year Actual, compared with FY' + cov.priorYear);
             el('revScenarioBoundary').style.display = isOutlook ? '' : 'none';
             el('gmScenarioBoundary').style.display = isOutlook ? '' : 'none';
-            el('plTableTitle').textContent = 'P&L summary: ' + (isOutlook ? cov.year + ' outlook' : 'FY' + cov.year + ' Actual');
-            el('concentrationSubtitle').textContent = 'Share of FY' + cov.year + (isOutlook ? ' outlook' : ' revenue') + ' held by the largest customers';
-            el('profitBridgeTitle').textContent = 'Profit bridge vs FY' + cov.priorYear;
-            el('profitMatrixSubtitle').textContent = 'Top product groups by ' + cov.year + ' revenue — margin quality, COGS efficiency, and YoY movement with management action tiers';
+            el('plTableTitle').textContent = tr('P&L summary: ' + (isOutlook ? cov.year + ' outlook' : 'FY' + cov.year + ' Actual'));
+            el('concentrationSubtitle').textContent = tr('Share of FY' + cov.year + (isOutlook ? ' outlook' : ' revenue') + ' held by the largest customers');
+            el('profitBridgeTitle').textContent = tr('Profit bridge vs FY' + cov.priorYear);
+            el('profitMatrixSubtitle').textContent = tr('Top product groups by ' + cov.year + ' revenue — margin quality, COGS efficiency, and YoY movement with management action tiers');
             renderExecutiveKPIs(data);
             renderExecutiveCharts(data);
             renderExecutivePL(data);
@@ -1349,10 +1362,15 @@ function loadActiveTab(force) {
         portfolio: loadPortfolio
     }[activeTab];
     return Promise.resolve(loader(force)).then(function () {
-        setStatus(true, 'Live SQLite');
+        setStatus(true, tr('Live SQLite'));
     }).catch(function () {
         // The loader already surfaced the error.
     });
+}
+
+function updatePageHeading(tabName) {
+    el('pageTitle').textContent = (window.I18N && window.I18N.t('page.' + tabName + '.title')) || tr(pageMeta[tabName][0]);
+    el('pageSubtitle').textContent = (window.I18N && window.I18N.t('page.' + tabName + '.sub')) || tr(pageMeta[tabName][1]);
 }
 
 function activateTab(tabName) {
@@ -1367,8 +1385,7 @@ function activateTab(tabName) {
         panel.classList.toggle('active', selected);
         panel.hidden = !selected;
     });
-    el('pageTitle').textContent = (window.I18N && window.I18N.t('page.' + tabName + '.title')) || pageMeta[tabName][0];
-    el('pageSubtitle').textContent = (window.I18N && window.I18N.t('page.' + tabName + '.sub')) || pageMeta[tabName][1];
+    updatePageHeading(tabName);
     configureGlobalFiltersForTab(tabName);
     if (!tabLoaded[tabName]) loadActiveTab(false);
 }
@@ -1507,6 +1524,7 @@ function bootstrap() {
     setStatus(true, tr('Connecting'));
     configureCharts();
     bindEvents();
+    updatePageHeading(activeTab);
     Promise.all([
         fetchJson(API + '/api/status', { force: true }),
         fetchJson(API + '/api/summary', { force: true }),

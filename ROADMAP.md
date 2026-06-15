@@ -134,30 +134,29 @@ to respect the no-CDN rule.
 >   *6.2b (group-key folding) was considered and **declined by owner decision**:*
 >   names are kept and grouped exactly as typed; spelling variants are NOT merged
 >   in totals.
-> - **6.3 Format & fidelity — *first version done*.** Added readers for `.xlsb`
->   (pyxlsb), `.xls` (xlrd) and CSV/TSV with encoding auto-detection
->   (Windows-1256 vs UTF-8±BOM) and delimiter sniffing; all emit the shared
->   spreadsheet envelope so they load through the mapper unchanged. *Still to do:*
->   merged-cell and multi-row headers, formula-without-cache detection, error
->   cells, and date-serial handling for `.xlsb`/`.xls`.
-> - **6.4 Export correctness — *CSV + Excel done; PDF pending*.** CSV now writes
->   a UTF-8 BOM so Excel opens Arabic correctly; Excel report sheets are flagged
->   right-to-left when the content is Arabic. *Still to do:* PDF board packs need
->   an embedded Arabic font plus reshaping (`arabic-reshaper`) and bidi ordering
->   (`python-bidi`) and right-aligned RTL tables — gated on a font decision
->   (Cairo is a modern font and may lack the presentation-form glyphs the
->   reshaping approach needs; a traditional face like Amiri/Noto Naskh is the
->   safe choice for PDF).
-> - **6.5 Full RTL dashboard — *first version done*.** Defaults to Arabic
->   right-to-left (`lang="ar" dir="rtl"`) with an EN toggle that falls back to the
->   original LTR layout; vendored **Cairo** font (`cairo.ttf`, served locally, no
->   CDN); `[dir="rtl"]` CSS mirrors the explicit left/right rules; charts use the
->   Cairo font; a small en/ar string map (`i18n.js`) translates the navigation,
->   filters, buttons, banner and per-tab titles; a digit toggle switches
->   Western ↔ Arabic-Indic numerals. *Still to do (5b):* translate the deeper
->   content (KPI captions, chart titles, table headers — still English), an
->   Arabic synthetic dataset in `seed_db.py`, and a visual polish pass on RTL
->   spacing/charts.
+- **6.3 Format & fidelity — *first version done*.** Added readers for `.xlsb`
+  (pyxlsb), `.xls` (xlrd) and CSV/TSV with encoding auto-detection
+  (Windows-1256 vs UTF-8±BOM) and delimiter sniffing; all emit the shared
+  spreadsheet envelope so they load through the mapper unchanged. These
+  dependencies are now listed in `extractor/requirements.txt` and installed in
+  CI. *Still to do:* merged-cell and multi-row headers, formula-without-cache
+  detection, error cells, and date-serial handling for `.xlsb`/`.xls`.
+- **6.4 Export correctness — *CSV + Excel + PDF first version done*.** CSV now
+  writes a UTF-8 BOM so Excel opens Arabic correctly; Excel report sheets are
+  flagged right-to-left when the content is Arabic. PDF reports now use a
+  vendored Noto Naskh Arabic font plus `arabic-reshaper` and `python-bidi` so
+  Arabic titles, headers, and table cells are shaped and ordered correctly.
+  Tests create Arabic Excel/PDF artifacts. *Still to do:* visual QA on real
+  board packs with dense Arabic tables and any client-specific template polish.
+- **6.5 Full RTL dashboard — *first version done*.** Defaults to Arabic
+  right-to-left (`lang="ar" dir="rtl"`) with an EN toggle that falls back to the
+  original LTR layout; vendored **Cairo** font (`cairo.ttf`, served locally, no
+  CDN); `[dir="rtl"]` CSS mirrors the explicit left/right rules; charts use the
+  Cairo font; `i18n.js` translates navigation, filters, buttons, page headings,
+  dynamic KPI/table labels, chart text, and common management-action messages;
+  a digit toggle switches Western ↔ Arabic-Indic numerals. Arabic sample data is
+  available via `python3 seed_db.py --force --locale ar`. *Still to do:* deeper
+  browser QA on more screen sizes and client-specific wording polish.
 
 ---
 

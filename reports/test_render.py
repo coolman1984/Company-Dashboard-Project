@@ -91,6 +91,24 @@ def test_pdf():
             assert fh.read(5) == b"%PDF-", "not a valid PDF file"
 
 
+def test_pdf_arabic():
+    if not render.pdf_available():
+        print("SKIP: reportlab not installed; Arabic PDF render not tested here.")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "arabic.pdf")
+        render.render_pdf(ARABIC, path)
+        assert os.path.getsize(path) > 0
+        with open(path, "rb") as fh:
+            data = fh.read()
+        assert data[:5] == b"%PDF-", "not a valid PDF file"
+        assert render._has_arabic(ARABIC["title"])
+        # If the shaping dependencies and vendored font are present, Arabic text
+        # should go through the reshape/bidi path rather than being written raw.
+        if render._arabic_shaper()[0]:
+            assert render._shape_arabic("تقرير المناطق") != "تقرير المناطق"
+
+
 SECOND = {
     "report": "regional_pl", "title": "Regional P&L", "description": "By region.",
     "generated_at": "2026-06-14T09:00:00Z",
@@ -129,6 +147,7 @@ def main():
     test_excel()
     test_excel_arabic_is_rtl()
     test_pdf()
+    test_pdf_arabic()
     test_excel_pack()
     test_pdf_pack()
     print("render tests passed.")
