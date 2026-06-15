@@ -175,6 +175,58 @@ def render_excel_pack(envelopes, out_path, title="Board Pack"):
 # --------------------------------------------------------------------------- #
 # PDF
 # --------------------------------------------------------------------------- #
+_ARABIC_FONT_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "fonts", "NotoNaskhArabic.ttf",
+)
+_ARABIC_FONT_REGISTERED = False
+_ARABIC_RESHAPER = None
+
+
+def _arabic_shaper():
+    """Lazy-load and return (reshape_fn, bidi_fn) or (None, None) if unavailable."""
+    global _ARABIC_RESHAPER
+    if _ARABIC_RESHAPER is not None:
+        return _ARABIC_RESHAPER
+    try:
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+        config = arabic_reshaper.config_for_true_type_font(
+            _ARABIC_FONT_PATH, arabic_reshaper.ENABLE_ALL_LIGATURES
+        )
+        reshaper = arabic_reshaper.ArabicReshaper(configuration=config)
+        _ARABIC_RESHAPER = (reshaper.reshape, get_display)
+        return _ARABIC_RESHAPER
+    except Exception:
+        _ARABIC_RESHAPER = (None, None)
+        return _ARABIC_RESHAPER
+
+
+def _shape_arabic(text):
+    """Reshape + bidi an Arabic string for PDF rendering. Falls back to raw text."""
+    reshape_fn, bidi_fn = _arabic_shaper()
+    if not reshape_fn or not isinstance(text, str) or not _has_arabic(text):
+        return text
+    try:
+        return bidi_fn(reshape_fn(text))
+    except Exception:
+        return text
+
+
+def _register_arabic_font():
+    """Register the Arabic font with ReportLab once."""
+    global _ARABIC_FONT_REGISTERED
+    if _ARABIC_FONT_REGISTERED:
+        return
+    if not os.path.exists(_ARABIC_FONT_PATH):
+        return
+    try:
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        pdfmetrics.registerFont(TTFont("Arabic", _ARABIC_FONT_PATH))
+        _ARABIC_FONT_REGISTERED = True
+    except Exception:
+        pass
 def pdf_available():
     try:
         import reportlab  # noqa: F401
@@ -192,10 +244,21 @@ def _pdf_report_flowables(envelope, styles, doc_width):
     columns = envelope["columns"]
     rows = envelope["rows"]
     src = envelope.get("source", {})
+    is_arabic = envelope_has_arabic(envelope)
+
+    if is_arabic:
+        _register_arabic_font()
+        body_font = "Arabic"
+        title_text = _shape_arabic(envelope["title"])
+        desc_text = _shape_arabic(envelope.get("description", ""))
+    else:
+        body_font = "Helvetica"
+        title_text = envelope["title"]
+        desc_text = envelope.get("description", "")
 
     flow = [
-        Paragraph(envelope["title"], styles["Title"]),
-        Paragraph(envelope.get("description", ""), styles["Normal"]),
+        Paragraph(title_text, styles["Title"]),
+        Paragraph(desc_text, styles["Normal"]),
         Paragraph(
             f"Generated {envelope.get('generated_at', '')} &nbsp;|&nbsp; "
             f"Source {src.get('database', '')} &nbsp;|&nbsp; "
@@ -210,15 +273,22 @@ def _pdf_report_flowables(envelope, styles, doc_width):
                         for row in rows):
             numeric_cols.add(c)
 
-    table_data = [columns] + [[pdf_format(col, row.get(col)) for col in columns]
-                              for row in rows]
+    if is_arabic:
+        table_data = [[_shape_arabic(c) for c in columns]]
+        table_data += [[pdf_format(col, row.get(col)) if _is_number(row.get(col))
+                        else _shape_arabic(pdf_format(col, row.get(col)))
+                        for col in columns] for row in rows]
+    else:
+        table_data = [columns] + [[pdf_format(col, row.get(col)) for col in columns]
+                                  for row in rows]
     col_width = doc_width / max(len(columns), 1)
     table = Table(table_data, colWidths=[col_width] * len(columns), repeatRows=1)
 
     style = [
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F3B57")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 0), (-1, 0), f"{body_font}-Bold" if is_arabic else "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (-1, -1), body_font),
         ("FONTSIZE", (0, 0), (-1, -1), font_size),
         ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CCCCCC")),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F2F6FA")]),

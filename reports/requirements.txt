@@ -2,5 +2,7 @@
 #   pip install -r reports/requirements.txt
 #
 # JSON and CSV output need nothing beyond the standard library.
-openpyxl     # .xlsx Excel output (also used by the extractor)
-reportlab    # .pdf output
+openpyxl          # .xlsx Excel output (also used by the extractor)
+reportlab         # .pdf output
+arabic-reshaper   # Arabic shaping for PDF (optional, degrades gracefully)
+python-bidi       # Arabic bidirectional text for PDF (optional)

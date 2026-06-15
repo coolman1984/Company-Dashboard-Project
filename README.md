@@ -29,6 +29,12 @@ python3 seed_db.py --force  # writes a synthetic pl_detail.db
 npm start                    # serves http://localhost:3001 (127.0.0.1 only)
 ```
 
+For an Arabic-language demo database (Arabic regions, countries, customers, product groups):
+
+```bash
+python3 seed_db.py --force --locale ar
+```
+
 Then open <http://localhost:3001>. No internet required after `npm install`.
 
 **Optional env vars for shared/remote access:**
@@ -144,6 +150,8 @@ arithmetic drift is surfaced as a non-blocking warning.
 | `precompute_data.py` | Builds `api_data/` JSON fallback cache |
 | `analysis_cfo.py` | Offline CFO analysis utilities |
 | `Start Dashboard.bat` | Windows one-click launcher |
+| `fonts/` | Vendored fonts: Cairo (UI), Noto Naskh Arabic (PDF) |
+| `ARABIC_STAGE6_HANDOFF.md` | Remaining Arabic work plan for next agent |
 
 ## API endpoints
 

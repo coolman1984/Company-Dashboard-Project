@@ -61,6 +61,14 @@ REGIONS = {
     "Middle East":   (0.06, [("UAE", "AE"), ("Saudi Arabia", "SA")]),
 }
 
+_AR_REGIONS = {
+    "أفريقيا":             (0.12, [("جنوب أفريقيا", "ZA"), ("نيجيريا", "NG"), ("كينيا", "KE")]),
+    "الأمريكتان":          (0.30, [("الولايات المتحدة", "US"), ("البرازيل", "BR"), ("كندا", "CA")]),
+    "آسيا والمحيط الهادئ": (0.34, [("الصين", "CN"), ("اليابان", "JP"), ("أستراليا", "AU")]),
+    "أوروبا":              (0.18, [("ألمانيا", "DE"), ("فرنسا", "FR"), ("المملكة المتحدة", "GB")]),
+    "الشرق الأوسط":        (0.06, [("الإمارات", "AE"), ("السعودية", "SA")]),
+}
+
 # product group -> (relative scale, gross-margin rate, opex rate of sales)
 # A couple of groups are deliberately thin / loss-making for portfolio realism.
 PRODUCT_GROUPS = {
@@ -76,6 +84,20 @@ PRODUCT_GROUPS = {
 }
 
 CLASSES = ["Premium", "Standard", "Value"]
+
+_AR_PRODUCT_GROUPS = {
+    "محركات صناعية":       (0.22, 0.34, 0.18),
+    "مستشعرات ذكية":       (0.16, 0.41, 0.20),
+    "أنظمة الطاقة":        (0.18, 0.29, 0.17),
+    "الاتصالات":           (0.12, 0.46, 0.22),
+    "برمجيات الأتمتة":     (0.10, 0.58, 0.30),
+    "الروبوتات":           (0.09, 0.25, 0.24),
+    "متحكمات قديمة":       (0.05, 0.12, 0.16),
+    "الخدمات الميدانية":   (0.04, 0.08, 0.14),
+    "قطع الغيار":          (0.04, 0.38, 0.12),
+}
+
+_AR_CLASSES = ["ممتاز", "قياسي", "اقتصادي"]
 
 
 def coverage_for_year(year):
@@ -101,18 +123,28 @@ def seasonality(period_number):
     return curve[period_number - 1]
 
 
-def build_rows():
+def build_rows(locale="en"):
+    regions = _AR_REGIONS if locale == "ar" else REGIONS
+    product_groups = _AR_PRODUCT_GROUPS if locale == "ar" else PRODUCT_GROUPS
+    classes = _AR_CLASSES if locale == "ar" else CLASSES
+    customer_prefixes = {
+        "أفريقيا": "عميل أفريقيا",
+        "الأمريكتان": "عميل الأمريكتين",
+        "آسيا والمحيط الهادئ": "عميل آسيا",
+        "أوروبا": "عميل أوروبا",
+        "الشرق الأوسط": "عميل الشرق الأوسط",
+    } if locale == "ar" else {}
     rows = []
     for year in YEARS:
         gf = growth_factor(year)
         for version, period_number in coverage_for_year(year):
             period = round(year + period_number / 1000.0, 3)
             season = seasonality(period_number)
-            for region, (region_scale, countries) in REGIONS.items():
+            for region, (region_scale, countries) in regions.items():
                 for country_name, country_code in countries:
                     # Spread a region's weight across its countries.
                     country_scale = region_scale / len(countries)
-                    for pg_idx, (pgroup, (pg_scale, gm_rate, opex_rate)) in enumerate(PRODUCT_GROUPS.items()):
+                    for pg_idx, (pgroup, (pg_scale, gm_rate, opex_rate)) in enumerate(product_groups.items()):
                         # Base monthly net sales for this cell, with noise.
                         base = 9_500_000 * gf * season * country_scale * pg_scale
                         noise = RNG.uniform(0.82, 1.18)
@@ -137,10 +169,14 @@ def build_rows():
 
                         # Cycle customers, classes and products for variety.
                         customer_idx = (pg_idx + period_number) % 3 + 1
-                        customer_name = f"{region.split()[0]} Customer {customer_idx}"
+                        if locale == "ar":
+                            prefix = customer_prefixes.get(region, "عميل")
+                            customer_name = f"{prefix} {customer_idx}"
+                        else:
+                            customer_name = f"{region.split()[0]} Customer {customer_idx}"
                         customer_code = f"{country_code}{customer_idx:03d}"
-                        cls = CLASSES[pg_idx % len(CLASSES)]
-                        class_code = f"C{pg_idx % len(CLASSES) + 1}"
+                        cls = classes[pg_idx % len(classes)]
+                        class_code = f"C{pg_idx % len(classes) + 1}"
                         product_number = f"{country_code}-{pg_idx + 1:02d}-{customer_idx}"
                         qty_net = round(net_sales / 1250.0, 1)
 
@@ -217,6 +253,8 @@ def apply_schema(conn):
 def main():
     parser = argparse.ArgumentParser(description="Generate a synthetic pl_detail.db.")
     parser.add_argument("--force", action="store_true", help="Overwrite an existing database.")
+    parser.add_argument("--locale", choices=["en", "ar"], default="en",
+                        help="Dimension language: en (English) or ar (Arabic). Default: en.")
     args = parser.parse_args()
 
     if os.path.exists(DB_PATH) and not args.force:
@@ -234,7 +272,7 @@ def main():
     conn = sqlite3.connect(DB_PATH)
     try:
         apply_schema(conn)
-        rows = build_rows()
+        rows = build_rows(locale=args.locale)
         placeholders = ", ".join("?" for _ in COLUMNS)
         col_names = ", ".join(f'"{c}"' for c in COLUMNS)
         conn.executemany(

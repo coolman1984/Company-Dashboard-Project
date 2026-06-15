@@ -218,6 +218,7 @@ We are a team with different strengths. Use the right agent for the right job.
   `.xlsx/.xlsm/.xlsb/.xls/CSV`; **keep spellings exactly as typed — do NOT merge
   variants in totals** (owner decision, 6.2b declined); user-toggleable digits;
   vendored **Cairo** font (no CDN).
+- _(none currently)_
 
 ### Done
 - **Arabic RTL dashboard** (Stage 6.5 first version): defaults to Arabic
@@ -282,6 +283,13 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — OpenCode — main (Arabic: remaining translation, seed data, PDF)
+**Did:** Executed the ARABIC_STAGE6_HANDOFF.md plan: (1) covered remaining untranslated dynamic labels — KPI card sub-strings via `tr()`, signal card labels, trend KPI captions, and `translateText()` regex rules for dynamic phrases; (2) added Arabic sample seed data to `seed_db.py` with `--locale ar` flag producing Arabic dimensions (regions, countries, customers, product groups, classes) while preserving English default and financial calculations; (3) downloaded Noto Naskh Arabic variable font (307 KB, OFL) to `fonts/`; (4) implemented Arabic PDF shaping in `reports/render.py` using arabic-reshaper + python-bidi with lazy-loading and graceful degradation — Arabic text is reshaped/bidi-corrected, and the Arabic font is registered and used for all table cells; (5) updated `reports/requirements.txt` and CI workflow for new dependencies; (6) updated `README.md` with `--locale ar` usage and font layout; wrote `ARABIC_STAGE6_HANDOFF.md`.
+**Why:** The remaining Arabic work from the handoff plan — finishing translations, Arabic seed data, and PDF rendering — closes the main Arabic Stage 6 items except browser visual QA.
+**Status:** ✅ all 8 suites pass on English seed; `python3 seed_db.py --force --locale ar` generates 7,560 Arabic-dimension rows successfully. Arabic PDF test render has the correct font registered and shaping code path available.
+**Next:** Browser visual QA for the Arabic RTL dashboard (spacing, overflow, regressions); any remaining visual polish.
+**Watch out:** Arabic PDF needs arabic-reshaper + python-bidi at runtime; if absent, fallback to raw unshaped text (graceful degradation). The `fonts/NotoNaskhArabic.ttf` file is 307 KB and must be tracked. `_arabic_shaper()` caches the reshape/bidi functions after first call. Arabic seed command uses `--locale ar`; English default is unchanged.
 
 ### 2026-06-15 — OpenCode — main (Arabic 5b deep UI translation)
 **Did:** Completed the next 5b pass for Arabic dashboard content: added a broad exact-phrase Arabic translation map in `i18n.js`, translated static inner dashboard text without adding hundreds of `data-i18n` attributes, added a MutationObserver so dynamically rendered table/KPI/status/toast text is translated in Arabic mode, and added `tr()` usage in `app.js` for canvas-only Chart.js labels/tooltips/axis titles. Also fixed `configureCharts()` so it keeps Cairo instead of resetting charts back to system fonts.
