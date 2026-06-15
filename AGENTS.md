@@ -211,14 +211,18 @@ We are a team with different strengths. Use the right agent for the right job.
 
 ### In Progress (owner)
 - **Arabic-first extraction & RTL dashboard** (Claude Code) — staged plan in
-  `ROADMAP.md` (Stage 6). Stages 1 and 2 (first version) are **Done**; next is
-  Stage 3 (file formats `.xlsb`/`.xls`/CSV + fidelity) and 6.2b (group-key
-  schema decision so spelling variants total together). Decisions locked:
-  Gregorian only; full RTL UI; support
-  `.xlsx/.xlsm/.xlsb/.xls/CSV`; fold-for-grouping + keep original display;
-  user-toggleable digits; vendored **Cairo** font (no CDN).
+  `ROADMAP.md` (Stage 6). Stages 1, 2 and 3 (first version) are **Done**; next is
+  Stage 4 (export correctness: CSV BOM, PDF reshaping+bidi+Cairo, XLSX RTL).
+  Decisions locked: Gregorian only; full RTL UI; support
+  `.xlsx/.xlsm/.xlsb/.xls/CSV`; **keep spellings exactly as typed — do NOT merge
+  variants in totals** (owner decision, 6.2b declined); user-toggleable digits;
+  vendored **Cairo** font (no CDN).
 
 ### Done
+- **Arabic file-format readers** (Stage 6.3 first version): `csv-text` (CSV/TSV,
+  stdlib, encoding auto-detect Windows-1256/UTF-8±BOM + delimiter sniff),
+  `excel-xlsb` (pyxlsb), `excel-xls` (xlrd) — all emit the shared spreadsheet
+  envelope and are registered. CSV/Arabic-encoding + registration tests added.
 - **Arabic-aware mapper** (`map_raw_to_db.py`, Stage 6.2 first version): headers
   and sheet names match via `match_key`; numbers parse via `parse_number`; text
   stored cleaned (original spelling kept). Arabic fixture test added. Group-key
@@ -261,6 +265,32 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — Claude Code — claude/docs-updates-7-files-4bs7ux (Arabic Stage 3)
+**Did:** Added three file-format readers (ROADMAP 6.3), all emitting the shared
+spreadsheet envelope so they load through the mapper unchanged:
+`extractor/csv_text.py` (CSV/TSV, **pure stdlib**, with encoding auto-detection —
+BOM → UTF-8 → Windows-1256 → Latin-1 — and delimiter sniffing; the big Arabic
+win, since plain-text exports are where Arabic most often arrives mojibake);
+`extractor/excel_xlsb.py` (binary `.xlsb` via optional pyxlsb);
+`extractor/excel_xls.py` (legacy `.xls` via optional xlrd). Registered all three
+in `registry.py`. Added `test_csv_arabic_encoding` (round-trips a Windows-1256
+Arabic CSV and a UTF-8-BOM CSV) and `test_new_extractors_registered` to
+`test_extractor.py`; added pyxlsb + xlrd to CI. Also recorded the owner decision
+that **6.2b is declined** (keep spellings as typed; don't merge variants).
+**Why:** Owner asked for `.xlsb`, `.xls` and CSV support. CSV is the highest
+Arabic-encoding risk and is fully testable with no new dependency.
+**Status:** ✅ all suites pass; CSV path tested end to end incl. cp1256 decode.
+`.xlsb`/`.xls` readers follow the existing optional-dependency pattern; real
+binary-format extraction still needs sample files to validate (like COM needs
+Windows), so only their registration/availability is asserted in CI for now.
+**Next:** Stage 4 — export correctness: CSV written with UTF-8 BOM; PDF board
+packs reshaped + bidi-ordered with the embedded Cairo font and RTL tables; XLSX
+sheets flagged right-to-left.
+**Watch out:** pyxlsb/xlrd return dates as serial numbers (warned in the
+capture); date columns will need explicit mapping handling — folded into the
+remaining 6.3 fidelity work. `csv-text` claims only `.csv`/`.tsv` (not `.txt`) to
+avoid grabbing arbitrary text files.
 
 ### 2026-06-15 — Claude Code — claude/docs-updates-7-files-4bs7ux (Arabic Stage 2)
 **Did:** Wired the Stage 1 normalization core into `map_raw_to_db.py`. (1) Header
