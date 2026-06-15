@@ -26,6 +26,34 @@ from . import safe_str as _safe
 # --------------------------------------------------------------------------- #
 # Shared number formatting
 # --------------------------------------------------------------------------- #
+
+# Arabic translations for report titles and descriptions
+_REPORT_AR = {
+    "Yearly P&L Summary": "ملخص الأرباح والخسائر السنوي",
+    "Group-wide profit & loss by fiscal year (Actual).": "الأرباح والخسائر على مستوى المجموعة حسب السنة المالية (الفعلي).",
+    "Regional P&L": "الأرباح والخسائر حسب المنطقة",
+    "Profit & loss by region and year (Actual).": "الأرباح والخسائر حسب المنطقة والسنة (الفعلي).",
+    "Product Group P&L": "الأرباح والخسائر حسب مجموعة المنتج",
+    "Profit & loss by product group and year (Actual).": "الأرباح والخسائر حسب مجموعة المنتج والسنة (الفعلي).",
+    "Country P&L": "الأرباح والخسائر حسب الدولة",
+    "Profit & loss by country and year (Actual).": "الأرباح والخسائر حسب الدولة والسنة (الفعلي).",
+    "Customer P&L": "الأرباح والخسائر حسب العميل",
+    "Profit & loss by customer and year (Actual).": "الأرباح والخسائر حسب العميل والسنة (الفعلي).",
+    "Year-over-Year Variance": "الانحراف السنوي",
+    "Year-over-year P&L variance (Actual).": "الانحراف السنوي للأرباح والخسائر (الفعلي).",
+    "Full-Year Outlook vs Prior Year": "توقعات السنة الكاملة مقابل السنة السابقة",
+    "Full-year outlook benchmarked against prior year actual.": "توقعات السنة الكاملة مقارنة بالفعلي للسنة السابقة.",
+    "Monthly Outlook Progression": "تطور التوقعات الشهرية",
+    "Month-by-month outlook (Actual + T06 bridge + T07 outlook).": "التوقعات شهرًا بشهر (الفعلي + T06 + توقعات T07).",
+}
+
+def _translate_report(title, description=""):
+    """Translate report title and description to Arabic if available."""
+    ar_title = _REPORT_AR.get(title, title)
+    ar_desc = _REPORT_AR.get(description, description)
+    return ar_title, ar_desc
+
+
 def _is_number(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
@@ -235,7 +263,7 @@ def pdf_available():
         return False
 
 
-def _pdf_report_flowables(envelope, styles, doc_width):
+def _pdf_report_flowables(envelope, styles, doc_width, force_arabic=False):
     """Reportlab flowables for one report: title, meta, table."""
     from reportlab.lib import colors
     from reportlab.lib.units import mm
@@ -244,25 +272,37 @@ def _pdf_report_flowables(envelope, styles, doc_width):
     columns = envelope["columns"]
     rows = envelope["rows"]
     src = envelope.get("source", {})
-    is_arabic = envelope_has_arabic(envelope)
+    is_arabic = envelope_has_arabic(envelope) or force_arabic
 
     if is_arabic:
         _register_arabic_font()
         body_font = "Arabic"
-        title_text = _shape_arabic(envelope["title"])
-        desc_text = _shape_arabic(envelope.get("description", ""))
+        ar_title, ar_desc = _translate_report(envelope["title"], envelope.get("description", ""))
+        title_text = _shape_arabic(ar_title)
+        desc_text = _shape_arabic(ar_desc)
+        # Wrap in font tag for ReportLab to use Arabic font
+        title_text = f'<font face="Arabic">{title_text}</font>'
+        desc_text = f'<font face="Arabic">{desc_text}</font>'
+        _meta_ar = _shape_arabic(
+            f"أُنشئ {envelope.get('generated_at', '')}  |  "
+            f"المصدر {src.get('database', '')}  |  "
+            f"{envelope.get('row_count', len(rows))} صف"
+        )
+        meta_text = f'<font face="Arabic">{_meta_ar}</font>'
     else:
         body_font = "Helvetica"
         title_text = envelope["title"]
         desc_text = envelope.get("description", "")
+        meta_text = (
+            f"Generated {envelope.get('generated_at', '')} &nbsp;|&nbsp; "
+            f"Source {src.get('database', '')} &nbsp;|&nbsp; "
+            f"{envelope.get('row_count', len(rows))} rows"
+        )
 
     flow = [
         Paragraph(title_text, styles["Title"]),
         Paragraph(desc_text, styles["Normal"]),
-        Paragraph(
-            f"Generated {envelope.get('generated_at', '')} &nbsp;|&nbsp; "
-            f"Source {src.get('database', '')} &nbsp;|&nbsp; "
-            f"{envelope.get('row_count', len(rows))} rows", styles["Normal"]),
+        Paragraph(meta_text, styles["Normal"]),
         Spacer(1, 6 * mm),
     ]
 
@@ -331,20 +371,41 @@ def render_pdf_pack(envelopes, out_path, title="Board Pack"):
     styles = getSampleStyleSheet()
     doc = _pdf_doc(out_path)
 
+    # Register Arabic font early for cover page
+    if _has_arabic(title):
+        _register_arabic_font()
+
+    # Shape Arabic title if present
+    cover_title = _shape_arabic(title) if _has_arabic(title) else title
+    
+    # Wrap Arabic text in font tag for proper rendering
+    if _has_arabic(title):
+        cover_title_xml = f'<font face="Arabic">{cover_title}</font>'
+        cover_subtitle_xml = f'<font face="Arabic">{_shape_arabic(f"أُنشئ في {_now()}")}</font>'
+        cover_contents_xml = f'<font face="Arabic">{_shape_arabic("المحتويات")}</font>'
+    else:
+        cover_title_xml = cover_title
+        cover_subtitle_xml = f"Generated {_now()}"
+        cover_contents_xml = "Contents"
+    
     story = [
-        Paragraph(title, styles["Title"]),
-        Paragraph(f"Generated {_now()}", styles["Normal"]),
+        Paragraph(cover_title_xml, styles["Title"]),
+        Paragraph(cover_subtitle_xml, styles["Normal"]),
         Spacer(1, 8 * mm),
-        Paragraph("Contents", styles["Heading2"]),
+        Paragraph(cover_contents_xml, styles["Heading2"]),
     ]
     for env in envelopes:
+        ar_env_title, _ = _translate_report(env['title']) if _has_arabic(title) else (env['title'], '')
+        env_display = _shape_arabic(ar_env_title) if _has_arabic(title) else ar_env_title
+        if _has_arabic(title):
+            env_display = f'<font face="Arabic">{env_display}</font>'
         story.append(Paragraph(
-            f"&bull; {env['title']} ({env.get('row_count', len(env['rows']))} rows)",
+            f"&bull; {env_display} ({env.get('row_count', len(env['rows']))} rows)",
             styles["Normal"]))
 
     for env in envelopes:
         story.append(PageBreak())
-        story.extend(_pdf_report_flowables(env, styles, doc.width))
+        story.extend(_pdf_report_flowables(env, styles, doc.width, _has_arabic(title)))
 
     doc.build(story)
     return out_path
