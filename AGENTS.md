@@ -36,6 +36,7 @@ overwriting each other and breaking the project.
    - `python3 -m brain.test_brain` — knowledge engine
    - `python3 -m brain.cli --check` — knowledge link validation
    - `python3 test_project_structure.py` — repo structure guard (root stays clean)
+   - `python3 -m mcp_server.test_mcp` — MCP server tools + JSON-RPC dispatch
    If you can't run a test, say so explicitly in your journal entry.
 5. **NEVER COMMIT CLIENT DATA.** Real financial files (`intake/`) and their
    captures (`raw/`) are private and git-ignored. Never commit them, paste their
@@ -305,6 +306,30 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — Claude Code — `claude/mcp-server` (harness layer, phase 2)
+**Did:** Built the **MCP server** (`mcp_server/`) — the harness bridge from
+ARCHITECTURE.md §4. Dependency-free (Python stdlib only): speaks MCP over stdio
+(newline-delimited JSON-RPC 2.0). Exposes six **read-only** tools across the
+layers: `db_overview`, `run_select` (guarded single SELECT, writes/PRAGMA/ATTACH
+rejected, opened read-only, row-capped), `pl_summary`, `extractor_availability`,
+`wiki_search`, `wiki_get` (path-traversal-safe). Tool logic is pure
+(`tools.py`); transport (`server.py`) is a thin wrapper; 17 tests
+(`test_mcp.py`) cover tools + the JSON-RPC dispatch using a throwaway DB and the
+real wiki. Shipped `.mcp.json` (project-scoped, so Claude Code discovers it) +
+`mcp_server/README.md`. Verified an end-to-end stdio round-trip
+(initialize/tools/list/tools/call all correct; notification correctly silent).
+Wired the test into `ci.yml` + the rule-4 list; marked MCP "built" in
+ARCHITECTURE.md; added `mcp_server` to the structure guard's documented packages.
+**Why:** Owner approved building a real MCP server so agents can query the DB /
+check extraction / search the wiki via safe tools. Stdlib (not the `mcp` SDK,
+which wouldn't install cleanly here) keeps the no-extra-deps rule and works offline.
+**Status:** ✅ all suites pass incl. the 17 MCP tests; live stdio round-trip OK.
+**Next:** optionally add write/action tools later (would need an explicit,
+guarded design — today everything is read-only by rule).
+**Watch out:** launch the server from the repo ROOT (it imports `db_schema`,
+`extractor`, and reads `pl_detail.db`/`knowledge/`). Read-only by design — keep
+it that way unless a write tool is deliberately designed. `i18n.js` untouched.
 
 ### 2026-06-15 — Claude Code — `claude/project-governance` (organisation + governance, phase 1)
 **Did:** Brought order to a 48-file root. Added **`ARCHITECTURE.md`** — the
