@@ -30,12 +30,12 @@ class TestRunDirs(unittest.TestCase):
 
     def test_make_run_id_format(self):
         rid = iw.make_run_id()
-        self.assertRegex(rid, r"^run-\d{8}-\d{6}$")
+        self.assertRegex(rid, r"^run-\d{8}-\d{6}-\d{6}$")
 
     def test_make_run_id_deterministic(self):
         from datetime import datetime
-        stamp = datetime(2026, 6, 15, 13, 0, 0)
-        self.assertEqual(iw.make_run_id(stamp), "run-20260615-130000")
+        stamp = datetime(2026, 6, 15, 13, 0, 0, 123456)
+        self.assertEqual(iw.make_run_id(stamp), "run-20260615-130000-123456")
 
     def test_client_workspace_path(self):
         p = iw.client_workspace("acme")

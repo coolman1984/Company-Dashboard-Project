@@ -38,6 +38,7 @@ import sys
 import tempfile
 
 from extractor import arabic
+import import_workspace as iw
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEMA_PATH = os.path.join(BASE_DIR, "schema.sql")
@@ -383,7 +384,19 @@ def _validate_loaded_data(conn, stats):
 
 
 def load(mapping_path, raw_dir=DEFAULT_RAW_DIR, db_path=DEFAULT_DB_PATH,
-         dry_run=False, force=False, batch_size=INSERT_BATCH, verbose=True):
+         dry_run=False, force=False, batch_size=INSERT_BATCH, verbose=True,
+         client_id=None, use_workspace=True):
+    """Load raw captures into pl_detail.db.
+
+    Phase 2: when `client_id` is provided (and use_workspace is True), the load
+    also:
+      * creates a per-run workspace under workspaces/<client>/runs/<run-id>/
+      * snapshots the matched raw captures into the run's raw/ folder
+      * copies the existing database to <run>/db-before.db
+      * writes a per-run validation.json
+      * appends an entry to import_history.json (status: success/failed)
+    When client_id is None the function behaves exactly as before.
+    """
     schema_columns = load_schema_columns()
     mapping = load_mapping(mapping_path)
     validate_mapping(mapping, schema_columns)
@@ -391,6 +404,50 @@ def load(mapping_path, raw_dir=DEFAULT_RAW_DIR, db_path=DEFAULT_DB_PATH,
     if os.path.exists(db_path) and not dry_run and not force:
         raise MappingError(
             f"{db_path} already exists. Re-run with --force to overwrite it.")
+
+    # Phase 2: prepare the per-run workspace if a client_id was supplied.
+    run_path = None
+    history_entry = None
+    backup_path = ""
+    effective_client = client_id
+    run_id = iw.make_run_id()
+    workspace_log_path = None
+
+    if effective_client and use_workspace and not dry_run:
+        run_path = iw.run_workspace(effective_client, run_id)
+        iw.ensure_run_dirs(run_path)
+        # Copy the raw files this run will consume (best-effort, never fatal).
+        try:
+            iw.copy_raw_inputs(raw_dir, mapping["source_glob"], run_path / "raw")
+        except Exception as exc:  # noqa: BLE001 — we never want a copy issue
+            # to abort a real load; the run will still proceed.
+            if verbose:
+                print(f"  warning       : could not snapshot raw inputs ({exc})")
+        # Back up the live database before the atomic swap.
+        try:
+            backup_path = iw.backup_database(db_path, run_path)
+        except Exception as exc:  # noqa: BLE001
+            if verbose:
+                print(f"  warning       : could not back up existing database ({exc})")
+        # Mirror load output to logs/load.log for post-hoc debugging.
+        workspace_log_path = run_path / "logs" / iw.LOG_FILENAME
+        workspace_log_path.parent.mkdir(parents=True, exist_ok=True)
+        history_entry = {
+            "run_id": run_id,
+            "timestamp": run_id.replace("run-", "").replace("-", "", 1)
+                                       .replace("-", ":") + ".000000",
+            "client_id": effective_client,
+            "mapping": str(mapping_path),
+            "status": "running",
+            "row_count": 0,
+            "warnings": [],
+            "fatal": [],
+        }
+        try:
+            iw.append_history(effective_client, history_entry)
+        except Exception as exc:  # noqa: BLE001
+            if verbose:
+                print(f"  warning       : could not append to import_history ({exc})")
 
     ordered_targets = list(dict.fromkeys(
         list(mapping["columns"].values()) + list(mapping.get("constants", {}).keys())
@@ -412,6 +469,9 @@ def load(mapping_path, raw_dir=DEFAULT_RAW_DIR, db_path=DEFAULT_DB_PATH,
                                     dir=os.path.dirname(db_path) or ".")
     os.close(fd)
     os.remove(tmp_path)  # sqlite will create it fresh
+    final_validation = None
+    load_succeeded = False
+    failure_error = None
     try:
         conn = sqlite3.connect(tmp_path)
         try:
@@ -446,14 +506,57 @@ def load(mapping_path, raw_dir=DEFAULT_RAW_DIR, db_path=DEFAULT_DB_PATH,
                 raise MappingError(f"Integrity check failed on new database: {integrity}")
 
             _validate_loaded_data(conn, stats)
+            final_validation = stats.get("validation", {})
         finally:
             conn.close()
 
         os.replace(tmp_path, db_path)  # atomic swap; existing DB only now replaced
-    except BaseException:
+        load_succeeded = True
+    except BaseException as exc:
+        failure_error = str(exc)
         if os.path.exists(tmp_path):
             os.remove(tmp_path)  # never leave a half-built file or touch the live DB
+        # Surface the failure in the per-run history (best-effort).
+        if run_path is not None and effective_client is not None:
+            try:
+                iw.write_validation(run_path, {
+                    "status": "failed",
+                    "error": failure_error,
+                    "row_count": stats.get("rows_inserted", 0),
+                })
+                iw.update_run(effective_client, run_id,
+                              status="failed",
+                              error=failure_error,
+                              row_count=stats.get("rows_inserted", 0),
+                              run_path=str(run_path))
+            except Exception:  # noqa: BLE001
+                pass
         raise
+    finally:
+        # On success, persist the validation.json and update the history.
+        if load_succeeded and run_path is not None and effective_client is not None:
+            try:
+                payload = dict(final_validation or {})  # type: ignore[arg-type]
+                payload["status"] = "success"
+                payload["row_count"] = stats.get("rows_inserted", 0)
+                iw.write_validation(run_path, payload)
+                iw.update_run(effective_client, run_id,
+                              status="success",
+                              row_count=stats.get("rows_inserted", 0),
+                              backup_path=backup_path,
+                              run_path=str(run_path))
+            except Exception:  # noqa: BLE001
+                pass
+        if workspace_log_path is not None and workspace_log_path.exists():
+            try:
+                workspace_log_path.write_text(
+                    f"run_id={run_id}\nstatus={'success' if load_succeeded else 'failed'}\n"
+                    f"row_count={stats.get('rows_inserted', 0)}\n"
+                    f"error={failure_error or ''}\n",
+                    encoding="utf-8",
+                )
+            except Exception:  # noqa: BLE001
+                pass
 
     if verbose:
         _report(stats, db_path, dry_run=False)
@@ -480,10 +583,18 @@ def main(argv=None):
                         help="Validate and convert everything; write nothing.")
     parser.add_argument("--force", action="store_true",
                         help="Overwrite an existing database.")
+    parser.add_argument("--client", default=None,
+                        help="Phase 2: client_id for the import-run workspace "
+                             "(creates workspaces/<client>/runs/<run>/ and "
+                             "snapshots raw + db before swapping).")
+    parser.add_argument("--no-workspace", action="store_true",
+                        help="Phase 2: skip the workspace scaffolding even if "
+                             "--client is provided (rarely useful).")
     args = parser.parse_args(argv)
     try:
         load(args.mapping, raw_dir=args.raw, db_path=args.db,
-             dry_run=args.dry_run, force=args.force)
+             dry_run=args.dry_run, force=args.force,
+             client_id=args.client, use_workspace=not args.no_workspace)
     except MappingError as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1

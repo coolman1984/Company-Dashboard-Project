@@ -41,9 +41,13 @@ RUN_SUBDIRS = ("raw", "logs", "reports")
 
 
 def make_run_id(timestamp=None):
-    """Return a sortable run id like 'run-20260615-130000'."""
+    """Return a sortable, unique run id like 'run-20260615-130000-123456'.
+
+    The microsecond suffix avoids collisions when multiple runs land in the
+    same second (CI, scripted demos, fast retry loops).
+    """
     stamp = timestamp or datetime.now()
-    return stamp.strftime("run-%Y%m%d-%H%M%S")
+    return stamp.strftime("run-%Y%m%d-%H%M%S-") + f"{stamp.microsecond:06d}"
 
 
 def client_workspace(client_id):
