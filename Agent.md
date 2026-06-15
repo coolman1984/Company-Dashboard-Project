@@ -192,9 +192,9 @@ After making changes, always verify:
 
 ---
 
-## 9. SKILL.md Maintenance
+## 9. Documentation Maintenance (current docs: README.md, ARCHITECTURE.md, AGENTS.md, ROADMAP.md)
 
-- **Always update SKILL.md** after any change to the pipeline, database, server, or dashboard
+- **Always update the current docs** (README.md / ARCHITECTURE.md / AGENTS.md) after any change to the pipeline, database, server, or dashboard. (The old `SKILL.md` walkthrough is archived at `docs/legacy/skill-precompute-pipeline.md`.)
 - Add entries to the Change Log with version number
 - Update metrics (file count, response times, etc.)
 - Document new troubleshooting items
@@ -214,5 +214,5 @@ The recommended order for building a data dashboard:
 6. **Build server** to serve static JSON from memory
 7. **Build dashboard** with lazy loading and client-side caching
 8. **Test** all combinations thoroughly
-9. **Document** everything in SKILL.md
+9. **Document** everything in the current docs (see ARCHITECTURE.md)
 10. **Create Agent.md** with lessons learned

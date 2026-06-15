@@ -4,6 +4,8 @@ description: Legacy deep-dive notes for the Company Dashboard financial analysis
 version: "5.0"
 last-updated: "2026-06-14"
 ---
+> **⚠️ ARCHIVED.** This documents the superseded *pre-compute → JSON* pipeline and the old root-level scripts (now under `scripts/legacy/`). The current architecture is SQLite-first — see **[`ARCHITECTURE.md`](../../ARCHITECTURE.md)**, `README.md`, and `AGENTS.md`.
+
 
 # Company Dashboard — PL Financial Analysis Platform
 

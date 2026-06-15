@@ -12,8 +12,9 @@
 These are **mandatory**. Following them is what keeps multiple agents from
 overwriting each other and breaking the project.
 
-1. **READ FIRST.** Before doing ANY work, read this entire file **and**
-   [`ROADMAP.md`](ROADMAP.md). They tell you what the project is and what to do.
+1. **READ FIRST.** Before doing ANY work, read this entire file,
+   [`ARCHITECTURE.md`](ARCHITECTURE.md) (the layer/workflow map + where code goes)
+   and [`ROADMAP.md`](ROADMAP.md). They tell you what the project is and what to do.
 2. **CLAIM YOUR WORK.** Before starting, add your task to the **Task Board**
    (move it to *In Progress* with your agent name). If another agent already
    owns it, pick something else or coordinate — do not work on the same file at
@@ -34,6 +35,7 @@ overwriting each other and breaking the project.
    - `python3 -m reports.test_scenario` — what-if scenarios
    - `python3 -m brain.test_brain` — knowledge engine
    - `python3 -m brain.cli --check` — knowledge link validation
+   - `python3 test_project_structure.py` — repo structure guard (root stays clean)
    If you can't run a test, say so explicitly in your journal entry.
 5. **NEVER COMMIT CLIENT DATA.** Real financial files (`intake/`) and their
    captures (`raw/`) are private and git-ignored. Never commit them, paste their
@@ -303,6 +305,32 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — Claude Code — `claude/project-governance` (organisation + governance, phase 1)
+**Did:** Brought order to a 48-file root. Added **`ARCHITECTURE.md`** — the
+authoritative 5-layer map (extraction → data → presentation → second brain →
+harness), the data-flow workflow, the one-way dependency rule, a directory map,
+and the rules for where new code goes. Moved 9 superseded/orphan scripts to
+**`scripts/legacy/`** (with a README of what replaced each) and 5 secondary docs
+to **`docs/`** (+ `docs/README.md` index; the old `SKILL.md` pre-compute
+walkthrough archived to `docs/legacy/` with a banner). Added
+**`test_project_structure.py`** — a CI guardrail that fails on stray root
+scripts or a package missing its README, so the root can't rot back. Fixed doc
+references (README, Agent.md). Wired the guard into `ci.yml` + the rule-4 test
+list, and pointed rule 1 at `ARCHITECTURE.md`.
+**Why:** Owner asked for a precise, professional organisation with a clear
+workflow across all layers, plus protection so growth doesn't turn into
+spaghetti. Chose **safe** reorg (no core-code moves) given other agents are
+active; full `src/` restructure was explicitly deferred as higher-risk.
+**Status:** ✅ all suites pass incl. the new structure guard; no functional code
+moved (only legacy scripts + docs), so imports/CI/paths are unaffected.
+**Next:** **Phase 2 — build the MCP server** (`mcp_server/`) so agents can query
+the DB / check extraction / search the wiki via safe read-only tools (owner
+approved). Later, optionally, the guarded `src/` migration.
+**Watch out:** `test_project_structure.py` enforces a root allow-list — a NEW
+canonical root file must be added to the allow-list in the same commit. Did NOT
+touch `i18n.js` (another agent owns it). `.bat` launchers + `README-PORTABLE.md`
+kept at root on purpose (portable-distribution UX).
 
 ### 2026-06-15 — Claude Code — `claude/db-hardening` (DB layer + extraction↔DB compatibility)
 **Did:** Analysed the database layer and fixed the main compatibility gap.

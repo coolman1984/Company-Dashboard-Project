@@ -2,6 +2,9 @@
 
 > 🤝 **Multiple AI agents work on this project.** Any agent (Claude, Codex,
 > DeepSeek, …) MUST read [`AGENTS.md`](AGENTS.md) first and log its work there.
+>
+> 🗺️ **New here?** [`ARCHITECTURE.md`](ARCHITECTURE.md) is the map — the five
+> layers, how data flows, where code goes. [`docs/`](docs/README.md) has the rest.
 
 A profit-and-loss analytics dashboard. A dependency-light Node.js server runs
 live, parameterized SQLite queries over a P&L detail ledger and serves a
@@ -198,7 +201,7 @@ arithmetic drift is surfaced as a non-blocking warning.
 ## Project layout
 
 For a blunt end-client readiness critique and development plan, see
-[`CLIENT_READINESS_REVIEW.md`](CLIENT_READINESS_REVIEW.md).
+[`docs/client-readiness-review.md`](docs/client-readiness-review.md).
 
 | Path | Purpose |
 |------|---------|
@@ -214,11 +217,11 @@ For a blunt end-client readiness critique and development plan, see
 | `map_raw_to_db.py` | Load extracted raw JSON into `pl_detail` via a mapping + post-load validation |
 | `ingest_sheet1.py` | Production Excel → SQLite ingestion (Windows) |
 | `precompute_data.py` | Builds `api_data/` JSON fallback cache |
-| `analysis_cfo.py` | Offline CFO analysis utilities |
+| `scripts/legacy/analysis_cfo.py` | Offline CFO analysis utilities (legacy) |
 | `Start Dashboard.bat` | Windows one-click launcher |
 | `fonts/` | Vendored fonts: Cairo (UI), Noto Naskh Arabic (PDF) |
-| `ARABIC_STAGE6_HANDOFF.md` | Current Arabic Stage 6 state, QA notes, and remaining work |
-| `CLIENT_READINESS_REVIEW.md` | Blunt end-client critique and development plan |
+| `docs/arabic-stage6-handoff.md` | Current Arabic Stage 6 state, QA notes, and remaining work |
+| `docs/client-readiness-review.md` | Blunt end-client critique and development plan |
 
 ## API endpoints
 
