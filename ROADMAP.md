@@ -107,6 +107,42 @@ automates steps, and suggests better ways of working.
 - **Why it's last:** an agent needs the data, reports, and knowledge base
   (Stages 1–4) to already exist before it has anything to act on.
 
+### Stage 6 — Arabic-first robustness (cross-cutting) — *first version building*
+This product runs **mainly on Arabic data**, so Arabic is a first-class concern
+across the whole pipeline, not a translation layer bolted on at the end. This
+stage runs alongside the others (it touches extraction, mapping, reports and the
+dashboard) rather than strictly after them.
+
+**Locked decisions:** Gregorian calendar only (no Hijri); the dashboard becomes a
+full right-to-left (RTL) Arabic UI; extraction must cover `.xlsx/.xlsm/.xlsb/.xls`
+and CSV/TSV; Arabic spelling variants of a name are **grouped together for totals
+but shown with their original spelling**; dashboard digits are user-toggleable
+(Western ↔ Arabic-Indic); the Arabic font (**Cairo**, OFL) is vendored locally
+to respect the no-CDN rule.
+
+> **Sub-stages:**
+> - **6.1 Normalization core — *done*.** `extractor/arabic.py`: a shared,
+>   dependency-light module with the key *match-key vs display-value* split —
+>   `clean_display` (what we store/show, letters never altered) and `match_key`
+>   (folds alef/yaa/taa-marbuta/hamza + diacritics + digits, for matching and
+>   grouping only), plus `parse_number` (Arabic digits, ٬/٫ separators, currency,
+>   accounting negatives) and Gregorian `month_to_number`. Tested + in CI.
+> - **6.2 Arabic-aware mapper.** Match headers/sheets via `match_key`; parse
+>   numbers/periods via the core; store a normalized group key beside the
+>   original value so reports total correctly without renaming anything. Golden
+>   Arabic fixtures.
+> - **6.3 Format & fidelity.** `.xlsb` (pyxlsb), `.xls` (xlrd), CSV/TSV with
+>   encoding auto-detection (Windows-1256 vs UTF-8±BOM); merged-cell and
+>   multi-row headers, formula-without-cache detection, error cells, numbers
+>   stored as text.
+> - **6.4 Export correctness.** CSV written with a UTF-8 BOM (so Excel on Arabic
+>   Windows reads it); PDF board packs reshaped + bidi-ordered with the embedded
+>   Cairo font and right-aligned RTL tables; XLSX sheets flagged right-to-left.
+> - **6.5 Full RTL dashboard.** `dir="rtl"`/`lang="ar"`, vendored Cairo webfont,
+>   CSS logical properties so the layout mirrors cleanly, bidi-isolated numbers,
+>   RTL-configured Chart.js, a small en/ar string map and a language + digit
+>   toggle. An Arabic synthetic dataset in `seed_db.py` so it's testable in CI.
+
 ---
 
 ## Big decisions to keep in mind (not all today)
