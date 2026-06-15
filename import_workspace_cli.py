@@ -3,8 +3,8 @@ CLI for import_workspace: view per-client history and roll back to the
 last good database.
 
 Usage:
-    python3 -m import_workspace history --client acme
-    python3 -m import_workspace rollback --client acme --db pl_detail.db
+    python3 import_workspace_cli.py history --client acme
+    python3 import_workspace_cli.py rollback --client acme --db pl_detail.db
 """
 from __future__ import annotations
 
