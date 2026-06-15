@@ -12,17 +12,20 @@ It produces the SAME raw-document envelope as excel_openpyxl.py, so the two are
 interchangeable downstream.
 
 NOTE: COM is Windows-only and cannot run on Linux/CI. The engine detects this
-via is_available() and falls back to the openpyxl extractor automatically.
-Patterns here follow the project's hard-won COM lessons (see Agent.md):
-DispatchEx, Visible/DisplayAlerts off, chunked reads, guaranteed Quit().
+via is_available() and falls back to the openpyxl extractor automatically. All
+the dangerous COM choreography (dialog-free session, no-hang open, guaranteed
+cleanup, value cleaning) lives in com_utils.py and is unit-tested via mocks.
 """
 from __future__ import annotations
 
+import os
 import sys
 
+from . import com_utils
 from .base import Extractor, optional_import
 
-CHUNK_ROWS = 5000  # Bulk-read this many rows per COM call for large sheets.
+CHUNK_ROWS = 5000              # Bulk-read this many rows per COM call.
+LARGE_FILE_MB = 200            # Warn (don't fail) above this size.
 
 
 class ExcelComExtractor(Extractor):
@@ -38,32 +41,38 @@ class ExcelComExtractor(Extractor):
         return True, "ok"
 
     def extract_content(self, path: str):
-        import os
-
-        import pythoncom
-        import win32com.client
-
         warnings = []
-        pythoncom.CoInitialize()
-        excel = None
-        try:
-            excel = win32com.client.DispatchEx("Excel.Application")
-            excel.Visible = False
-            excel.DisplayAlerts = False
-            workbook = excel.Workbooks.Open(os.path.abspath(path), ReadOnly=True)
-            sheets = []
+
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"file not found: {path}")
+        size_mb = os.path.getsize(path) / (1024 * 1024)
+        if size_mb > LARGE_FILE_MB:
+            warnings.append(
+                f"File is very large ({size_mb:.1f} MB). COM extraction may be "
+                "slow; consider the production ingest path."
+            )
+
+        sheets = []
+        # excel_session guarantees Excel is quit and COM uninitialised even if
+        # anything below raises — no orphaned EXCEL.EXE.
+        with com_utils.excel_session() as excel:
+            workbook = com_utils.open_workbook(excel, path, read_only=True)
             try:
                 for sheet in workbook.Sheets:
-                    sheets.append(self._read_sheet(sheet, warnings))
+                    # Isolate each sheet: one unreadable sheet (e.g. a chart
+                    # sheet with no UsedRange) must not abort the whole file.
+                    try:
+                        sheets.append(self._read_sheet(sheet, warnings))
+                    except Exception as exc:  # noqa: BLE001
+                        warnings.append(
+                            f"Sheet '{_safe_name(sheet)}': could not be read "
+                            f"({exc}). Skipped."
+                        )
             finally:
-                workbook.Close(SaveChanges=False)
-        finally:
-            if excel is not None:
                 try:
-                    excel.Quit()
+                    workbook.Close(SaveChanges=False)
                 except Exception:  # noqa: BLE001
                     pass
-            pythoncom.CoUninitialize()
 
         if not sheets:
             warnings.append("Workbook contained no readable sheets.")
@@ -75,45 +84,55 @@ class ExcelComExtractor(Extractor):
         n_cols = int(used.Columns.Count)
         first_row = int(used.Row)
         first_col = int(used.Column)
+        sheet_name = str(sheet.Name)
 
         rows = []
-        read = 0
-        while read < n_rows:
-            take = min(CHUNK_ROWS, n_rows - read)
-            top = first_row + read
-            block = sheet.Range(
-                sheet.Cells(top, first_col),
-                sheet.Cells(top + take - 1, first_col + n_cols - 1),
-            ).Value
-            # A 1x1 range comes back as a scalar; normalise to a grid.
-            if not isinstance(block, tuple):
-                block = ((block,),)
-            for com_row in block:
-                if not isinstance(com_row, tuple):
-                    com_row = (com_row,)
-                rows.append([_clean(v) for v in com_row])
-            read += take
+        error_cells = 0
+        partial = False
+        for top, bottom in com_utils.chunk_bounds(n_rows, CHUNK_ROWS, start_row=first_row):
+            try:
+                block = sheet.Range(
+                    sheet.Cells(top, first_col),
+                    sheet.Cells(bottom, first_col + n_cols - 1),
+                ).Value
+            except Exception as exc:  # noqa: BLE001 — keep the rows read so far
+                warnings.append(
+                    f"Sheet '{sheet_name}': read stopped near row {top} ({exc}). "
+                    "Partial extraction."
+                )
+                partial = True
+                break
+            for com_row in com_utils.normalize_block(block):
+                cleaned = []
+                for value in com_row:
+                    clean_val, had_error = com_utils.clean_com_value(value)
+                    cleaned.append(clean_val)
+                    if had_error:
+                        error_cells += 1
+                rows.append(cleaned)
 
+        # Drop trailing fully-empty rows for a tight envelope.
         while rows and not any(cell not in (None, "") for cell in rows[-1]):
             rows.pop()
+
+        if error_cells:
+            warnings.append(
+                f"Sheet '{sheet_name}': {error_cells} cell(s) held formula errors "
+                "(#REF!, #DIV/0!, etc) — stored as null."
+            )
+
         return {
-            "name": str(sheet.Name),
+            "name": sheet_name,
             "n_rows": len(rows),
             "n_cols": n_cols,
             "cells": rows,
+            "partial": partial,
         }
 
 
-def _clean(value):
-    """Make COM cell values JSON-friendly (e.g. pywintypes datetimes)."""
+def _safe_name(sheet):
+    """Best-effort sheet name for an error message (never raises)."""
     try:
-        # pywintypes.TimeType exposes a .Format / isoformat-able value.
-        import datetime as dt
-
-        if isinstance(value, dt.datetime):
-            return value.isoformat()
+        return str(sheet.Name)
     except Exception:  # noqa: BLE001
-        pass
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    return str(value)
+        return "<unknown>"

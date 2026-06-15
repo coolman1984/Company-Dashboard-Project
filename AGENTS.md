@@ -25,6 +25,7 @@ overwriting each other and breaking the project.
 4. **DON'T BREAK THE BUILD.** All tests must pass before you push:
    - `npm test` — dashboard (syntax check + smoke test)
    - `python3 -m extractor.test_extractor` — extraction engine
+   - `python3 -m extractor.test_excel_com` — Excel COM helpers/extractor (mocked, runs on Linux)
    - `python3 -m extractor.test_arabic` — Arabic text/number normalization core
    - `python3 test_map_raw_to_db.py` — raw-to-database mapper (includes post-load validation)
    - `python3 -m reports.test_reports` — reports engine
@@ -213,6 +214,14 @@ We are a team with different strengths. Use the right agent for the right job.
 - _(none currently)_
 
 ### Done
+- **Excel COM hardening** (Claude Code on `claude/com-extraction-hardening`):
+  new shared `extractor/com_utils.py` (dialog-free + macro-disabled session
+  with guaranteed cleanup, no-hang `open_workbook`, `find_sheet`, value/error
+  cleaning, chunk math); `excel_com.py` refactored to use it with per-sheet
+  isolation + formula-error flagging; `ingest_sheet1.py` fixed
+  (`UnboundLocalError`, sheet-by-name, `--yes`, ASCII output, indexes only on a
+  complete load). 13 mocked tests run COM logic on Linux + CI. COM itself
+  unverified here (no Windows) — needs an owner run on Windows + Excel.
 - **Phase 2 import-run workspace** (mohamed/minimax-m3 on
   `mohamed/phase-2-import-workspace`): per-client `workspaces/<client>/runs/`
   layout, raw snapshot, automatic db-before.db backup, `import_history.json`
@@ -293,6 +302,41 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — Claude Code — `claude/com-extraction-hardening` (COM Excel hardening)
+**Did:** Hardened the whole Excel COM path. New `extractor/com_utils.py`
+centralises the dangerous bits: `excel_session()` (dialog-free, **macros
+force-disabled** for untrusted client files, guaranteed `Quit()` +
+`CoUninitialize()` so no orphaned EXCEL.EXE), `open_workbook()` (never hangs —
+guard password instead of a modal prompt, `UpdateLinks=0`/`Notify=False`, and a
+`CorruptLoad=xlExtractData` retry for damaged files), `find_sheet()` (by name
+with index fallback — kills the brittle hard-coded `Sheets(2)`), plus pure
+`clean_com_value`/`is_cv_error`/`chunk_bounds`/`normalize_block`. Refactored
+`excel_com.py` onto it with **per-sheet isolation** (a bad chart sheet no longer
+aborts the file) and **formula-error → null + warning**. Fixed real bugs in
+`ingest_sheet1.py`: the **`UnboundLocalError`** when COM failed before the loop
+(now `total_inserted=0` up front + a `load_succeeded` gate so indexes/views only
+build on a complete load), sheet-by-name, a `--yes` flag for unattended runs,
+ASCII-safe output (Windows console can't print `✓`/`—`), and fail-fast if the
+source workbook is missing. New `extractor/test_excel_com.py` (13 tests) fakes
+the COM object model so all this runs in CI on Linux; added it to `ci.yml` and
+the rule-4 test list. Updated `Agent.md` COM section.
+**Why:** Owner asked to fix/strengthen the COM Excel + COM extraction for
+everything. Centralising prevents the same gotchas (orphan processes, password
+hangs, hard-coded sheet index) recurring across the four COM scripts.
+**Status:** ✅ all suites pass on Linux incl. the 13 new mocked tests; engine
+still falls back to openpyxl when COM is unavailable. ⚠️ **The COM code itself
+is NOT verified — there is no Windows/Excel here.** Needs an owner run on
+Windows: `python3 ingest_sheet1.py --yes` and an engine extract of a real
+`.xlsb`, plus a check that no EXCEL.EXE is left running.
+**Next:** optional — apply the same `com_utils` patterns to the legacy
+`explore_sheet1.py`/`extract_pl_data.py` dev scripts (left untouched this round);
+consider adding the Phase 2 `test_import_workspace.py`/`test_phase2_integration.py`
+to `ci.yml` (currently not run in CI).
+**Watch out:** Pure-Python logic is well tested, but the live COM behaviour
+(guard-password classification, `CorruptLoad`, `AutomationSecurity`) depends on
+the Excel build and must be confirmed on Windows. Did NOT touch `i18n.js`
+(another agent is actively editing it for 5b).
 
 ### 2026-06-15 — mohamed (minimax-m3) — `mohamed/phase-2-import-workspace`
 **Did:** Added Phase 2 import-run workspace scaffolding: `import_workspace.py`

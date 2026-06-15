@@ -37,6 +37,9 @@ jobs:
       - name: Run extraction engine tests
         run: python3 -m extractor.test_extractor
 
+      - name: Run Excel COM helper/extractor tests (mocked, no Windows)
+        run: python3 -m extractor.test_excel_com
+
       - name: Run Arabic normalization tests
         run: python3 -m extractor.test_arabic
 

@@ -52,6 +52,15 @@ machine and in CI. The [registry](registry.py) picks the **first available**
 extractor for each file, so COM is used when present and the fallback otherwise —
 both produce the **same JSON envelope**, so nothing downstream cares which ran.
 
+All the dangerous COM choreography lives in one place — [`com_utils.py`](com_utils.py):
+a **macro-disabled, dialog-free session** with guaranteed cleanup (no orphaned
+`EXCEL.EXE`), an `open_workbook` that **never hangs** on password-protected
+files and **retries corrupt files** in data-extraction mode, `find_sheet`
+(by name, not a brittle fixed index), and the value/error/chunk helpers. The
+same module backs the production `ingest_sheet1.py`. Its pure logic is unit-
+tested on any OS via mocks ([`test_excel_com.py`](test_excel_com.py)), so the
+parts that historically broke are covered in CI even though COM needs Windows.
+
 ### 2. One universal "raw envelope", type-specific content
 Every extractor returns the same outer shape ([raw.py](raw.py)); only `content`
 differs by file type:
