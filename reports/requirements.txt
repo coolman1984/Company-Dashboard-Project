@@ -6,3 +6,4 @@ openpyxl          # .xlsx Excel output (also used by the extractor)
 reportlab         # .pdf output
 arabic-reshaper   # Arabic shaping for PDF (optional, degrades gracefully)
 python-bidi       # Arabic bidirectional text for PDF (optional)
+weasyprint        # HTML/CSS to PDF for high-quality Arabic/RTL output (optional)

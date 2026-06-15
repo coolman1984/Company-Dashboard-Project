@@ -44,7 +44,9 @@ _REPORT_AR = {
     "Full-Year Outlook vs Prior Year": "توقعات السنة الكاملة مقابل السنة السابقة",
     "Full-year outlook benchmarked against prior year actual.": "توقعات السنة الكاملة مقارنة بالفعلي للسنة السابقة.",
     "Monthly Outlook Progression": "تطور التوقعات الشهرية",
-    "Month-by-month outlook (Actual + T06 bridge + T07 outlook).": "التوقعات شهرًا بشهر (الفعلي + T06 + توقعات T07).",
+    "Net sales and gross margin by month, flagged actual vs outlook.": "صافي المبيعات وهامش الربح شهريًا مع تمييز الفعلي مقابل التوقع.",
+    "Import Validation Report": "تقرير التحقق من الاستيراد",
+    "Row counts, null checks, duplicate grain, and source-coverage summary.": "عدد الصفوف، فحوص القيم الفارغة، تكرار المفتاح الرئيسي، وملخص تغطية المصدر.",
 }
 
 def _translate_report(title, description=""):
@@ -263,32 +265,44 @@ def pdf_available():
         return False
 
 
-def _pdf_report_flowables(envelope, styles, doc_width, force_arabic=False):
+def _pdf_report_flowables(envelope, doc_width, is_arabic=False):
     """Reportlab flowables for one report: title, meta, table."""
     from reportlab.lib import colors
+    from reportlab.lib.enums import TA_RIGHT
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import mm
     from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
+    styles = getSampleStyleSheet()
     columns = envelope["columns"]
     rows = envelope["rows"]
     src = envelope.get("source", {})
-    is_arabic = envelope_has_arabic(envelope) or force_arabic
 
     if is_arabic:
         _register_arabic_font()
         body_font = "Arabic"
+        ar_title_style = ParagraphStyle(
+            'ArRptTitle', parent=styles['Title'],
+            fontName='Arabic', alignment=TA_RIGHT, wordSpace='RTL'
+        )
+        ar_normal_style = ParagraphStyle(
+            'ArRptNormal', parent=styles['Normal'],
+            fontName='Arabic', alignment=TA_RIGHT
+        )
         ar_title, ar_desc = _translate_report(envelope["title"], envelope.get("description", ""))
         title_text = _shape_arabic(ar_title)
         desc_text = _shape_arabic(ar_desc)
-        # Wrap in font tag for ReportLab to use Arabic font
-        title_text = f'<font face="Arabic">{title_text}</font>'
-        desc_text = f'<font face="Arabic">{desc_text}</font>'
-        _meta_ar = _shape_arabic(
+        meta_text = _shape_arabic(
             f"أُنشئ {envelope.get('generated_at', '')}  |  "
             f"المصدر {src.get('database', '')}  |  "
             f"{envelope.get('row_count', len(rows))} صف"
         )
-        meta_text = f'<font face="Arabic">{_meta_ar}</font>'
+        flow = [
+            Paragraph(title_text, ar_title_style),
+            Paragraph(desc_text, ar_normal_style),
+            Paragraph(meta_text, ar_normal_style),
+            Spacer(1, 6 * mm),
+        ]
     else:
         body_font = "Helvetica"
         title_text = envelope["title"]
@@ -298,13 +312,12 @@ def _pdf_report_flowables(envelope, styles, doc_width, force_arabic=False):
             f"Source {src.get('database', '')} &nbsp;|&nbsp; "
             f"{envelope.get('row_count', len(rows))} rows"
         )
-
-    flow = [
-        Paragraph(title_text, styles["Title"]),
-        Paragraph(desc_text, styles["Normal"]),
-        Paragraph(meta_text, styles["Normal"]),
-        Spacer(1, 6 * mm),
-    ]
+        flow = [
+            Paragraph(title_text, styles["Title"]),
+            Paragraph(desc_text, styles["Normal"]),
+            Paragraph(meta_text, styles["Normal"]),
+            Spacer(1, 6 * mm),
+        ]
 
     font_size = 8 if len(columns) <= 8 else (7 if len(columns) <= 12 else 6)
     numeric_cols = set()
@@ -355,57 +368,348 @@ def _pdf_doc(out_path):
 
 
 def render_pdf(envelope, out_path):
-    from reportlab.lib.styles import getSampleStyleSheet
+    """Render one report to PDF.
+
+    Uses HTML/CSS -> WeasyPrint for Arabic content because ReportLab cannot
+    shape connected Arabic glyphs. Falls back to ReportLab for English content.
+    """
+    is_arabic = envelope_has_arabic(envelope)
+    try:
+        weasyprint_available = False
+        if is_arabic:
+            from weasyprint import HTML  # noqa: F401
+            weasyprint_available = True
+    except Exception:
+        weasyprint_available = False
+
+    if is_arabic and weasyprint_available:
+        return _render_pdf_single_html(envelope, out_path)
 
     doc = _pdf_doc(out_path)
-    doc.build(_pdf_report_flowables(envelope, getSampleStyleSheet(), doc.width))
+    doc.build(_pdf_report_flowables(envelope, doc.width, is_arabic))
+    return out_path
+
+
+def _render_pdf_single_html(envelope, out_path):
+    """High-quality single-report PDF using HTML/CSS via WeasyPrint."""
+    from html import escape
+    from pathlib import Path
+
+    from weasyprint import HTML
+
+    is_arabic = True
+    dir_attr = "rtl"
+    lang_attr = "ar"
+
+    rpt_title, rpt_desc = _translate_report(envelope['title'], envelope.get('description', ''))
+    src = envelope.get('source', {})
+    meta = f"أُنشئت {envelope.get('generated_at', '')} · المصدر {src.get('database', '')} · {envelope.get('row_count', len(envelope['rows']))} صف"
+
+    def _col_label(col):
+        labels = {
+            "year": "السنة", "version": "الإصدار", "period": "الفترة",
+            "region_desc": "المنطقة", "product_group": "مجموعة المنتج",
+            "country_desc": "الدولة", "customer_name": "العميل",
+            "net_sales": "صافي المبيعات", "cogs": "تكلفة البضاعة المباعة",
+            "gross_margin": "هامش الربح الإجمالي", "gross_margin_pct": "نسبة هامش الربح",
+            "opex": "المصروفات التشغيلية", "operating_profit": "الربح التشغيلي",
+            "operating_profit_pct": "نسبة الربح التشغيلي", "net_income": "صافي الدخل",
+            "net_income_pct": "هامش صافي الدخل", "gross_sales": "إجمالي المبيعات",
+            "returns": "المرتجعات", "sales_deduction": "الخصومات على المبيعات",
+            "material_cost": "تكلفة المواد الخام", "sales_expense": "مصاريف البيع",
+            "profit_before_tax": "الربح قبل الضرائب", "corporate_tax": "ضريبة الشركات",
+            "royalty": "الروائب", "variance_pct": "نسبة التغير",
+            "variance_abs": "قيمة التغير", "metric": "المقياس",
+            "actual": "فعلي", "outlook": "التوقع", "combined": "مجموع", "scenario": "السيناريو",
+            "description": "الوصف",
+            "category": "الفئة", "item": "البند", "value": "القيمة", "status": "الحالة",
+        }
+        return labels.get(col, col)
+
+    def _cell(row, col):
+        val = row.get(col)
+        if val is None:
+            return ""
+        if isinstance(val, (int, float)):
+            return f'{val:,.0f}'
+        return escape(str(val))
+
+    css = """
+    @page { size: A4 landscape; margin: 14mm; }
+    body {
+      font-family: "Noto Naskh Arabic", "Noto Sans Arabic", serif;
+      color: #172033; background: white; font-size: 10pt; line-height: 1.55;
+      margin: 0; padding: 0;
+    }
+    .rtl { direction: rtl; text-align: right; }
+    h1 { font-family: "Noto Sans Arabic", sans-serif; font-size: 30px; margin: 0 0 6px; color: #12395a; }
+    h2 { font-family: "Noto Sans Arabic", sans-serif; font-size: 18px; margin: 16px 0 6px; color: #12395a; }
+    .meta { color: #667085; margin-bottom: 14px; }
+    .intro { margin: 10px 0 16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; direction: rtl; }
+    th { background: #12395a; color: white; font-family: "Noto Sans Arabic", sans-serif; padding: 7px 9px; text-align: right; }
+    td { padding: 6px 9px; border: 1px solid #d9e2ec; text-align: right; }
+    tr:nth-child(even) td { background: #f7f9fc; }
+    .num { direction: ltr; unicode-bidi: isolate; text-align: left; font-family: "Noto Sans Arabic", sans-serif; }
+    """
+
+    parts = [
+        f'<!doctype html><html lang="{lang_attr}" dir="{dir_attr}"><head><meta charset="utf-8"><style>{css}</style></head><body>',
+        f'<div class="rtl"><h1>{escape(rpt_title)}</h1>',
+        f'<div class="intro">{escape(rpt_desc)}</div>',
+        f'<div class="meta">{escape(meta)}</div>',
+        '<table><thead><tr>',
+    ]
+    for col in envelope['columns']:
+        parts.append(f'<th>{escape(_col_label(col))}</th>')
+    parts.append('</tr></thead><tbody>')
+    for row in envelope['rows']:
+        parts.append('<tr>')
+        for col in envelope['columns']:
+            cls = 'num' if isinstance(row.get(col), (int, float)) else ''
+            parts.append(f'<td class="{cls}">{_cell(row, col)}</td>')
+        parts.append('</tr>')
+    parts.append('</tbody></table></div></body></html>')
+
+    html = "\n".join(parts)
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    HTML(string=html, base_url=str(Path(out_path).parent)).write_pdf(out_path)
     return out_path
 
 
 def render_pdf_pack(envelopes, out_path, title="Board Pack"):
-    """One PDF: a cover page + a section per report, page-broken between."""
-    from reportlab.lib.styles import getSampleStyleSheet
+    """One PDF: a cover page + a section per report, page-broken between.
+
+    For Arabic/RTL titles, we use the HTML/CSS -> WeasyPrint path because
+    ReportLab cannot render connected Arabic glyphs reliably.  For English
+    titles we keep the original ReportLab path.
+    """
+    is_arabic = _has_arabic(title)
+    try:
+        weasyprint_available = False
+        if is_arabic:
+            from weasyprint import HTML  # noqa: F401
+            weasyprint_available = True
+    except Exception:
+        weasyprint_available = False
+
+    if is_arabic and weasyprint_available:
+        return render_pdf_pack_html(envelopes, out_path, title=title)
+
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.enums import TA_RIGHT
     from reportlab.lib.units import mm
     from reportlab.platypus import PageBreak, Paragraph, Spacer
 
     styles = getSampleStyleSheet()
     doc = _pdf_doc(out_path)
 
-    # Register Arabic font early for cover page
-    if _has_arabic(title):
+    if is_arabic:
         _register_arabic_font()
-
-    # Shape Arabic title if present
-    cover_title = _shape_arabic(title) if _has_arabic(title) else title
-    
-    # Wrap Arabic text in font tag for proper rendering
-    if _has_arabic(title):
-        cover_title_xml = f'<font face="Arabic">{cover_title}</font>'
-        cover_subtitle_xml = f'<font face="Arabic">{_shape_arabic(f"أُنشئ في {_now()}")}</font>'
-        cover_contents_xml = f'<font face="Arabic">{_shape_arabic("المحتويات")}</font>'
+        # Build dedicated Arabic paragraph styles (RTL)
+        ar_title_style = ParagraphStyle(
+            'ArabicTitle', parent=styles['Title'],
+            fontName='Arabic', alignment=TA_RIGHT, wordSpace='RTL'
+        )
+        ar_heading_style = ParagraphStyle(
+            'ArabicHeading', parent=styles['Heading2'],
+            fontName='Arabic', alignment=TA_RIGHT
+        )
+        ar_normal_style = ParagraphStyle(
+            'ArabicNormal', parent=styles['Normal'],
+            fontName='Arabic', alignment=TA_RIGHT
+        )
+        cover_title = _shape_arabic(title)
+        cover_subtitle = _shape_arabic(f"أُنشئ في {_now()}")
+        cover_contents = _shape_arabic("المحتويات")
+        story = [
+            Paragraph(cover_title, ar_title_style),
+            Paragraph(cover_subtitle, ar_normal_style),
+            Spacer(1, 8 * mm),
+            Paragraph(cover_contents, ar_heading_style),
+        ]
     else:
-        cover_title_xml = cover_title
-        cover_subtitle_xml = f"Generated {_now()}"
-        cover_contents_xml = "Contents"
-    
-    story = [
-        Paragraph(cover_title_xml, styles["Title"]),
-        Paragraph(cover_subtitle_xml, styles["Normal"]),
-        Spacer(1, 8 * mm),
-        Paragraph(cover_contents_xml, styles["Heading2"]),
-    ]
+        story = [
+            Paragraph(title, styles["Title"]),
+            Paragraph(f"Generated {_now()}", styles["Normal"]),
+            Spacer(1, 8 * mm),
+            Paragraph("Contents", styles["Heading2"]),
+        ]
+
     for env in envelopes:
-        ar_env_title, _ = _translate_report(env['title']) if _has_arabic(title) else (env['title'], '')
-        env_display = _shape_arabic(ar_env_title) if _has_arabic(title) else ar_env_title
-        if _has_arabic(title):
-            env_display = f'<font face="Arabic">{env_display}</font>'
-        story.append(Paragraph(
-            f"&bull; {env_display} ({env.get('row_count', len(env['rows']))} rows)",
-            styles["Normal"]))
+        if is_arabic:
+            ar_env_title, _ = _translate_report(env['title'])
+            env_text = _shape_arabic(f"• {ar_env_title} ({env.get('row_count', len(env['rows']))})")
+            story.append(Paragraph(env_text, ar_normal_style))
+        else:
+            story.append(Paragraph(
+                f"&bull; {env['title']} ({env.get('row_count', len(env['rows']))} rows)",
+                styles["Normal"]))
 
     for env in envelopes:
         story.append(PageBreak())
-        story.extend(_pdf_report_flowables(env, styles, doc.width, _has_arabic(title)))
+        story.extend(_pdf_report_flowables(env, doc.width, is_arabic))
 
     doc.build(story)
+    return out_path
+
+
+def render_pdf_pack_html(envelopes, out_path, title="Board Pack"):
+    """High-quality Arabic/RTL PDF board pack using HTML/CSS via WeasyPrint.
+
+    Falls back to the ReportLab renderer if WeasyPrint is unavailable.
+    """
+    from html import escape
+    from pathlib import Path
+
+    try:
+        from weasyprint import HTML
+    except Exception:
+        return render_pdf_pack(envelopes, out_path, title)
+
+    is_arabic = _has_arabic(title)
+    if is_arabic:
+        title, _ = _translate_report(title)
+        dir_attr = "rtl"
+        lang_attr = "ar"
+    else:
+        dir_attr = "ltr"
+        lang_attr = "en"
+
+    def _col_label(col):
+        labels = {
+            "year": "السنة",
+            "version": "الإصدار",
+            "period": "الفترة",
+            "region_desc": "المنطقة",
+            "product_group": "مجموعة المنتج",
+            "country_desc": "الدولة",
+            "customer_name": "العميل",
+            "net_sales": "صافي المبيعات",
+            "cogs": "تكلفة البضاعة المباعة",
+            "gross_margin": "هامش الربح الإجمالي",
+            "gross_margin_pct": "نسبة هامش الربح",
+            "opex": "المصروفات التشغيلية",
+            "operating_profit": "الربح التشغيلي",
+            "operating_profit_pct": "نسبة الربح التشغيلي",
+            "net_income": "صافي الدخل",
+            "net_income_pct": "هامش صافي الدخل",
+            "gross_sales": "إجمالي المبيعات",
+            "returns": "المرتجعات",
+            "sales_deduction": "الخصومات على المبيعات",
+            "material_cost": "تكلفة المواد الخام",
+            "sales_expense": "مصاريف البيع",
+            "profit_before_tax": "الربح قبل الضرائب",
+            "corporate_tax": "ضريبة الشركات",
+            "royalty": "الروائب",
+            "variance_pct": "نسبة التغير",
+            "variance_abs": "قيمة التغير",
+            "metric": "المقياس",
+            "actual": "فعلي",
+            "outlook": "التوقع",
+            "combined": "مجموع",
+            "scenario": "السيناريو",
+            "description": "الوصف",
+            "category": "الفئة", "item": "البند", "value": "القيمة", "status": "الحالة",
+        }
+        return labels.get(col, col)
+
+    def _cell(row, col):
+        val = row.get(col)
+        if val is None:
+            return ""
+        if isinstance(val, (int, float)):
+            return f'{val:,.0f}'
+        return escape(str(val))
+
+    css = """
+    @page { size: A4 landscape; margin: 14mm; }
+    body {
+      font-family: "Noto Naskh Arabic", "Noto Sans Arabic", serif;
+      color: #172033; background: white; font-size: 10pt; line-height: 1.55;
+      margin: 0; padding: 0;
+    }
+    .rtl { direction: rtl; text-align: right; }
+    .ltr { direction: ltr; text-align: left; }
+    .cover { border: 1.5px solid #d9e2ec; border-radius: 12px; padding: 22px 28px; background: #fbfcff; }
+    h1 { font-family: "Noto Sans Arabic", sans-serif; font-size: 32px; margin: 0 0 6px; color: #12395a; }
+    h2 { font-family: "Noto Sans Arabic", sans-serif; font-size: 20px; margin: 18px 0 8px; color: #12395a; page-break-after: avoid; }
+    .meta { color: #667085; margin-bottom: 14px; }
+    .section { margin-top: 10px; page-break-before: always; }
+    .section:first-of-type { page-break-before: auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; direction: rtl; }
+    th { background: #12395a; color: white; font-family: "Noto Sans Arabic", sans-serif; padding: 7px 9px; text-align: right; }
+    td { padding: 6px 9px; border: 1px solid #d9e2ec; text-align: right; }
+    tr:nth-child(even) td { background: #f7f9fc; }
+    .num { direction: ltr; unicode-bidi: isolate; text-align: left; font-family: "Noto Sans Arabic", sans-serif; }
+    .toc-item { margin: 5px 0; }
+    .intro { margin: 10px 0 16px; }
+    .status-ok { color: #0f6e31; font-weight: bold; }
+    .status-warn { color: #b45309; font-weight: bold; }
+    """
+
+    parts = []
+    parts.append(f'<!doctype html><html lang="{lang_attr}" dir="{dir_attr}"><head><meta charset="utf-8"><style>{css}</style></head><body>')
+
+    # Cover
+    if is_arabic:
+        parts.append(f'<div class="cover rtl"><h1>{escape(title)}</h1><div class="meta">أُنشئت في {_now()}</div></div>')
+        parts.append(f'<div class="rtl" style="margin-top:18px;"><h2>محتويات الحزمة</h2>')
+    else:
+        parts.append(f'<div class="cover ltr"><h1>{escape(title)}</h1><div class="meta">Generated {_now()}</div></div>')
+        parts.append(f'<div class="ltr" style="margin-top:18px;"><h2>Contents</h2>')
+
+    for env in envelopes:
+        if is_arabic:
+            rpt_title, _ = _translate_report(env['title'])
+            parts.append(f'<div class="toc-item">{escape(rpt_title)} ({env.get("row_count", len(env["rows"]))})</div>')
+        else:
+            parts.append(f'<div class="toc-item">{escape(env["title"])} ({env.get("row_count", len(env["rows"]))} rows)</div>')
+    parts.append('</div>')
+
+    # Reports
+    for env in envelopes:
+        if is_arabic:
+            rpt_title, rpt_desc = _translate_report(env['title'], env.get('description', ''))
+            src = env.get('source', {})
+            meta = f"أُنشئت {env.get('generated_at', '')} · المصدر {src.get('database', '')} · {env.get('row_count', len(env['rows']))} صف"
+        else:
+            rpt_title = env['title']
+            rpt_desc = env.get('description', '')
+            src = env.get('source', {})
+            meta = f"Generated {env.get('generated_at', '')} · Source {src.get('database', '')} · {env.get('row_count', len(env['rows']))} rows"
+
+        parts.append(f'<div class="section rtl"><h2>{escape(rpt_title)}</h2>')
+        parts.append(f'<div class="intro">{escape(rpt_desc)}</div>')
+        parts.append(f'<div class="meta">{escape(meta)}</div>')
+        parts.append('<table><thead><tr>')
+        for col in env['columns']:
+            parts.append(f'<th>{escape(_col_label(col))}</th>')
+        parts.append('</tr></thead><tbody>')
+        for row in env['rows']:
+            parts.append('<tr>')
+            for col in env['columns']:
+                cls = 'num' if isinstance(row.get(col), (int, float)) else ''
+                parts.append(f'<td class="{cls}">{_cell(row, col)}</td>')
+            parts.append('</tr>')
+        parts.append('</tbody></table></div>')
+
+    # Source confidence / data lineage page
+    if is_arabic:
+        validation_env = next((e for e in envelopes if e.get('report') == 'import_validation'), None)
+        if validation_env:
+            summary_rows = [r for r in validation_env['rows'] if r['category'] == 'Summary']
+            parts.append('<div class="section rtl"><h2>ثقة المصدر وملخص التحقق</h2>')
+            parts.append('<div class="intro">هذا الملخص مؤسس على البيانات المستخرجة من قاعدة البيانات وحسابات الجودة الأساسية.</div>')
+            parts.append('<table><thead><tr><th>البند</th><th>القيمة</th><th>الحالة</th></tr></thead><tbody>')
+            for row in summary_rows:
+                status_class = 'status-ok' if row['status'] == 'OK' else 'status-warn'
+                parts.append(f'<tr><td>{escape(row["item"])}</td><td class="num">{row["value"]}</td><td class="{status_class}">{escape(row["status"])}</td></tr>')
+            parts.append('</tbody></table></div>')
+
+    parts.append('</body></html>')
+
+    html = "\n".join(parts)
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    HTML(string=html, base_url=str(Path(out_path).parent)).write_pdf(out_path)
     return out_path

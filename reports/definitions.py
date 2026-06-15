@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 from .outlook import build_outlook_monthly, build_outlook_pl
+from .validation import build_import_validation
 
 
 @dataclass(frozen=True)
@@ -72,6 +73,12 @@ REPORTS = [
         title="Monthly Outlook Progression",
         description="Net sales and gross margin by month, flagged actual vs outlook.",
         builder=build_outlook_monthly,
+    ),
+    Report(
+        name="import_validation",
+        title="Import Validation Report",
+        description="Row counts, null checks, duplicate grain, and source-coverage summary.",
+        builder=build_import_validation,
     ),
 ]
 
