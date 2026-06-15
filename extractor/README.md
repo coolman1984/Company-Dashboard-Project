@@ -82,6 +82,34 @@ the run continues.
 fingerprint, extractor used, result, and any warnings. This answers "what did we
 take from the client, with what, and when?"
 
+### 5. Robust edge case handling (added in Phase 2)
+Real-world client files are messy. Every extractor now includes:
+
+**File integrity guards:**
+- File size limits (50-200MB depending on type) with warnings
+- Empty file detection (0 bytes)
+- Corrupt file detection with clear error messages
+- Binary content detection for CSV files
+
+**Content-level error handling:**
+- Excel: Formula errors (#REF!, #DIV/0!) converted to null with warnings
+- PDF: Encrypted/password-protected PDF detection
+- CSV: Parse errors tracked per line (max 5 shown, rest summarized)
+- Word: Per-paragraph error tracking
+- All: Partial extraction on failure (never all-or-nothing)
+
+**Graceful degradation:**
+- Sheet-level errors in Excel don't abort the workbook
+- Page-level errors in PDF don't abort the document
+- Paragraph-level errors in Word don't abort the document
+- Attachment errors in emails don't abort the message
+- All errors logged with row/page/paragraph numbers for human review
+
+**Encoding and format detection:**
+- CSV: BOM detection, UTF-8 → Windows-1256 → Latin-1 fallback chain
+- CSV: Binary content heuristic (>10% non-printable bytes)
+- All: Consistent error messages that suggest next steps
+
 ---
 
 ## What each extractor covers
