@@ -3,6 +3,10 @@ pl_detail.db
 pl_data.json
 api_data/
 
+# Phase 2 import-run workspaces and database backups
+workspaces/
+*.db.bak
+
 # Python
 __pycache__/
 *.pyc
@@ -42,3 +46,6 @@ raw/*
 
 # Python packaging metadata from local installs
 *.egg-info/
+
+# Phase 2 — per-client import history manifests (may reference client data)
+import_history*.json
