@@ -38,7 +38,7 @@ ALLOWED_ROOT_JS = {
 }
 
 # Packages that must always carry a README explaining their purpose.
-PACKAGES_NEEDING_README = ("extractor", "reports", "brain", "scripts/legacy", "docs")
+PACKAGES_NEEDING_README = ("extractor", "reports", "brain", "scripts/legacy", "docs", "mcp_server")
 
 # Docs that must exist at the root (the canonical set).
 REQUIRED_ROOT_DOCS = (
