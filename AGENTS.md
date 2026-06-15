@@ -25,6 +25,7 @@ overwriting each other and breaking the project.
 4. **DON'T BREAK THE BUILD.** All tests must pass before you push:
    - `npm test` — dashboard (syntax check + smoke test)
    - `python3 -m extractor.test_extractor` — extraction engine
+   - `python3 -m extractor.test_arabic` — Arabic text/number normalization core
    - `python3 test_map_raw_to_db.py` — raw-to-database mapper (includes post-load validation)
    - `python3 -m reports.test_reports` — reports engine
    - `python3 -m reports.test_render` — Excel/PDF rendering
@@ -92,6 +93,7 @@ npm start                            # dashboard at http://localhost:3001
 npm test                             # dashboard smoke tests
 python3 -m extractor.cli --list      # show which extractors are available
 python3 -m extractor.test_extractor  # extraction engine tests
+python3 -m extractor.test_arabic     # Arabic normalization core tests
 python3 test_map_raw_to_db.py        # raw-to-database mapper tests
 python3 -m reports.test_reports      # reports engine tests
 python3 -m reports.test_render       # Excel/PDF render tests
@@ -208,9 +210,18 @@ We are a team with different strengths. Use the right agent for the right job.
 - **Reports engine — extend** (Stage 2 Done): client-specific templates.
 
 ### In Progress (owner)
-- _(none currently)_
+- **Arabic-first extraction & RTL dashboard** (Claude Code) — staged plan in
+  `ROADMAP.md` (Stage 6). Stage 1 (normalization core) is **Done**; next is
+  Stage 2 (Arabic-aware mapper: match-key/display-value, number & period
+  parsing). Decisions locked: Gregorian only; full RTL UI; support
+  `.xlsx/.xlsm/.xlsb/.xls/CSV`; fold-for-grouping + keep original display;
+  user-toggleable digits; vendored **Cairo** font (no CDN).
 
 ### Done
+- **Arabic normalization core** (`extractor/arabic.py`, Stage 6.1): shared,
+  stdlib-only `clean_display` / `match_key` / `parse_number` / `to_ascii_digits`
+  / `month_to_number` with the match-key-vs-display-value split. Tested
+  (`extractor/test_arabic.py`) + in CI.
 - Runnable core (synthetic seed, canonical schema, CI, docs, hygiene).
 - Dashboard first-run UX (clear data-not-loaded alert) + non-technical guide.
 - Vision & staged roadmap documented.
@@ -245,6 +256,32 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — Claude Code — claude/docs-updates-7-files-4bs7ux (Arabic Stage 1)
+**Did:** Started the Arabic-first initiative (new ROADMAP Stage 6). Added the
+shared normalization core `extractor/arabic.py` (pure stdlib): `clean_display`
+(strips bidi/format controls + tatweel, NFC, collapses whitespace, never folds
+letters — the value we store/show), `match_key` (folds alef/yaa/taa-marbuta/
+hamza variants + diacritics + digits + casefold — used only for matching/
+grouping), `parse_number` (Arabic-Indic/Persian digits, ٬/٫ separators, currency
+symbols/words, accounting `( )` negatives, Unicode minus), `to_ascii_digits`,
+and `month_to_number` (Gregorian month names, Egyptian + Levantine sets).
+Added `extractor/test_arabic.py`, wired it into CI and the AGENTS test list,
+and claimed the initiative on the Task Board.
+**Why:** The project will run mainly on Arabic data. Exact-string header/sheet
+matching and the numeric parser break on Arabic spelling variants, digits and
+number formats (verified: `أحمد`≠`احمد`, `float('١٬٢٥٠٫٥٠')`/`(1250)`/`ر.س ١٢٥٠`
+all throw today). This core is the foundation every later stage builds on.
+**Status:** ✅ new suite passes (`python3 -m extractor.test_arabic`); no existing
+code changed, so the other 8 suites are unaffected. Pure additive.
+**Next:** Stage 2 — integrate into `map_raw_to_db.py`: match headers/sheets via
+`match_key`, parse numbers via `parse_number`, add the match-key/display-value
+model for dimensions; Arabic golden fixtures. Then Stages 3 (.xlsb/.xls/CSV +
+fidelity), 4 (CSV BOM, PDF reshaping+bidi+Cairo font, XLSX RTL), 5 (full RTL UI).
+**Watch out:** `match_key` is intentionally LOSSY — only ever use it for matching/
+grouping, never store or display it. Folding default is "group variants, show the
+original"; revisit if two genuinely distinct names ever collide on one key. The
+month table is Gregorian-only by design decision (no Hijri).
 
 ### 2026-06-14 — Claude Code — claude/docs-updates-7-files-4bs7ux (code-review fixes)
 **Did:** Code-review pass on the production-hardening work; fixed 6 findings.
