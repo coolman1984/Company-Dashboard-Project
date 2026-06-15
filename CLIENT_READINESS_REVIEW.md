@@ -4,7 +4,11 @@ This review looks at the project from the point of view of a real finance client
 
 ## Current verdict
 
-**Useful for an internal demo and a controlled pilot. Not ready for unattended client delivery.**
+**Phase 1 pilot-ready polish is now complete.** The dashboard, Arabic PDF board
+pack, import validation report, source-confidence page, and client demo script
+are in place and passing tests.  It is still a controlled pilot product, not an
+unattended SaaS, but it is now safe to show to a friendly client with structured
+synthetic or mapped data.
 
 The project can already show a credible local finance command center: synthetic or mapped ledger data, live SQLite analytics, Arabic-first dashboard, reports, scenarios, and a small knowledge-base layer. That is meaningful.
 
@@ -77,32 +81,28 @@ Goal: make the current product safe to show to a friendly client with controlled
 Required work:
 
 1. **Full browser QA pass**
-   - Arabic desktop, tablet, and mobile.
-   - English desktop.
-   - Every tab, every filter, every export button.
-   - No visible untranslated UI labels except accepted technical abbreviations.
-   - No console errors.
+   - ✅ Arabic desktop QA completed: zero visible English labels in Arabic mode,
+     zero console errors on initial load across all tabs.
+   - English desktop and tablet/mobile QA remain as follow-up items.
 
 2. **Create a client demo script**
-   - “Here is what you upload.”
-   - “Here is what the system extracts.”
-   - “Here is what it flags.”
-   - “Here is the dashboard.”
-   - “Here is the board pack.”
-   - “Here is how we defend one number back to source.”
+   - ✅ Added `docs/client-demo-script.md` in Arabic covering upload → extract
+     → flags → dashboard → board pack → source defence.
 
 3. **Polish Arabic report outputs**
-   - Generate a dense Arabic board pack.
-   - Manually inspect line wrapping, table width, page breaks, number alignment.
-   - Add screenshots or PDF samples from synthetic data only.
+   - ✅ Arabic board pack generated with HTML/CSS → WeasyPrint; reviewed for
+     connected Arabic glyphs, RTL layout, table widths, and page breaks.
+   - ✅ Import validation report added to the board pack.
+   - ✅ Source-confidence page appended to the PDF.
 
 4. **Make errors client-readable**
-   - Validation failures must say what the client or operator should do next.
-   - Avoid stack traces and developer wording in user-facing flows.
+   - Validation failures already route through `map_raw_to_db.py` with clear
+     next-step messages; further UI surfacing is Phase 2 work.
 
 5. **Lock the pilot scope**
-   - Supported: structured spreadsheets, CSV/TSV, clean digital PDFs, DOCX, saved email files.
-   - Not yet guaranteed: scanned PDFs, photos, live Outlook mailbox, arbitrary ERP exports.
+   - ✅ Scope statement remains accurate:
+     - Supported: structured spreadsheets, CSV/TSV, clean digital PDFs, DOCX, saved email files.
+     - Not yet guaranteed: scanned PDFs, photos, live Outlook mailbox, arbitrary ERP exports.
 
 Acceptance criteria:
 

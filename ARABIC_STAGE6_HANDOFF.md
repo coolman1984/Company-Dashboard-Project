@@ -17,8 +17,16 @@ This file is the handoff note for agents continuing the Arabic-first work. Read 
   - `extractor/excel_xlsb.py`
 - `extractor/requirements.txt` includes the cross-platform spreadsheet dependencies: `openpyxl`, `pyxlsb`, and `xlrd`.
 - CSV Arabic encoding and Excel RTL report sheet support exist.
-- Arabic PDF rendering has a first working version: `reports/render.py` registers `fonts/NotoNaskhArabic.ttf` and uses `arabic-reshaper` + `python-bidi` when available.
-- `reports/test_render.py` creates English and Arabic PDF artifacts and asserts the Arabic shaping path when dependencies are installed.
+- Arabic PDF rendering uses HTML/CSS → WeasyPrint: `reports/render.py` builds an
+  RTL HTML string and renders it to PDF for correct connected Arabic glyphs.
+  The vendored `fonts/NotoNaskhArabic.ttf` is used by WeasyPrint automatically.
+- `reports/test_render.py` creates English and Arabic PDF artifacts and asserts
+  the Arabic rendering path when dependencies are installed.
+- Arabic board pack (`reports.cli --pack`) is available and includes a final
+  **source-confidence / import-validation** page.
+- Import validation report (`reports/validation.py`) summarises row counts,
+  null checks, duplicate-grain checks, and dimension coverage.
+- Arabic pilot demo script exists at `docs/client-demo-script.md`.
 - Arabic sample data is available with:
 
 ```bash
@@ -52,10 +60,10 @@ Issues found and addressed:
 
 ## Remaining work
 
-1. Deeper visual QA across every tab and more screen sizes.
+1. English desktop and tablet/mobile browser QA.
 2. Client-specific Arabic wording polish once real client sample files exist.
 3. Better automated browser assertions for Arabic mode if a lightweight browser test path is added.
-4. Visual/manual review of dense Arabic board-pack PDFs with real management report layouts.
+4. Source drill-back from dashboard numbers to source rows/files (Phase 2).
 5. Future extraction work: scanned-PDF OCR, merged/multi-row spreadsheet headers, formula-without-cache detection, and Windows COM validation.
 
 ## Final verification command set

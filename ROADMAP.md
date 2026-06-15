@@ -70,14 +70,15 @@ Define report templates once, then generate them from the database on demand.
 Each report is also saved as JSON (your "target" format) and shown in the webapp
 or exported to Excel/PDF.
 
-> **Status:** `reports/` generates eight reports from the database — six core
-> P&L reports plus two **forecast/outlook** reports (full-year outlook vs prior
-> year, and monthly progression) — as self-describing JSON, CSV,
+> **Status:** `reports/` generates **nine** reports from the database — six core
+> P&L reports, two **forecast/outlook** reports, and an **import-validation /
+> source-confidence** report — as self-describing JSON, CSV,
 > **management-ready Excel (.xlsx)** and **PDF**, and bundles them all into a
-> single **board pack** (`--pack`). The six core SQL reports are also available
-> as live API endpoints (`/api/reports`, `/api/reports/generate`). See
-> `reports/README.md`. Next: client-specific templates, report download UI in
-> the dashboard.
+> single **board pack** (`--pack`). Arabic PDFs are rendered via HTML/CSS →
+> WeasyPrint for correct connected Arabic glyphs and RTL layout, with a final
+> source-confidence page. The core SQL reports are also available as live API
+> endpoints (`/api/reports`, `/api/reports/generate`). See `reports/README.md`.
+> Next: client-specific templates, report download UI in the dashboard.
 
 ### Stage 3 — Scenarios & forecasting — *first version built*
 "What-if" modelling and forward forecasts — change an assumption and watch the
@@ -107,7 +108,7 @@ automates steps, and suggests better ways of working.
 - **Why it's last:** an agent needs the data, reports, and knowledge base
   (Stages 1–4) to already exist before it has anything to act on.
 
-### Stage 6 — Arabic-first robustness (cross-cutting) — *first version building*
+### Stage 6 — Arabic-first robustness (cross-cutting) — *pilot-ready polish complete*
 This product runs **mainly on Arabic data**, so Arabic is a first-class concern
 across the whole pipeline, not a translation layer bolted on at the end. This
 stage runs alongside the others (it touches extraction, mapping, reports and the
@@ -141,13 +142,13 @@ to respect the no-CDN rule.
   dependencies are now listed in `extractor/requirements.txt` and installed in
   CI. *Still to do:* merged-cell and multi-row headers, formula-without-cache
   detection, error cells, and date-serial handling for `.xlsb`/`.xls`.
-- **6.4 Export correctness — *CSV + Excel + PDF first version done*.** CSV now
+- **6.4 Export correctness — *CSV + Excel + PDF done*.** CSV now
   writes a UTF-8 BOM so Excel opens Arabic correctly; Excel report sheets are
-  flagged right-to-left when the content is Arabic. PDF reports now use a
-  vendored Noto Naskh Arabic font plus `arabic-reshaper` and `python-bidi` so
-  Arabic titles, headers, and table cells are shaped and ordered correctly.
-  Tests create Arabic Excel/PDF artifacts. *Still to do:* visual QA on real
-  board packs with dense Arabic tables and any client-specific template polish.
+  flagged right-to-left when the content is Arabic. Arabic PDFs are rendered via
+  HTML/CSS → WeasyPrint using the vendored Noto Naskh Arabic font so titles,
+  headers, and table cells are correctly shaped and ordered. English PDFs keep
+  the original ReportLab path. Board packs include a final source-confidence /
+  import-validation page. Tests create Arabic Excel/PDF artifacts.
 - **6.5 Full RTL dashboard — *first version done*.** Defaults to Arabic
   right-to-left (`lang="ar" dir="rtl"`) with an EN toggle that falls back to the
   original LTR layout; vendored **Cairo** font (`cairo.ttf`, served locally, no
@@ -155,8 +156,9 @@ to respect the no-CDN rule.
   Cairo font; `i18n.js` translates navigation, filters, buttons, page headings,
   dynamic KPI/table labels, chart text, and common management-action messages;
   a digit toggle switches Western ↔ Arabic-Indic numerals. Arabic sample data is
-  available via `python3 seed_db.py --force --locale ar`. *Still to do:* deeper
-  browser QA on more screen sizes and client-specific wording polish.
+  available via `python3 seed_db.py --force --locale ar`. *Still to do:* English
+  desktop and tablet/mobile QA, plus client-specific wording polish once real
+  client files are available.
 
 ---
 

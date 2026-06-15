@@ -37,8 +37,10 @@ python3 seed_db.py --force --locale ar
 
 The dashboard defaults to Arabic right-to-left mode with a language toggle for
 English and a digit toggle for Western ↔ Arabic-Indic numerals. Arabic exports
-are supported in CSV (UTF-8 BOM), Excel (RTL sheets), and PDF (vendored Noto
-Naskh Arabic font with shaping/bidi dependencies from `reports/requirements.txt`).
+are supported in CSV (UTF-8 BOM), Excel (RTL sheets), and PDF.  **Arabic PDFs are
+rendered via HTML/CSS → WeasyPrint** for correct connected glyphs, RTL layout,
+and professional board-pack typography; the vendored Noto Naskh Arabic font is
+used automatically.
 
 Then open <http://localhost:3001>. No internet required after `npm install`.
 
@@ -59,6 +61,23 @@ test that boots the server and exercises every API endpoint:
 python3 seed_db.py --force   # ensure a database exists
 npm test
 ```
+
+## Reports and board pack
+
+The `reports/` engine generates JSON, CSV, Excel, and PDF artifacts from
+`pl_detail.db`.  Core P&L roll-ups plus outlook, variance, and scenario reports
+are available; see `reports/definitions.py` for the full catalogue.
+
+A single board pack can be produced with:
+
+```bash
+python3 -m reports.cli --pack --title "حزمة التقارير المالية 2026"
+```
+
+This writes `output/reports/board-pack.xlsx` and `board-pack.pdf`.  Arabic PDF
+board packs use HTML/CSS → WeasyPrint for proper RTL and connected-Arabic
+glyph rendering and include a final **source-confidence / import-validation**
+page summarising row counts, null checks, duplicate-grain checks, and coverage.
 
 ## Data model
 
@@ -151,7 +170,8 @@ For a blunt end-client readiness critique and development plan, see
 | `schema.sql` | Canonical DB schema (table, indexes, views) |
 | `seed_db.py` | Synthetic database generator (dev/test/CI) |
 | `smoke_test.js` | End-to-end API smoke test (`npm test`) |
-| `reports/` | Reports engine: JSON/CSV/Excel/PDF, board pack, outlook, scenarios |
+| `reports/` | Reports engine: JSON/CSV/Excel/PDF, Arabic board pack, outlook, scenarios, import validation, source-confidence |
+| `docs/client-demo-script.md` | Arabic pilot demo script |
 | `brain/`, `knowledge/` | Knowledge base ("second brain"): Obsidian-style wiki + graph |
 | `map_raw_to_db.py` | Load extracted raw JSON into `pl_detail` via a mapping + post-load validation |
 | `ingest_sheet1.py` | Production Excel → SQLite ingestion (Windows) |
