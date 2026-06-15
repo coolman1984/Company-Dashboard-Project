@@ -212,8 +212,8 @@ We are a team with different strengths. Use the right agent for the right job.
 ### In Progress (owner)
 - **Arabic-first extraction & RTL dashboard** (Claude Code) — staged plan in
   `ROADMAP.md` (Stage 6). Stages 1, 2, 3, 4a and 5 (RTL UI first version) are
-  **Done**; remaining: 4b (Arabic PDF — needs a font decision) and 5b (deep UI
-  content translation + Arabic seed data + RTL visual polish).
+  **Done**; remaining: 4b (Arabic PDF — needs a font decision), Arabic seed data,
+  and RTL visual polish.
   Decisions locked: Gregorian only; full RTL UI; support
   `.xlsx/.xlsm/.xlsb/.xls/CSV`; **keep spellings exactly as typed — do NOT merge
   variants in totals** (owner decision, 6.2b declined); user-toggleable digits;
@@ -225,7 +225,13 @@ We are a team with different strengths. Use the right agent for the right job.
   vendored Cairo font (`cairo.ttf`, served locally); `i18n.js` translates the
   nav/filters/buttons/banner/per-tab titles; digit toggle (Western↔Arabic-Indic);
   charts use Cairo; `[dir="rtl"]` CSS mirrors the explicit left/right rules.
-  Deep content strings (KPI/chart/table) remain English → 5b.
+- **Arabic 5b deep UI translation**: `i18n.js` now includes exact Arabic phrase
+  translations for section headings, chart titles/subtitles, controls, KPI/table
+  labels, empty/loading/status/toast text, risk labels, and report-style notes.
+  It applies translations to static HTML plus dynamically inserted DOM text via
+  a MutationObserver, while English mode keeps the original layout/text. `app.js`
+  also routes canvas-only chart labels/tooltips/axis titles through `tr()` so
+  Chart.js legends and tooltips are Arabic too. Tested.
 - **Arabic export correctness 4a** (Stage 6.4 part): CSV now writes a UTF-8 BOM
   (`utf-8-sig`) so Excel opens Arabic without mojibake; Excel report sheets are
   flagged right-to-left when content is Arabic (`envelope_has_arabic`). Tests
@@ -276,6 +282,13 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — OpenCode — main (Arabic 5b deep UI translation)
+**Did:** Completed the next 5b pass for Arabic dashboard content: added a broad exact-phrase Arabic translation map in `i18n.js`, translated static inner dashboard text without adding hundreds of `data-i18n` attributes, added a MutationObserver so dynamically rendered table/KPI/status/toast text is translated in Arabic mode, and added `tr()` usage in `app.js` for canvas-only Chart.js labels/tooltips/axis titles. Also fixed `configureCharts()` so it keeps Cairo instead of resetting charts back to system fonts.
+**Why:** The main Arabic RTL frame was live, but inner labels (KPI captions, chart titles, table headers, risk labels, empty/loading text, and chart legends/tooltips) still appeared in English. This moves the app closer to Arabic-first operation while preserving English mode.
+**Status:** ✅ all suites pass: `npm test`, `extractor.test_arabic`, `extractor.test_extractor`, `test_map_raw_to_db.py`, reports tests, render tests, scenario tests, brain tests, and `brain.cli --check`.
+**Next:** Visual QA in a real browser for spacing/overflow in Arabic; Arabic seed/sample display data; PDF Arabic 4b after choosing the report font.
+**Watch out:** The translation layer is exact-phrase based. New English UI phrases added later should be added to `AR_TEXT` or routed through `tr()` if they appear inside Chart.js canvases.
 
 ### 2026-06-15 — Claude Code — claude/docs-updates-7-files-4bs7ux (Arabic Stage 5 — RTL UI)
 **Did:** First version of the full Arabic right-to-left dashboard. Vendored the

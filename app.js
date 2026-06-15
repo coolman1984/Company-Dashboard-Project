@@ -85,6 +85,10 @@ function loc(text) {
     return (window.I18N && window.I18N.localizeDigits) ? window.I18N.localizeDigits(text) : text;
 }
 
+function tr(text) {
+    return (window.I18N && window.I18N.translateText) ? window.I18N.translateText(text) : text;
+}
+
 function formatCompact(value) {
     if (value == null || !Number.isFinite(Number(value))) return '--';
     var number = Number(value);
@@ -289,7 +293,7 @@ function baseChartOptions(axisLabel) {
                 padding: 10,
                 titleFont: { size: 10 },
                 bodyFont: { size: 10 },
-                callbacks: { label: function (context) { return context.dataset.label + ': $' + Number(context.parsed.y).toFixed(1) + 'M'; } }
+                callbacks: { label: function (context) { return tr(context.dataset.label) + ': $' + loc(Number(context.parsed.y).toFixed(1) + 'M'); } }
             }
         },
         scales: {
@@ -297,7 +301,7 @@ function baseChartOptions(axisLabel) {
             y: {
                 grid: { color: '#edf1f6' },
                 border: { display: false },
-                title: { display: !!axisLabel, text: axisLabel, color: '#96a2b3', font: { size: 9 } },
+                title: { display: !!axisLabel, text: tr(axisLabel), color: '#96a2b3', font: { size: 9 } },
                 ticks: { color: '#66758a', font: { size: 9 }, callback: function (value) { return '$' + value + 'M'; } }
             }
         }
@@ -385,7 +389,7 @@ function renderExecutiveKPIs(data) {
 
 function executiveLineDataset(label, values, color, dashed) {
     return {
-        label: label,
+        label: tr(label),
         data: values,
         borderColor: color,
         backgroundColor: color,
@@ -604,9 +608,9 @@ function renderCfoCharts(data) {
     charts.profitBridge = new Chart(el('profitBridgeChart'), {
         type: 'bar',
         data: {
-            labels: ['Revenue', 'Gross Profit', 'OpEx', 'Operating Profit', 'Net Profit'],
+            labels: ['Revenue', 'Gross Profit', 'OpEx', 'Operating Profit', 'Net Profit'].map(tr),
             datasets: [{
-                label: 'Variance vs FY' + data.coverage.priorYear,
+                label: tr('Variance vs FY' + data.coverage.priorYear),
                 data: bridge.map(function (value) { return value / 1e6; }),
                 backgroundColor: bridge.map(function (value, index) {
                     if (index === 2) return value <= 0 ? colors.green : colors.red;
@@ -623,7 +627,7 @@ function renderCfoCharts(data) {
     var concentrationOptions = horizontalChartOptions('% of revenue');
     concentrationOptions.plugins.legend.display = false;
     concentrationOptions.plugins.tooltip.callbacks.label = function (context) {
-        return Number(context.parsed.x).toFixed(1) + '% of revenue';
+        return loc(Number(context.parsed.x).toFixed(1) + '%') + ' ' + tr('of revenue');
     };
     concentrationOptions.scales.x.ticks.callback = function (value) { return value + '%'; };
     destroyChart('concentration');
@@ -648,7 +652,11 @@ function renderCfoCharts(data) {
     var hhiRisk = hhi > 2500 ? 'High concentration risk' : hhi > 1500 ? 'Moderate concentration' : 'Diversified';
     var hhiNote = el('hhiNote');
     if (hhiNote) {
-        hhiNote.textContent = 'HHI (top 10 customers): ' + Math.round(hhi).toLocaleString('en-US') + ' — ' + hhiRisk + '. Thresholds: <1,500 diversified, 1,500–2,500 moderate, >2,500 high risk.';
+        if (window.I18N && window.I18N.lang && window.I18N.lang() === 'ar') {
+            hhiNote.textContent = 'مؤشر HHI (أكبر 10 عملاء): ' + loc(Math.round(hhi).toLocaleString('en-US')) + ' — ' + tr(hhiRisk) + '. الحدود: أقل من 1,500 متنوع، 1,500–2,500 متوسط، أكثر من 2,500 خطر مرتفع.';
+        } else {
+            hhiNote.textContent = 'HHI (top 10 customers): ' + Math.round(hhi).toLocaleString('en-US') + ' — ' + hhiRisk + '. Thresholds: <1,500 diversified, 1,500–2,500 moderate, >2,500 high risk.';
+        }
     }
 }
 
@@ -885,8 +893,8 @@ function renderTrends(data) {
         data: {
             labels: labels,
             datasets: [
-                { type: 'bar', label: 'Revenue', data: revenueM, backgroundColor: colors.blue, yAxisID: 'yRev', borderRadius: 4 },
-                { type: 'line', label: 'Gross Margin %', data: gmPct, borderColor: colors.green, backgroundColor: colors.green, yAxisID: 'yGm', tension: 0.3, pointRadius: 4, borderWidth: 2.5, spanGaps: false }
+                { type: 'bar', label: tr('Revenue'), data: revenueM, backgroundColor: colors.blue, yAxisID: 'yRev', borderRadius: 4 },
+                { type: 'line', label: tr('Gross Margin %'), data: gmPct, borderColor: colors.green, backgroundColor: colors.green, yAxisID: 'yGm', tension: 0.3, pointRadius: 4, borderWidth: 2.5, spanGaps: false }
             ]
         },
         options: {
@@ -894,7 +902,7 @@ function renderTrends(data) {
             interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 7, boxHeight: 7, padding: 14, font: { size: 9, weight: 600 } } },
-                tooltip: { padding: 10, titleFont: { size: 10 }, bodyFont: { size: 10 }, callbacks: { label: function (ctx) { return ctx.dataset.yAxisID === 'yRev' ? 'Revenue: $' + ctx.parsed.y.toFixed(1) + 'M' : 'GM%: ' + ctx.parsed.y.toFixed(1) + '%'; } } }
+                tooltip: { padding: 10, titleFont: { size: 10 }, bodyFont: { size: 10 }, callbacks: { label: function (ctx) { return ctx.dataset.yAxisID === 'yRev' ? tr('Revenue: $' + ctx.parsed.y.toFixed(1) + 'M') : tr('GM%: ' + ctx.parsed.y.toFixed(1) + '%'); } } }
             },
             scales: {
                 x: { grid: { display: false }, ticks: { color: '#66758a', font: { size: 9 } } },
@@ -905,7 +913,7 @@ function renderTrends(data) {
     });
 
     var effOptions = baseChartOptions('% of revenue');
-    effOptions.plugins.tooltip.callbacks.label = function (ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + '%'; };
+    effOptions.plugins.tooltip.callbacks.label = function (ctx) { return tr(ctx.dataset.label) + ': ' + loc(ctx.parsed.y.toFixed(1) + '%'); };
     effOptions.scales.y.ticks.callback = function (v) { return v + '%'; };
     destroyChart('efficiencyTrend');
     charts.efficiencyTrend = new Chart(el('efficiencyTrendChart'), {
@@ -913,15 +921,15 @@ function renderTrends(data) {
         data: {
             labels: labels,
             datasets: [
-                { label: 'COGS %', data: cogsPct, borderColor: colors.red, backgroundColor: colors.red, tension: 0.3, pointRadius: 3, borderWidth: 2 },
-                { label: 'OpEx %', data: opexPct, borderColor: colors.amber, backgroundColor: colors.amber, tension: 0.3, pointRadius: 3, borderWidth: 2 }
+                { label: tr('COGS %'), data: cogsPct, borderColor: colors.red, backgroundColor: colors.red, tension: 0.3, pointRadius: 3, borderWidth: 2 },
+                { label: tr('OpEx %'), data: opexPct, borderColor: colors.amber, backgroundColor: colors.amber, tension: 0.3, pointRadius: 3, borderWidth: 2 }
             ]
         },
         options: effOptions
     });
 
     var growthOptions = baseChartOptions('YoY growth %');
-    growthOptions.plugins.tooltip.callbacks.label = function (ctx) { return ctx.dataset.label + ': ' + (ctx.parsed.y != null ? (ctx.parsed.y * 100).toFixed(1) + '%' : '--'); };
+    growthOptions.plugins.tooltip.callbacks.label = function (ctx) { return tr(ctx.dataset.label) + ': ' + (ctx.parsed.y != null ? loc((ctx.parsed.y * 100).toFixed(1) + '%') : '--'); };
     growthOptions.scales.y.ticks.callback = function (v) { return (v * 100).toFixed(0) + '%'; };
     destroyChart('growthRate');
     charts.growthRate = new Chart(el('growthRateChart'), {
@@ -929,9 +937,9 @@ function renderTrends(data) {
         data: {
             labels: labels,
             datasets: [
-                { label: 'Revenue', data: revenueGrowth, backgroundColor: revenueGrowth.map(function (v) { return v == null ? 'transparent' : v >= 0 ? colors.blue : colors.red; }), borderRadius: 3 },
-                { label: 'Gross Profit', data: gpGrowth, backgroundColor: gpGrowth.map(function (v) { return v == null ? 'transparent' : v >= 0 ? colors.cyan : colors.red; }), borderRadius: 3 },
-                { label: 'Operating Profit', data: opGrowth, backgroundColor: opGrowth.map(function (v) { return v == null ? 'transparent' : v >= 0 ? colors.green : colors.red; }), borderRadius: 3 }
+                { label: tr('Revenue'), data: revenueGrowth, backgroundColor: revenueGrowth.map(function (v) { return v == null ? 'transparent' : v >= 0 ? colors.blue : colors.red; }), borderRadius: 3 },
+                { label: tr('Gross Profit'), data: gpGrowth, backgroundColor: gpGrowth.map(function (v) { return v == null ? 'transparent' : v >= 0 ? colors.cyan : colors.red; }), borderRadius: 3 },
+                { label: tr('Operating Profit'), data: opGrowth, backgroundColor: opGrowth.map(function (v) { return v == null ? 'transparent' : v >= 0 ? colors.green : colors.red; }), borderRadius: 3 }
             ]
         },
         options: growthOptions
@@ -1009,17 +1017,17 @@ function renderPortfolioMatrix(data) {
             responsive: true, maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                tooltip: { callbacks: { label: function (ctx) { return ctx.dataset.label + ' — Growth: ' + ctx.parsed.x.toFixed(1) + '%, GM: ' + ctx.parsed.y.toFixed(1) + '%'; } } }
+                tooltip: { callbacks: { label: function (ctx) { return ctx.dataset.label + ' — ' + tr('Growth') + ': ' + loc(ctx.parsed.x.toFixed(1) + '%') + ', ' + tr('Gross Margin') + ': ' + loc(ctx.parsed.y.toFixed(1) + '%'); } } }
             },
             scales: {
                 x: {
                     grid: { color: '#edf1f6' }, border: { display: false },
-                    title: { display: true, text: 'Revenue growth % vs prior year', color: '#96a2b3', font: { size: 9 } },
+                    title: { display: true, text: tr('Revenue growth % vs prior year'), color: '#96a2b3', font: { size: 9 } },
                     ticks: { color: '#66758a', font: { size: 9 }, callback: function (v) { return v + '%'; } }
                 },
                 y: {
                     grid: { color: '#edf1f6' }, border: { display: false },
-                    title: { display: true, text: 'Gross margin %', color: '#96a2b3', font: { size: 9 } },
+                    title: { display: true, text: tr('Gross margin %'), color: '#96a2b3', font: { size: 9 } },
                     ticks: { color: '#66758a', font: { size: 9 }, callback: function (v) { return v + '%'; } }
                 }
             }
@@ -1170,12 +1178,12 @@ function horizontalChartOptions(axisLabel) {
     options.indexAxis = 'y';
     options.plugins.legend.align = 'end';
     options.plugins.tooltip.callbacks.label = function (context) {
-        return context.dataset.label ? context.dataset.label + ': $' + Number(context.parsed.x).toFixed(1) + 'M' : '$' + Number(context.parsed.x).toFixed(1) + 'M';
+        return context.dataset.label ? tr(context.dataset.label) + ': ' + loc(Number(context.parsed.x).toFixed(1) + 'M') : loc(Number(context.parsed.x).toFixed(1) + 'M');
     };
     options.scales.x = {
         grid: { color: '#edf1f6' },
         border: { display: false },
-        title: { display: true, text: axisLabel, color: '#96a2b3', font: { size: 9 } },
+        title: { display: true, text: tr(axisLabel), color: '#96a2b3', font: { size: 9 } },
         ticks: { color: '#66758a', font: { size: 9 }, callback: function (value) { return '$' + value + 'M'; } }
     };
     options.scales.y = { grid: { display: false }, ticks: { color: '#66758a', font: { size: 8 } } };
@@ -1193,7 +1201,7 @@ function loadDrilldown(force) {
         return Promise.resolve();
     }
     button.disabled = true;
-    button.textContent = 'Running query...';
+    button.textContent = tr('Running query...');
     setLoading('drilldownTable');
 
     return fetchJson(API + '/api/drilldown' + queryString({
@@ -1209,7 +1217,7 @@ function loadDrilldown(force) {
             charts.drilldown = new Chart(el('drilldownChart'), {
                 type: 'bar',
                 data: {
-                    labels: top.map(function (row) { return row.dimension || 'Unassigned'; }),
+                    labels: top.map(function (row) { return row.dimension || tr('Unassigned'); }),
                     datasets: [{
                         data: top.map(function (row) { return row.change / 1e6; }),
                         backgroundColor: top.map(function (row) { return isGood(metric, row.change) ? colors.green : colors.red; }),
@@ -1238,7 +1246,7 @@ function loadDrilldown(force) {
         .catch(handleLoadError)
         .finally(function () {
             button.disabled = false;
-            button.textContent = 'Run analysis';
+            button.textContent = tr('Run analysis');
         });
 }
 
@@ -1273,9 +1281,9 @@ function renderScenario() {
         data: {
             labels: labels,
             datasets: [
-                { label: 'Actual / YTD', data: actuals, backgroundColor: colors.blue, borderRadius: 5 },
-                { label: 'T06 P06', data: scenarioData.map(function (row) { return row.year === 2026 ? t06 / 1e6 : null; }), backgroundColor: colors.amber, borderRadius: 5 },
-                { label: 'T07 P07-P12', data: scenarioData.map(function (row) { return row.year === 2026 ? t07 / 1e6 : null; }), backgroundColor: colors.violet, borderRadius: 5 }
+                { label: tr('Actual / YTD'), data: actuals, backgroundColor: colors.blue, borderRadius: 5 },
+                { label: tr('T06 P06'), data: scenarioData.map(function (row) { return row.year === 2026 ? t06 / 1e6 : null; }), backgroundColor: colors.amber, borderRadius: 5 },
+                { label: tr('T07 P07-P12'), data: scenarioData.map(function (row) { return row.year === 2026 ? t07 / 1e6 : null; }), backgroundColor: colors.violet, borderRadius: 5 }
             ]
         },
         options: baseChartOptions('$ millions')
@@ -1285,7 +1293,7 @@ function renderScenario() {
     charts.attainment = new Chart(el('attainmentChart'), {
         type: 'bar',
         data: {
-            labels: ['Actual P01-P05', 'T06 P06', 'T07 P07-P12', 'Combined 2026'],
+            labels: [tr('Actual P01-P05'), tr('T06 P06'), tr('T07 P07-P12'), tr('Combined 2026')],
             datasets: [{
                 data: [actual / 1e6, t06 / 1e6, t07 / 1e6, combined / 1e6],
                 backgroundColor: [colors.blue, colors.amber, colors.violet, colors.green],
@@ -1324,13 +1332,13 @@ function unique(values) {
 }
 
 function handleLoadError(error) {
-    setStatus(false, 'Query failed');
+    setStatus(false, tr('Query failed'));
     showToast(error.message, true);
     throw error;
 }
 
 function loadActiveTab(force) {
-    setStatus(true, 'Querying SQLite');
+    setStatus(true, tr('Querying SQLite'));
     var loader = {
         overview: loadOverview,
         regional: loadRegional,
@@ -1491,12 +1499,12 @@ function configureCharts() {
     if (!window.Chart) throw new Error('Chart.js did not load');
     Chart.defaults.color = '#66758a';
     Chart.defaults.borderColor = '#edf1f6';
-    Chart.defaults.font.family = 'system-ui, -apple-system, sans-serif';
+    Chart.defaults.font.family = 'Cairo, system-ui, -apple-system, sans-serif';
     Chart.defaults.animation.duration = 420;
 }
 
 function bootstrap() {
-    setStatus(true, 'Connecting');
+    setStatus(true, tr('Connecting'));
     configureCharts();
     bindEvents();
     Promise.all([
@@ -1516,15 +1524,15 @@ function bootstrap() {
         if (status.backend === 'sqlite-live') {
             hideAlert();
         } else {
-            showAlert('Running in limited mode',
-                'The live database is not connected, so the dashboard is showing only saved summary data. Some sections may be empty until the database is set up.');
+            showAlert(tr('Running in limited mode'),
+                tr('The live database is not connected, so the dashboard is showing only saved summary data. Some sections may be empty until the database is set up.'));
         }
-        setStatus(status.database === 'connected', status.backend === 'sqlite-live' ? 'Live SQLite' : 'Fallback cache');
+        setStatus(status.database === 'connected', status.backend === 'sqlite-live' ? tr('Live SQLite') : tr('Fallback cache'));
         return loadOverview(false);
     }).catch(function () {
-        setStatus(false, 'Connection failed');
-        showAlert('We couldn’t load the dashboard data',
-            'The data service may still be starting up, or it has not been set up yet. Wait a moment and click Try again. If this is a fresh setup, the database needs to be created first — see the Getting Started guide.');
+        setStatus(false, tr('Connection failed'));
+        showAlert(tr('We couldn’t load the dashboard data'),
+            tr('The data service may still be starting up, or it has not been set up yet. Wait a moment and click Try again. If this is a fresh setup, the database needs to be created first — see the Getting Started guide.'));
     });
 }
 

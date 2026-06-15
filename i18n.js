@@ -110,6 +110,179 @@
     var WESTERN = "0123456789";
     var ARABIC_INDIC = "٠١٢٣٤٥٦٧٨٩";
 
+    var AR_TEXT = {
+        "Loading...": "جارٍ التحميل...",
+        "Live SQLite": "قاعدة SQLite مباشرة",
+        "Year": "السنة",
+        "Metric": "المؤشر",
+        "Primary year": "السنة الأساسية",
+        "Compare with": "المقارنة مع",
+        "From year": "من سنة",
+        "To year": "إلى سنة",
+        "Dimension": "البعد",
+        "Current year": "السنة الحالية",
+        "Analyze": "تحليل",
+        "Run analysis": "تشغيل التحليل",
+        "Running query...": "جارٍ تشغيل الاستعلام...",
+        "Export CSV": "تصدير CSV",
+        "Actual + Outlook": "الفعلي + التوقع",
+        "Reporting view": "عرض التقرير",
+        "Version": "النسخة",
+        "All years": "كل السنوات",
+        "All regions": "كل المناطق",
+        "All countries": "كل الدول",
+        "Loading live data...": "جارٍ تحميل البيانات المباشرة...",
+        "Database coverage is unavailable.": "تغطية قاعدة البيانات غير متاحة.",
+        "Choose two different years": "اختر سنتين مختلفتين",
+        "CSV exported": "تم تصدير CSV",
+        "Query failed": "فشل الاستعلام",
+        "Querying SQLite": "جارٍ الاستعلام من SQLite",
+        "Connecting": "جارٍ الاتصال",
+        "Connection failed": "فشل الاتصال",
+        "Running in limited mode": "تشغيل في وضع محدود",
+        "Fallback cache": "ذاكرة احتياطية",
+        "We couldn’t load the dashboard data": "تعذّر تحميل بيانات لوحة التحكم",
+        "The live database is not connected, so the dashboard is showing only saved summary data. Some sections may be empty until the database is set up.": "قاعدة البيانات المباشرة غير متصلة، لذلك تعرض لوحة التحكم بيانات الملخصات المحفوظة فقط. قد تكون بعض الأقسام فارغة حتى يتم إعداد قاعدة البيانات.",
+        "The data service may still be starting up, or it has not been set up yet. Wait a moment and click Try again. If this is a fresh setup, the database needs to be created first — see the Getting Started guide.": "قد تكون خدمة البيانات ما زالت قيد التشغيل أو لم يتم إعدادها بعد. انتظر قليلًا ثم اضغط إعادة المحاولة. إذا كان هذا إعدادًا جديدًا، يجب إنشاء قاعدة البيانات أولًا — راجع دليل البدء.",
+
+        "2026 executive outlook": "توقعات تنفيذية 2026",
+        "Actual P01-P05 plus T06 P06 plus T07 P07-P12, compared with FY2025": "فعلي P01-P05 + T06 P06 + T07 P07-P12 مقارنة بالسنة المالية 2025",
+        "Revenue movers — year on year": "محركات الإيرادات — سنة بسنة",
+        "Products ranked by absolute revenue change; top gainers and largest declines at a glance": "ترتيب المنتجات حسب التغير المطلق في الإيرادات؛ أكبر الزيادات والانخفاضات في لمحة",
+        "Revenue trend: Actual to outlook": "اتجاه الإيرادات: من الفعلي إلى التوقع",
+        "Cumulative monthly revenue with completed and remaining periods separated": "الإيرادات الشهرية التراكمية مع فصل الفترات المكتملة والمتبقية",
+        "Actual through P05, outlook begins P06": "الفعلي حتى P05، والتوقع يبدأ من P06",
+        "Gross margin %: Actual to outlook": "نسبة هامش الربح الإجمالي: من الفعلي إلى التوقع",
+        "Monthly margin quality and second-half profitability risk": "جودة الهامش الشهرية ومخاطر ربحية النصف الثاني",
+        "Solid Actual, dashed operating outlook": "خط متصل للفعلي، وخط متقطع للتوقع التشغيلي",
+        "P&L summary: 2026 outlook": "ملخص الأرباح والخسائر: توقعات 2026",
+        "Actual progress, full-year outlook, prior year, and variance in one reconciliation": "تقدم الفعلي، وتوقع السنة الكاملة، والسنة السابقة، والانحراف في تسوية واحدة",
+        "Operating profit is shown instead of EBITDA because depreciation and amortization are not available in the source ledger. Cash-flow KPIs are intentionally excluded for the same reason.": "يُعرض الربح التشغيلي بدلًا من EBITDA لأن الإهلاك والإطفاء غير متاحين في سجل المصدر. مؤشرات التدفق النقدي مستبعدة عمدًا للسبب نفسه.",
+        "CFO decision center": "مركز قرارات المدير المالي",
+        "Forward-looking profitability, operating leverage, concentration, and intervention signals": "الربحية المستقبلية، والرافعة التشغيلية، والتركيز، وإشارات التدخل",
+        "Profit bridge vs FY2025": "جسر الربح مقارنة بالسنة المالية 2025",
+        "Where revenue growth converts, or fails to convert, into earnings": "أين يتحول نمو الإيرادات، أو يفشل في التحول، إلى أرباح",
+        "Revenue concentration exposure": "التعرض لتركيز الإيرادات",
+        "Share of 2026 outlook held by the largest customers": "حصة أكبر العملاء من توقعات 2026",
+        "Product profitability action matrix": "مصفوفة إجراءات ربحية المنتجات",
+        "Top product groups by 2026 revenue — margin quality, COGS efficiency, and YoY movement with management action tiers": "أهم مجموعات المنتجات حسب إيرادات 2026 — جودة الهامش، وكفاءة تكلفة المبيعات، والحركة السنوية مع مستويات إجراءات الإدارة",
+
+        "Regional performance": "الأداء حسب المنطقة",
+        "Compare commercial geographies using live database filters": "قارن المناطق التجارية باستخدام فلاتر قاعدة البيانات المباشرة",
+        "Regional comparison": "مقارنة المناطق",
+        "Selected metric across regions and available years": "المؤشر المختار عبر المناطق والسنوات المتاحة",
+        "Regional detail": "تفاصيل المناطق",
+        "Live grouped SQLite results": "نتائج SQLite مجمعة مباشرة",
+        "Product profitability": "ربحية المنتجات",
+        "Rank product groups and compare performance periods": "رتّب مجموعات المنتجات وقارن فترات الأداء",
+        "Top product groups": "أهم مجموعات المنتجات",
+        "Ranked by the selected metric": "مرتبة حسب المؤشر المختار",
+        "Gross margin quality": "جودة هامش الربح الإجمالي",
+        "Margin percentage for leading product groups": "نسبة الهامش لأهم مجموعات المنتجات",
+        "Product detail": "تفاصيل المنتجات",
+        "Current and comparison period performance": "أداء الفترة الحالية وفترة المقارنة",
+        "Variance contributors": "مساهمو الانحراف",
+        "Identify the dimensions driving change between two periods": "تحديد الأبعاد التي تقود التغير بين فترتين",
+        "Impact ranking": "ترتيب الأثر",
+        "Largest positive and negative contributors": "أكبر المساهمين الإيجابيين والسلبيين",
+        "Variance detail": "تفاصيل الانحراف",
+        "Sorted by absolute financial impact": "مرتبة حسب الأثر المالي المطلق",
+        "2026 operating outlook": "التوقع التشغيلي 2026",
+        "Actual P01-P05 plus T06 P06 plus T07 P07-P12": "فعلي P01-P05 + T06 P06 + T07 P07-P12",
+        "Period plan": "خطة الفترات",
+        "Actual history with remaining 2026 operating versions": "التاريخ الفعلي مع النسخ التشغيلية المتبقية لعام 2026",
+        "Outlook composition": "مكونات التوقع",
+        "Contribution of each period version to the combined outlook": "مساهمة كل نسخة فترة في التوقع المجمّع",
+        "Scenario details": "تفاصيل السيناريو",
+        "Versions represent different periods and combine into the outlook": "النسخ تمثل فترات مختلفة وتتجمع في التوقع",
+        "5-Year financial trends": "اتجاهات مالية لخمس سنوات",
+        "Structural P&L performance and efficiency ratios from FY2022 through FY2026": "أداء الأرباح والخسائر الهيكلي ونسب الكفاءة من السنة المالية 2022 حتى 2026",
+        "Revenue & gross margin trend": "اتجاه الإيرادات وهامش الربح الإجمالي",
+        "Annual revenue (bars, left axis) with gross margin % overlay (line, right axis)": "الإيرادات السنوية (أعمدة، المحور الأيسر) مع نسبة هامش الربح الإجمالي (خط، المحور الأيمن)",
+        "Cost efficiency": "كفاءة التكلفة",
+        "COGS and operating expense as % of revenue — lower is better": "تكلفة المبيعات والمصروفات التشغيلية كنسبة من الإيرادات — الأقل أفضل",
+        "Year-on-year growth rates": "معدلات النمو السنوية",
+        "Revenue, gross profit, and operating profit YoY % change": "نسبة تغير الإيرادات والربح الإجمالي والربح التشغيلي سنة بسنة",
+        "5-year P&L summary": "ملخص أرباح وخسائر لخمس سنوات",
+        "With % of revenue column and year-on-year growth rate": "مع عمود النسبة من الإيرادات ومعدل النمو السنوي",
+        "Strategic portfolio matrix": "مصفوفة المحفظة الاستراتيجية",
+        "Product group positioning by growth rate and gross margin — BCG-style quadrant for capital allocation decisions": "تموضع مجموعات المنتجات حسب معدل النمو وهامش الربح الإجمالي — رباعيات بأسلوب BCG لقرارات تخصيص رأس المال",
+        "Growth vs margin matrix": "مصفوفة النمو مقابل الهامش",
+        "Bubble size = revenue. Quadrants guide invest / harvest / fix / exit decisions.": "حجم الفقاعة = الإيرادات. تساعد الرباعيات في قرارات الاستثمار / الحصاد / الإصلاح / الخروج.",
+        "Portfolio detail": "تفاصيل المحفظة",
+        "Products ranked by revenue with quadrant classification and recommended action": "المنتجات مرتبة حسب الإيرادات مع تصنيف الرباعيات والإجراء المقترح",
+
+        "Net Sales": "صافي المبيعات",
+        "Revenue": "الإيرادات",
+        "Revenue outlook": "توقع الإيرادات",
+        "COGS": "تكلفة المبيعات",
+        "Cost of Sales": "تكلفة المبيعات",
+        "Gross Margin": "هامش الربح الإجمالي",
+        "Gross Profit": "الربح الإجمالي",
+        "Gross profit": "الربح الإجمالي",
+        "Gross Margin %": "نسبة هامش الربح الإجمالي",
+        "GM %": "نسبة الهامش الإجمالي",
+        "gross margin %": "نسبة هامش الربح الإجمالي",
+        "$ millions": "ملايين الدولارات",
+        "% of revenue": "نسبة من الإيرادات",
+        "of revenue": "من الإيرادات",
+        "COGS %": "نسبة تكلفة المبيعات",
+        "OpEx %": "نسبة المصروفات التشغيلية",
+        "YoY": "سنوي",
+        "Change": "التغير",
+        "Change %": "نسبة التغير",
+        "Impact": "الأثر",
+        "Product group": "مجموعة المنتج",
+        "Revenue share": "حصة الإيرادات",
+        "Growth %": "نسبة النمو",
+        "Op margin %": "نسبة الهامش التشغيلي",
+        "Quadrant": "الربع",
+        "Risk tier": "مستوى المخاطر",
+        "Recommended action": "الإجراء المقترح",
+        "Combined outlook": "التوقع المجمّع",
+        "Actual share": "حصة الفعلي",
+        "Growth": "النمو",
+        "Operating Expense": "المصروفات التشغيلية",
+        "OpEx": "المصروفات التشغيلية",
+        "Operating Profit": "الربح التشغيلي",
+        "Operating profit": "الربح التشغيلي",
+        "Profit Before Tax": "الربح قبل الضريبة",
+        "Corporate Tax": "ضريبة الشركات",
+        "Net Income": "صافي الدخل",
+        "Net Profit": "صافي الربح",
+        "Net profit": "صافي الربح",
+        "Revenue at risk": "الإيرادات المعرضة للخطر",
+        "Actual": "الفعلي",
+        "Outlook": "التوقع",
+        "Actual / YTD": "الفعلي / منذ بداية السنة",
+        "Actual P01-P05": "الفعلي P01-P05",
+        "T06 P06": "T06 P06",
+        "T07 P07-P12": "T07 P07-P12",
+        "Combined 2026": "إجمالي 2026",
+        "Region": "المنطقة",
+        "Country": "الدولة",
+        "Product Group": "مجموعة المنتج",
+        "Customer": "العميل",
+        "Class": "الفئة",
+        "Unassigned": "غير مخصص",
+        "Unmapped product": "منتج غير مطابق",
+        "No trend data available.": "لا توجد بيانات اتجاهات متاحة.",
+        "No data for selected years.": "لا توجد بيانات للسنوات المختارة.",
+        "No 2026 scenario records match the filters.": "لا توجد سجلات سيناريو 2026 مطابقة للفلاتر.",
+        "Intervene": "تدخل",
+        "Recover": "استرداد",
+        "Watch": "مراقبة",
+        "Star": "نجم",
+        "Scale": "توسيع",
+        "High concentration risk": "مخاطر تركّز مرتفعة",
+        "Moderate concentration": "تركيز متوسط",
+        "Diversified": "متنوع",
+        "Stars — Invest & grow": "نجوم — استثمر ونمِّ",
+        "Cash Cows — Harvest & defend": "مصادر نقد — احصد ودافع",
+        "Question Marks — Fix or exit": "علامات استفهام — أصلح أو اخرج",
+        "Traps — Exit priority": "مصائد — أولوية الخروج"
+    };
+
     function getLang() {
         var v = localStorage.getItem("dashboardLang");
         return v === "en" || v === "ar" ? v : "ar";   // default Arabic
@@ -132,6 +305,58 @@
         });
     }
 
+    function translateText(text) {
+        if (getLang() !== "ar" || text == null) return text;
+        var raw = String(text);
+        var leading = raw.match(/^\s*/)[0];
+        var trailing = raw.match(/\s*$/)[0];
+        var core = raw.trim();
+        if (!core) return raw;
+        if (AR_TEXT[core] !== undefined) return leading + AR_TEXT[core] + trailing;
+
+        var dynamic = core
+            .replace(/^FY(\d{4})$/, "السنة المالية $1")
+            .replace(/^P&L summary: (\d{4}) outlook$/, "ملخص الأرباح والخسائر: توقعات $1")
+            .replace(/^Profit bridge vs FY(\d{4})$/, "جسر الربح مقارنة بالسنة المالية $1")
+            .replace(/^Share of (\d{4}) outlook held by the largest customers$/, "حصة أكبر العملاء من توقعات $1")
+            .replace(/^Variance vs FY(\d{4})$/, "الانحراف مقابل السنة المالية $1")
+            .replace(/^Revenue: \$(.*)M$/, "الإيرادات: $1 مليون دولار")
+            .replace(/^GM%: (.*)%$/, "نسبة الهامش الإجمالي: $1%")
+            .replace(/^gross margin %$/, "نسبة هامش الربح الإجمالي")
+            .replace(/^YoY growth %$/, "نسبة النمو السنوي")
+            .replace(/^change in \$ millions$/, "التغير بملايين الدولارات")
+            .replace(/^Revenue growth % vs prior year$/, "نمو الإيرادات % مقابل السنة السابقة")
+            .replace(/^Gross margin %$/, "نسبة هامش الربح الإجمالي");
+        return leading + dynamic + trailing;
+    }
+
+    function translateNodeTree(rootNode) {
+        if (getLang() !== "ar" || !rootNode) return;
+        if (rootNode.nodeType === Node.TEXT_NODE) {
+            rootNode.nodeValue = translateText(rootNode.nodeValue);
+            if (getDigits() === "arabic") rootNode.nodeValue = localizeDigits(rootNode.nodeValue);
+            return;
+        }
+        if (rootNode.nodeType !== Node.ELEMENT_NODE && rootNode !== document) return;
+        var walker = document.createTreeWalker(rootNode, NodeFilter.SHOW_TEXT, {
+            acceptNode: function (node) {
+                var parent = node.parentElement;
+                if (!parent) return NodeFilter.FILTER_REJECT;
+                var tag = parent.tagName;
+                if (tag === "SCRIPT" || tag === "STYLE" || tag === "TEXTAREA") {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        });
+        var nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        for (var i = 0; i < nodes.length; i++) {
+            nodes[i].nodeValue = translateText(nodes[i].nodeValue);
+            if (getDigits() === "arabic") nodes[i].nodeValue = localizeDigits(nodes[i].nodeValue);
+        }
+    }
+
     function apply() {
         var lang = getLang();
         var doc = document.documentElement;
@@ -146,6 +371,28 @@
             var value = t(nodes[i].getAttribute("data-i18n"));
             if (value !== undefined) nodes[i].textContent = value;
         }
+        translateNodeTree(document.body);
+    }
+
+    function observeDynamicText() {
+        if (getLang() !== "ar" || !window.MutationObserver || !document.body) return;
+        var observer = new MutationObserver(function (mutations) {
+            observer.disconnect();
+            for (var i = 0; i < mutations.length; i++) {
+                if (mutations[i].type === "characterData") {
+                    translateNodeTree(mutations[i].target);
+                } else {
+                    for (var j = 0; j < mutations[i].addedNodes.length; j++) {
+                        translateNodeTree(mutations[i].addedNodes[j]);
+                    }
+                    if (mutations[i].target && mutations[i].target.nodeType === Node.ELEMENT_NODE) {
+                        translateNodeTree(mutations[i].target);
+                    }
+                }
+            }
+            observer.observe(document.body, { childList: true, characterData: true, subtree: true });
+        });
+        observer.observe(document.body, { childList: true, characterData: true, subtree: true });
     }
 
     function setLang(lang) {
@@ -165,6 +412,7 @@
 
     document.addEventListener("DOMContentLoaded", function () {
         apply();
+        observeDynamicText();
         var langBtn = document.getElementById("langToggle");
         if (langBtn) {
             langBtn.textContent = t("ui.lang_toggle");
@@ -186,6 +434,8 @@
         lang: getLang,
         digits: getDigits,
         localizeDigits: localizeDigits,
+        translateText: translateText,
+        translateNodeTree: translateNodeTree,
         setLang: setLang,
         setDigits: setDigits,
         apply: apply
