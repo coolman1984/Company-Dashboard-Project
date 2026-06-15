@@ -30,6 +30,18 @@ def _is_number(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
+def _has_arabic(text):
+    """True if the string contains any Arabic-script character (U+0600-06FF)."""
+    return isinstance(text, str) and any("؀" <= ch <= "ۿ" for ch in text)
+
+
+def envelope_has_arabic(envelope):
+    """Detect Arabic anywhere in the headers or cells, to drive RTL layout."""
+    if any(_has_arabic(col) for col in envelope.get("columns", [])):
+        return True
+    return any(_has_arabic(v) for row in envelope.get("rows", []) for v in row.values())
+
+
 def excel_number_format(column):
     col = column.lower()
     if col == "year":
@@ -83,6 +95,10 @@ def _excel_write_sheet(ws, envelope):
     columns = envelope["columns"]
     rows = envelope["rows"]
     ncols = max(len(columns), 1)
+
+    # Arabic reports read right-to-left, so orient the whole sheet accordingly.
+    if envelope_has_arabic(envelope):
+        ws.sheet_view.rightToLeft = True
 
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=ncols)
     title_cell = ws.cell(row=1, column=1, value=envelope["title"])

@@ -57,6 +57,28 @@ def test_excel():
         assert ws.cell(row=6, column=2).number_format == "#,##0"
 
 
+ARABIC = {
+    "report": "regional_pl_ar", "title": "تقرير المناطق", "description": "حسب المنطقة.",
+    "generated_at": "2026-06-15T09:00:00Z",
+    "source": {"database": "pl_detail.db", "rows_in_ledger": 7560},
+    "columns": ["السنة", "المنطقة", "صافي المبيعات"], "row_count": 1,
+    "rows": [{"السنة": 2025, "المنطقة": "أفريقيا", "صافي المبيعات": 1200.0}],
+}
+
+
+def test_excel_arabic_is_rtl():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "arabic.xlsx")
+        render.render_excel(ARABIC, path)
+        import openpyxl
+        ws = openpyxl.load_workbook(path).active
+        assert ws.sheet_view.rightToLeft, "Arabic sheet should be right-to-left"
+        assert ws.cell(row=6, column=2).value == "أفريقيا"
+    # English reports must stay left-to-right.
+    assert render.envelope_has_arabic(ARABIC) is True
+    assert render.envelope_has_arabic(ENVELOPE) is False
+
+
 def test_pdf():
     if not render.pdf_available():
         print("SKIP: reportlab not installed; PDF render not tested here.")
@@ -105,6 +127,7 @@ def test_pdf_pack():
 def main():
     test_number_formatting()
     test_excel()
+    test_excel_arabic_is_rtl()
     test_pdf()
     test_excel_pack()
     test_pdf_pack()

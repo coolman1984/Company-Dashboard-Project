@@ -66,7 +66,9 @@ def write_json(envelope, out_dir):
 def write_csv(envelope, out_dir):
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, f"{envelope['report']}.csv")
-    with open(path, "w", encoding="utf-8", newline="") as handle:
+    # utf-8-sig writes a BOM so Excel (especially on Arabic Windows) opens the
+    # file as UTF-8 instead of the local code page, which is what mangles Arabic.
+    with open(path, "w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=envelope["columns"])
         writer.writeheader()
         safe_rows = [
