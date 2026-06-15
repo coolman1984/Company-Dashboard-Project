@@ -37,6 +37,8 @@ import sqlite3
 import sys
 import tempfile
 
+from extractor import arabic
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEMA_PATH = os.path.join(BASE_DIR, "schema.sql")
 DEFAULT_RAW_DIR = os.path.join(BASE_DIR, "raw")
@@ -155,27 +157,27 @@ def validate_mapping(mapping, schema_columns):
 # Value conversion + record validation
 # --------------------------------------------------------------------------- #
 def convert(value, sql_type, where):
-    """Coerce a raw cell to its schema type, with context on failure."""
+    """Coerce a raw cell to its schema type, with context on failure.
+
+    Text is cleaned of invisible bidi/format junk and tatweel (but never letter-
+    folded), and numbers are parsed with the Arabic-aware parser so Arabic-Indic
+    digits, ٬/٫ separators, currency and accounting negatives all work.
+    """
     if value is None or value == "":
         return None
     try:
         if sql_type == "TEXT":
-            return str(value).strip()
+            cleaned = arabic.clean_display(value)
+            return cleaned if cleaned != "" else None
         if sql_type == "INTEGER":
-            return int(round(float(_numeric(value))))
+            number = arabic.parse_number(value)
+            return None if number is None else int(round(number))
         if sql_type == "REAL":
-            return float(_numeric(value))
+            number = arabic.parse_number(value)
+            return None if number is None else float(number)
     except (ValueError, TypeError):
         raise MappingError(f"{where}: cannot convert {value!r} to {sql_type}.")
     return value
-
-
-def _numeric(value):
-    """Tolerate thousands separators / currency symbols in numeric cells."""
-    if isinstance(value, (int, float)):
-        return value
-    cleaned = re.sub(r"[,\s$€£]", "", str(value))
-    return cleaned
 
 
 def validate_required(record, where):
@@ -220,8 +222,9 @@ def select_sheet(envelope, mapping, where):
     if not sheets:
         raise MappingError(f"{where}: no sheets in capture.")
     if mapping.get("sheet"):
+        target = arabic.match_key(mapping["sheet"])
         for sheet in sheets:
-            if sheet.get("name") == mapping["sheet"]:
+            if arabic.match_key(sheet.get("name")) == target:
                 return sheet
         raise MappingError(f"{where}: sheet '{mapping['sheet']}' not found "
                            f"(available: {[s.get('name') for s in sheets]}).")
@@ -252,15 +255,24 @@ def iter_records(mapping, schema_columns, raw_dir):
         cells = sheet.get("cells") or []
         if header_row >= len(cells):
             raise MappingError(f"{fname}: header_row {header_row} beyond sheet.")
-        headers = [str(h).strip() if h is not None else "" for h in cells[header_row]]
+        headers = [str(h) if h is not None else "" for h in cells[header_row]]
+
+        # Match on the Arabic-normalized key so a header still matches across
+        # spelling variants, diacritics, tatweel and stray bidi/format marks.
+        header_index_by_key = {}
+        for position, header in enumerate(headers):
+            key = arabic.match_key(header)
+            if key and key not in header_index_by_key:
+                header_index_by_key[key] = position
 
         index_of = {}
         for source_header in columns:
-            if source_header not in headers:
+            key = arabic.match_key(source_header)
+            if key not in header_index_by_key:
                 raise MappingError(
                     f"{fname}, sheet '{sheet.get('name')}': mapped header "
                     f"'{source_header}' not found in {headers}.")
-            index_of[source_header] = headers.index(source_header)
+            index_of[source_header] = header_index_by_key[key]
 
         for row_no, row in enumerate(cells[header_row + 1:], start=header_row + 2):
             if skip_blank and not any(c not in (None, "") for c in row):

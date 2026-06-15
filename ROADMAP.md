@@ -127,10 +127,13 @@ to respect the no-CDN rule.
 >   (folds alef/yaa/taa-marbuta/hamza + diacritics + digits, for matching and
 >   grouping only), plus `parse_number` (Arabic digits, ٬/٫ separators, currency,
 >   accounting negatives) and Gregorian `month_to_number`. Tested + in CI.
-> - **6.2 Arabic-aware mapper.** Match headers/sheets via `match_key`; parse
->   numbers/periods via the core; store a normalized group key beside the
->   original value so reports total correctly without renaming anything. Golden
->   Arabic fixtures.
+> - **6.2 Arabic-aware mapper — *first version done*.** Headers and sheet names
+>   now match via `match_key` (tolerant of spelling variants, diacritics,
+>   tatweel and bidi marks); numeric cells parse via `parse_number`; text is
+>   stored cleaned but with its original spelling. Tested with Arabic fixtures.
+>   *Still to do (6.2b, needs a schema decision — load-bearing):* store a
+>   normalized group key beside each dimension value so spelling variants of a
+>   name also total together in reports.
 > - **6.3 Format & fidelity.** `.xlsb` (pyxlsb), `.xls` (xlrd), CSV/TSV with
 >   encoding auto-detection (Windows-1256 vs UTF-8±BOM); merged-cell and
 >   multi-row headers, formula-without-cache detection, error cells, numbers

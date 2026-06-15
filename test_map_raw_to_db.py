@@ -172,6 +172,50 @@ def test_post_load_validation_aborts_on_duplicate_grain():
         assert not leftovers, f"temp files left behind: {leftovers}"
 
 
+def test_arabic_headers_numbers_and_text():
+    with tempfile.TemporaryDirectory() as tmp:
+        raw = os.path.join(tmp, "raw")
+        db = os.path.join(tmp, "pl_detail.db")
+        mp = os.path.join(tmp, "map.json")
+        # The sheet header uses a yaa variant (صافى) and a leading RTL mark;
+        # the mapping uses the standard spelling (صافي). They must still match.
+        ar_header = ["السنة", "النسخة", "الفترة", "المنطقة", "‏صافى المبيعات"]
+        _write_capture(raw, "ar_PL.raw.json", "الأرباح والخسائر", ar_header, [
+            ["٢٠٢٥", "Actual", "٣", "أفريقيا", "١٬٢٥٠٫٥٠"],   # Arabic digits + separators
+            ["2025", "Actual", 4, "أوروبا", "(1,000)"],          # accounting negative
+        ])
+        mapping = {
+            "name": "arabic-test",
+            "source_glob": "*PL*.raw.json",
+            "sheet": "الارباح والخسائر",   # alef variant of the real sheet name
+            "header_row": 0,
+            "skip_blank_rows": True,
+            "columns": {
+                "السنة": "year", "النسخة": "version", "الفترة": "period",
+                "المنطقة": "region_desc", "صافي المبيعات": "net_sales",
+            },
+            "constants": {"currency": "USD"},
+        }
+        with open(mp, "w", encoding="utf-8") as fh:
+            json.dump(mapping, fh, ensure_ascii=False)
+
+        stats = m.load(mp, raw_dir=raw, db_path=db, verbose=False)
+        assert stats["rows_inserted"] == 2, stats
+
+        conn = sqlite3.connect(db)
+        try:
+            rows = conn.execute(
+                "SELECT year, version, period, region_desc, net_sales "
+                "FROM pl_detail ORDER BY period").fetchall()
+        finally:
+            conn.close()
+        # Arabic digits/year/period parsed; region text preserved as written.
+        assert rows[0] == (2025, "Actual", 2025.003, "أفريقيا", 1250.5), rows[0]
+        # Accounting negative parsed; ASCII year works in the same file.
+        assert rows[1][2] == 2025.004 and rows[1][4] == -1000.0, rows[1]
+        assert rows[1][3] == "أوروبا", rows[1]
+
+
 def test_mapping_validation():
     cols = m.load_schema_columns()
 
@@ -193,6 +237,7 @@ def main():
     test_multiple_batches()
     test_overwrite_protection_and_force_preserves_on_failure()
     test_post_load_validation_aborts_on_duplicate_grain()
+    test_arabic_headers_numbers_and_text()
     test_mapping_validation()
     print("map_raw_to_db tests passed.")
     return 0
