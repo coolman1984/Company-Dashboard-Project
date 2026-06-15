@@ -210,7 +210,10 @@ We are a team with different strengths. Use the right agent for the right job.
 - **Reports engine — extend** (Stage 2 Done): client-specific templates.
 
 ### In Progress (owner)
-- _(none currently)_
+- **Phase 2 import-run workspace** (mohamed/minimax-m3 on
+  `mohamed/phase-2-import-workspace`): per-client runs, raw copies, db backups,
+  `import_history.json` with cap, `validation.json` per run, rollback CLI. Plan
+  saved at `.hermes/plans/2026-06-15_150000-phase-2-import-workspace.md`.
 
 ### Done
 - **Arabic Stage 6 documentation + visual QA refresh** (OpenAI Codex on `main`):
