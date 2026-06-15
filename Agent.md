@@ -61,6 +61,39 @@ finally:
     excel.Quit()
 ```
 
+### Use `extractor/com_utils.py` — don't hand-roll COM again
+All the dangerous choreography now lives in one tested module. Prefer it over
+re-writing the pattern:
+- **`excel_session()`** — context manager that configures a dialog-free Excel
+  (`Visible/DisplayAlerts/EnableEvents/AskToUpdateLinks/Interactive` off) and
+  *guarantees* `Quit()` + ref release + `CoUninitialize()` on exit. Also sets
+  **`AutomationSecurity = 3` (force-disable macros)** — client files are
+  untrusted; never let a workbook macro run on open.
+- **`open_workbook(excel, path)`** — never hangs: passes a **guard `Password`**
+  so a protected file raises instead of popping a modal password dialog,
+  `UpdateLinks=0` / `IgnoreReadOnlyRecommended=True` / `Notify=False` to kill
+  link/read-only prompts, and **retries a corrupt file once with
+  `CorruptLoad=xlExtractData`** before giving a clean error.
+- **`find_sheet(workbook, name, index)`** — match by name (case/space-tolerant)
+  with an index fallback. Replaces the brittle hard-coded `Sheets(2)`.
+- **`clean_com_value` / `is_cv_error`** — turn CVErr formula errors (#REF!,
+  #DIV/0! → large negative ints from pywin32) into `null` + a warning;
+  `chunk_bounds` / `normalize_block` carry the chunk math and grid shaping.
+
+### More gotchas learned
+- **Password dialog = silent hang.** An unattended run blocks forever on a
+  modal password prompt. The guard-password trick in `open_workbook` converts
+  it to a catchable error.
+- **Macros on open are a security risk** with untrusted client files — disable
+  via `AutomationSecurity`.
+- **Don't index a partial load.** `ingest_sheet1.py` only builds indexes/views
+  after a *complete* load; a failed/aborted run leaves an unindexed DB to be
+  rebuilt (and previously crashed with `UnboundLocalError` referencing
+  `total_inserted` — now initialised before the COM block).
+- **COM logic is testable without Windows.** `extractor/test_excel_com.py`
+  fakes the `UsedRange/Cells/Range.Value` object model, so value-cleaning,
+  chunking, sheet selection and the no-hang open all run in CI on Linux.
+
 ---
 
 ## 3. Database Best Practices
