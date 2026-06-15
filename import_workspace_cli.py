@@ -61,8 +61,13 @@ def cmd_rollback(args):
     # is the safe state to roll back to.
     target = Path(args.db)
     target.parent.mkdir(parents=True, exist_ok=True)
-    iw.promote_database(backup, target)
-    iw.update_run(args.client, good["run_id"], rolled_back_to=good["run_id"])
+    # Copy the backup over the live DB — never move/replace the backup itself
+    # so that repeated rollbacks are safe.
+    import shutil
+    shutil.copy2(str(backup), str(target))
+    iw.update_run(args.client, good["run_id"],
+                  rolled_back_at=iw.make_run_id(),
+                  rolled_back_from_backup=good["backup_path"])
     print(f"rolled back {target} to {backup}")
     return 0
 

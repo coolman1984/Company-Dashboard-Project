@@ -139,6 +139,46 @@ class TestWorkspaceIntegration(unittest.TestCase):
         self.assertFalse(iw.WORKSPACE_ROOT.exists())
         self.assertTrue(self.db_path.exists())
 
+    def test_rollback_preserves_backup(self):
+        """rollback must copy the backup, not move it — so repeated rollbacks work."""
+        # Create initial data
+        m.load(str(self.mapping_path), raw_dir=str(self.raw_dir),
+               db_path=str(self.db_path), force=True, client_id="test_rollback")
+        # Create second run with backup
+        m.load(str(self.mapping_path), raw_dir=str(self.raw_dir),
+               db_path=str(self.db_path), force=True, client_id="test_rollback")
+        
+        cw = iw.client_workspace("test_rollback")
+        runs = sorted((cw / "runs").iterdir())
+        backup_path = runs[1] / "db-before.db"
+        self.assertTrue(backup_path.exists())
+        
+        # Read backup content before rollback
+        with open(backup_path, "rb") as f:
+            backup_content_before = f.read()
+        
+        # Perform rollback
+        from import_workspace_cli import cmd_rollback
+        class Args:
+            client = "test_rollback"
+            db = str(self.db_path)
+        
+        rc = cmd_rollback(Args())
+        self.assertEqual(rc, 0)
+        
+        # Verify backup still exists (critical!)
+        self.assertTrue(backup_path.exists(), "backup must not be moved/deleted")
+        with open(backup_path, "rb") as f:
+            backup_content_after = f.read()
+        self.assertEqual(backup_content_before, backup_content_after,
+                        "backup content must not change")
+        
+        # Verify live DB now has backup content
+        with open(self.db_path, "rb") as f:
+            live_content = f.read()
+        self.assertEqual(backup_content_before, live_content,
+                        "live DB should match backup after rollback")
+
 
 if __name__ == "__main__":
     result = unittest.main(exit=False, verbosity=2).result

@@ -432,10 +432,17 @@ def load(mapping_path, raw_dir=DEFAULT_RAW_DIR, db_path=DEFAULT_DB_PATH,
         # Mirror load output to logs/load.log for post-hoc debugging.
         workspace_log_path = run_path / "logs" / iw.LOG_FILENAME
         workspace_log_path.parent.mkdir(parents=True, exist_ok=True)
+        # Parse the run_id into a proper ISO timestamp.
+        # run_id format: run-YYYYMMDD-HHMMSS-microseconds
+        parts = run_id.split("-")
+        # parts = ['run', '20260615', '130000', '123456']
+        date_part = parts[1]  # 20260615
+        time_part = parts[2]  # 130000
+        micro_part = parts[3] if len(parts) > 3 else "000000"
+        iso_ts = f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:8]}T{time_part[:2]}:{time_part[2:4]}:{time_part[4:6]}.{micro_part}"
         history_entry = {
             "run_id": run_id,
-            "timestamp": run_id.replace("run-", "").replace("-", "", 1)
-                                       .replace("-", ":") + ".000000",
+            "timestamp": iso_ts,
             "client_id": effective_client,
             "mapping": str(mapping_path),
             "status": "running",
@@ -547,7 +554,7 @@ def load(mapping_path, raw_dir=DEFAULT_RAW_DIR, db_path=DEFAULT_DB_PATH,
                               run_path=str(run_path))
             except Exception:  # noqa: BLE001
                 pass
-        if workspace_log_path is not None and workspace_log_path.exists():
+        if workspace_log_path is not None:
             try:
                 workspace_log_path.write_text(
                     f"run_id={run_id}\nstatus={'success' if load_succeeded else 'failed'}\n"

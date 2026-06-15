@@ -29,6 +29,26 @@ class CsvTextExtractor(Extractor):
 
     def extract_content(self, path: str):
         warnings = []
+        
+        # Guard: file size limit (100MB)
+        file_size = os.path.getsize(path)
+        if file_size > 100 * 1024 * 1024:
+            warnings.append(
+                f"File is very large ({file_size / (1024*1024):.1f} MB). "
+                "CSV parsing may be slow."
+            )
+        
+        # Guard: empty file
+        if file_size == 0:
+            warnings.append("File is empty (0 bytes).")
+            sheet = {
+                "name": os.path.splitext(os.path.basename(path))[0],
+                "n_rows": 0,
+                "n_cols": 0,
+                "cells": [],
+            }
+            return {"sheets": [sheet]}, warnings
+        
         with open(path, "rb") as handle:
             raw_bytes = handle.read()
 
@@ -36,10 +56,35 @@ class CsvTextExtractor(Extractor):
         if encoding not in ("utf-8", "utf-8-sig"):
             warnings.append(
                 f"Decoded as {encoding} (no UTF-8 BOM). Verify Arabic text looks correct.")
+        
+        # Guard: binary content detection
+        if _looks_binary(raw_bytes):
+            warnings.append(
+                "File appears to contain binary data. This may not be a valid CSV.")
 
         delimiter = _sniff_delimiter(text, path)
-        reader = csv.reader(io.StringIO(text), delimiter=delimiter)
-        rows = [[_clean(v) for v in row] for row in reader]
+        
+        try:
+            reader = csv.reader(io.StringIO(text), delimiter=delimiter)
+            rows = []
+            parse_errors = 0
+            for line_num, row in enumerate(reader, start=1):
+                try:
+                    cleaned = [_clean(v) for v in row]
+                    rows.append(cleaned)
+                except Exception as exc:
+                    parse_errors += 1
+                    if parse_errors <= 5:  # Don't spam warnings
+                        warnings.append(f"Line {line_num}: parse error ({exc})")
+            
+            if parse_errors > 5:
+                warnings.append(f"... and {parse_errors - 5} more parse errors")
+        except csv.Error as exc:
+            raise ValueError(
+                f"CSV parsing failed: {exc}. File may be malformed or use "
+                "an unsupported format."
+            ) from exc
+        
         while rows and not any(cell not in (None, "") for cell in rows[-1]):
             rows.pop()
 
@@ -72,6 +117,23 @@ def _decode(raw_bytes: bytes):
         return raw_bytes.decode("latin-1"), "latin-1"
 
 
+def _looks_binary(raw_bytes: bytes) -> bool:
+    """Heuristic: detect if file contains too many non-printable bytes."""
+    # Sample first 10KB
+    sample = raw_bytes[:10240]
+    if not sample:
+        return False
+    
+    # Count non-printable, non-whitespace bytes
+    non_printable = sum(
+        1 for byte in sample
+        if byte < 32 and byte not in (9, 10, 13)  # tab, newline, carriage return
+    )
+    
+    # If >10% non-printable, likely binary
+    return (non_printable / len(sample)) > 0.1
+
+
 def _sniff_delimiter(text: str, path: str) -> str:
     if os.path.splitext(path)[1].lower() == ".tsv":
         return "\t"
@@ -88,5 +150,9 @@ def _sniff_delimiter(text: str, path: str) -> str:
 def _clean(value):
     """CSV cells are text; preserve them faithfully, normalising only newlines."""
     if isinstance(value, str):
-        return value.replace("\r\n", "\n").replace("\r", "\n")
+        # Normalize line endings
+        cleaned = value.replace("\r\n", "\n").replace("\r", "\n")
+        # Strip excessive whitespace but preserve internal structure
+        # Don't strip leading/trailing - it might be intentional (Arabic RTL)
+        return cleaned
     return value
