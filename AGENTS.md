@@ -211,14 +211,18 @@ We are a team with different strengths. Use the right agent for the right job.
 
 ### In Progress (owner)
 - **Arabic-first extraction & RTL dashboard** (Claude Code) — staged plan in
-  `ROADMAP.md` (Stage 6). Stages 1, 2 and 3 (first version) are **Done**; next is
-  Stage 4 (export correctness: CSV BOM, PDF reshaping+bidi+Cairo, XLSX RTL).
+  `ROADMAP.md` (Stage 6). Stages 1, 2, 3 and 4a (CSV BOM + Excel RTL) are
+  **Done**; next is 4b (Arabic PDF — needs a font decision) then Stage 5 (RTL UI).
   Decisions locked: Gregorian only; full RTL UI; support
   `.xlsx/.xlsm/.xlsb/.xls/CSV`; **keep spellings exactly as typed — do NOT merge
   variants in totals** (owner decision, 6.2b declined); user-toggleable digits;
   vendored **Cairo** font (no CDN).
 
 ### Done
+- **Arabic export correctness 4a** (Stage 6.4 part): CSV now writes a UTF-8 BOM
+  (`utf-8-sig`) so Excel opens Arabic without mojibake; Excel report sheets are
+  flagged right-to-left when content is Arabic (`envelope_has_arabic`). Tests
+  added. PDF Arabic (4b) still pending a font decision.
 - **Arabic file-format readers** (Stage 6.3 first version): `csv-text` (CSV/TSV,
   stdlib, encoding auto-detect Windows-1256/UTF-8±BOM + delimiter sniff),
   `excel-xlsb` (pyxlsb), `excel-xls` (xlrd) — all emit the shared spreadsheet
@@ -265,6 +269,27 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — Claude Code — claude/docs-updates-7-files-4bs7ux (Arabic Stage 4a)
+**Did:** Export correctness, part 1. (1) `reports/generate.py` `write_csv` now
+uses `utf-8-sig` (UTF-8 BOM) so Excel — especially on Arabic Windows — opens CSV
+exports as UTF-8 instead of the local code page, which is what garbles Arabic.
+(2) `reports/render.py`: added `_has_arabic` / `envelope_has_arabic` and set
+`ws.sheet_view.rightToLeft = True` on Excel report sheets whose content is
+Arabic. Added tests: CSV-has-BOM-and-keeps-Arabic (`test_reports.py`) and
+Excel-Arabic-is-RTL (`test_render.py`).
+**Why:** These are the two exports that were genuinely wrong/uncomfortable for
+Arabic. XLSX already stored Arabic fine (it's UTF-8 XML), so only the RTL
+orientation was missing; CSV was the real bug.
+**Status:** ✅ all suites pass. No new dependencies, no binary assets.
+**Next:** 4b — Arabic in PDF board packs. Blocked on a font decision: reportlab
+needs an embedded Arabic TTF, and the `arabic-reshaper`+`python-bidi` approach
+needs a font that carries Arabic *presentation forms* in its cmap. Cairo (the
+chosen UI font) is modern and may render as boxes that way; a traditional face
+(Amiri / Noto Naskh) is the reliable PDF choice. Surface to owner before adding
+the font binary + deps.
+**Watch out:** `envelope_has_arabic` scans headers + cell values for U+0600–06FF;
+cheap but runs per sheet — fine at report sizes.
 
 ### 2026-06-15 — Claude Code — claude/docs-updates-7-files-4bs7ux (Arabic Stage 3)
 **Did:** Added three file-format readers (ROADMAP 6.3), all emitting the shared

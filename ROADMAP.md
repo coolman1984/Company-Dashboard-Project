@@ -140,9 +140,14 @@ to respect the no-CDN rule.
 >   spreadsheet envelope so they load through the mapper unchanged. *Still to do:*
 >   merged-cell and multi-row headers, formula-without-cache detection, error
 >   cells, and date-serial handling for `.xlsb`/`.xls`.
-> - **6.4 Export correctness.** CSV written with a UTF-8 BOM (so Excel on Arabic
->   Windows reads it); PDF board packs reshaped + bidi-ordered with the embedded
->   Cairo font and right-aligned RTL tables; XLSX sheets flagged right-to-left.
+> - **6.4 Export correctness — *CSV + Excel done; PDF pending*.** CSV now writes
+>   a UTF-8 BOM so Excel opens Arabic correctly; Excel report sheets are flagged
+>   right-to-left when the content is Arabic. *Still to do:* PDF board packs need
+>   an embedded Arabic font plus reshaping (`arabic-reshaper`) and bidi ordering
+>   (`python-bidi`) and right-aligned RTL tables — gated on a font decision
+>   (Cairo is a modern font and may lack the presentation-form glyphs the
+>   reshaping approach needs; a traditional face like Amiri/Noto Naskh is the
+>   safe choice for PDF).
 > - **6.5 Full RTL dashboard.** `dir="rtl"`/`lang="ar"`, vendored Cairo webfont,
 >   CSS logical properties so the layout mirrors cleanly, bidi-isolated numbers,
 >   RTL-configured Chart.js, a small en/ar string map and a language + digit

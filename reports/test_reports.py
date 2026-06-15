@@ -59,6 +59,23 @@ def _make_outlook_db(path):
     conn.close()
 
 
+def test_csv_has_bom_and_preserves_arabic():
+    """CSV exports must carry a UTF-8 BOM and keep Arabic text intact."""
+    from .generate import write_csv
+    envelope = {
+        "report": "regional_pl_ar",
+        "columns": ["المنطقة", "net_sales"],
+        "rows": [{"المنطقة": "أفريقيا", "net_sales": 1200.0}],
+    }
+    with tempfile.TemporaryDirectory() as out:
+        path = write_csv(envelope, out)
+        with open(path, "rb") as fh:
+            raw = fh.read()
+        assert raw.startswith(b"\xef\xbb\xbf"), "CSV should start with a UTF-8 BOM"
+        text = raw.decode("utf-8-sig")
+        assert "أفريقيا" in text and "المنطقة" in text, text
+
+
 def test_outlook_reports():
     from .generate import compute_envelopes
     with tempfile.TemporaryDirectory() as tmp:
@@ -81,6 +98,7 @@ def test_outlook_reports():
 
 
 def main():
+    test_csv_has_bom_and_preserves_arabic()
     test_outlook_reports()
     with tempfile.TemporaryDirectory() as tmp:
         db = os.path.join(tmp, "pl_detail.db")
