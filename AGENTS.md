@@ -210,12 +210,16 @@ We are a team with different strengths. Use the right agent for the right job.
 - **Reports engine — extend** (Stage 2 Done): client-specific templates.
 
 ### In Progress (owner)
-- **Phase 2 import-run workspace** (mohamed/minimax-m3 on
-  `mohamed/phase-2-import-workspace`): per-client runs, raw copies, db backups,
-  `import_history.json` with cap, `validation.json` per run, rollback CLI. Plan
-  saved at `.hermes/plans/2026-06-15_150000-phase-2-import-workspace.md`.
+- _(none currently)_
 
 ### Done
+- **Phase 2 import-run workspace** (mohamed/minimax-m3 on
+  `mohamed/phase-2-import-workspace`): per-client `workspaces/<client>/runs/`
+  layout, raw snapshot, automatic db-before.db backup, `import_history.json`
+  capped at 50 with prepend-newest, `validation.json` per run, atomic
+  rollback CLI. 23 unit tests + 3 integration tests, all green. CLI is
+  opt-in via `--client`; legacy behaviour is byte-for-byte equivalent. Plan
+  in `.hermes/plans/2026-06-15_150000-phase-2-import-workspace.md`.
 - **Arabic Stage 6 documentation + visual QA refresh** (OpenAI Codex on `main`):
   reviewed Arabic desktop/mobile and English desktop in a running browser,
   fixed the initial Arabic page heading and additional dynamic UI translations,
@@ -289,6 +293,34 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — mohamed (minimax-m3) — `mohamed/phase-2-import-workspace`
+**Did:** Added Phase 2 import-run workspace scaffolding: `import_workspace.py`
+(directory layout, history persistence with 50-entry cap, backup/promote
+helpers, copy-raw-inputs), CLI subcommands in `import_workspace_cli.py`
+(history + rollback), and integration into `map_raw_to_db.load` via new
+`--client` and `--no-workspace` flags. Added 23 unit tests in
+`test_import_workspace.py` and 3 end-to-end tests in `test_phase2_integration.py`.
+Updated `.gitignore` (workspaces, *.db.bak, import_history*.json), README
+"Import-run workspaces" section, plan saved to
+`.hermes/plans/2026-06-15_150000-phase-2-import-workspace.md`.
+**Why:** Make the first real client import repeatable and recoverable
+(CLIENT_READINESS_REVIEW Phase 2 #1). Each run is now isolated, snapshotted,
+auditable, and roll-able-back.
+**Status:** ✅ verified locally — `python3 test_import_workspace.py` (23
+passed), `python3 test_phase2_integration.py` (3 passed),
+`python3 test_map_raw_to_db.py` (existing tests pass — backwards compat
+preserved). `node --check` not affected (no server-side changes). Live
+import not run against real client data (synthetic only).
+**Next:** Source drill-back from dashboard numbers to source rows/files
+(Phase 2 #4). Mapping review UI (Phase 2 #2). Visible validation page in the
+dashboard UI (Phase 2 #3).
+**Watch out:** The `--client` flag is opt-in; the legacy mapper CLI without
+it is byte-for-byte equivalent to the previous behaviour. `schema.sql`,
+`server.js`, and the raw-JSON envelope are untouched. The new microsecond
+suffix in `make_run_id` changed the run-id format; consumers parsing the id
+string should use the timestamp prefix only.
+
 
 ### 2026-06-15 — OpenAI Codex — main (Stage 6 docs + visual QA refresh)
 **Did:** Reviewed the current `main` only, ran the dashboard with Arabic seed data, checked Arabic desktop/mobile and English desktop in Playwright, fixed the initial Arabic page heading (`app.js`), expanded dynamic Arabic UI translations (`i18n.js`), added Arabic PDF render coverage (`reports/test_render.py`), aligned `extractor/requirements.txt` with the `.xlsb`/`.xls` readers, and updated `README.md`, `GETTING-STARTED.md`, `ROADMAP.md`, `reports/README.md`, `ARABIC_STAGE6_HANDOFF.md`, and this task board/journal to match the current code.

@@ -79,6 +79,44 @@ board packs use HTML/CSS → WeasyPrint for proper RTL and connected-Arabic
 glyph rendering and include a final **source-confidence / import-validation**
 page summarising row counts, null checks, duplicate-grain checks, and coverage.
 
+## Import-run workspaces (Phase 2)
+
+Real client imports are now isolated in per-client workspaces.  When the
+mapper is invoked with `--client <id>`, the run is captured in:
+
+```text
+workspaces/<client>/
+  import_history.json                       (append-only manifest, newest first, capped at 50)
+  runs/<run-id>/
+    raw/                                    (snapshot of the captures used in this run)
+    logs/load.log                           (mirror of the mapper's stdout)
+    reports/                                (reserved for per-run exports)
+    validation.json                         (post-load validation summary)
+    db-before.db                            (previous good database, copied before the swap)
+```
+
+The default flow (no `--client` flag) is unchanged — the legacy CLI is fully
+backwards compatible.
+
+Common operations:
+
+```bash
+# Load with a workspace
+python3 map_raw_to_db.py --mapping mapping.acme.json --client acme --force
+
+# View history
+python3 import_workspace_cli.py history --client acme
+python3 import_workspace_cli.py history --client acme --json
+
+# Roll back to the last good database
+python3 import_workspace_cli.py rollback --client acme --db pl_detail.db
+```
+
+The rollback subcommand restores the most recent `db-before.db` (the live DB
+as it was just before the last successful run) and records the action in the
+client's `import_history.json`.  See `import_workspace.py` for the helpers and
+`test_phase2_integration.py` for the end-to-end coverage.
+
 ## Data model
 
 `pl_detail` is a single wide table (one row per year × version × period ×
