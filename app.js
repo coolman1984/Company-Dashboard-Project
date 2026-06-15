@@ -731,8 +731,8 @@ function renderTopMovers(data) {
     if (!products.length || !cov.priorYear) { moversCard.style.display = 'none'; return; }
     moversCard.style.display = '';
 
-    var html = '<thead><tr><th>Product group</th><th>FY' + cov.year + ' revenue</th>' +
-        '<th>Change vs FY' + cov.priorYear + '</th><th>Change %</th><th>GM pp shift</th><th>Signal</th></tr></thead><tbody>';
+    var html = '<thead><tr><th>' + tr('Product group') + '</th><th>' + tr('FY' + cov.year + ' revenue') + '</th>' +
+        '<th>' + tr('Change vs FY' + cov.priorYear) + '</th><th>' + tr('Change %') + '</th><th>' + tr('GM pp shift') + '</th><th>' + tr('Signal') + '</th></tr></thead><tbody>';
     products.slice(0, 10).forEach(function (r) {
         var revCls = valueClass('net_sales', r.change);
         var gmCls = r.gmPpChange == null ? '' : r.gmPpChange >= 0 ? 'pos' : 'neg';
@@ -1324,7 +1324,7 @@ function renderScenario() {
         ['Operating Profit', 'operating_profit'],
         ['Net Income', 'net_income']
     ];
-    var html = '<thead><tr><th>Metric</th><th>Actual P01-P05</th><th>T06 P06</th><th>T07 P07-P12</th><th>Combined outlook</th><th>Actual share</th></tr></thead><tbody>';
+    var html = '<thead><tr><th>' + tr('Metric') + '</th><th>' + tr('Actual P01-P05') + '</th><th>' + tr('T06 P06') + '</th><th>' + tr('T07 P07-P12') + '</th><th>' + tr('Combined outlook') + '</th><th>' + tr('Actual share') + '</th></tr></thead><tbody>';
     definitions.forEach(function (definition) {
         var key = definition[1];
         var actualValue = Number(row2026['actual_' + key] || 0);
