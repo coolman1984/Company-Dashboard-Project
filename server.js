@@ -195,12 +195,19 @@ function normalizeAliases(data) {
     return normalized;
 }
 
+// Defensive: a corrupt source value could surface as NaN/Infinity from SQLite.
+// JSON.stringify already turns those into null, but we do it explicitly so the
+// behaviour is intentional and consistent across all responses.
+function finiteReplacer(key, value) {
+    return (typeof value === 'number' && !Number.isFinite(value)) ? null : value;
+}
+
 function jsonResponse(res, data, statusCode = 200) {
     res.writeHead(statusCode, {
         'Content-Type': 'application/json; charset=utf-8',
         'Cache-Control': 'no-store'
     });
-    res.end(JSON.stringify(normalizeAliases(data)));
+    res.end(JSON.stringify(normalizeAliases(data), finiteReplacer));
 }
 
 function errorResponse(res, statusCode, message) {

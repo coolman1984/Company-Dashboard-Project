@@ -17,6 +17,8 @@ import sqlite3
 # Shared, hardened COM helpers (lazy win32com import inside, so this file
 # imports cleanly on any platform for --help / syntax checks).
 from extractor import com_utils
+# schema.sql is the single source of truth for the table + indexes + views.
+import db_schema
 
 # ===== CONFIGURATION =====
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -114,180 +116,28 @@ def create_database(db_path=DB_PATH, assume_yes=False):
         print(f"Removed existing database: {db_path}")
 
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    # Build CREATE TABLE statement
-    col_defs = ", ".join(f'"{name}" {dtype}' for name, dtype in COLUMNS)
-    create_sql = f'CREATE TABLE pl_detail ({col_defs})'
-    cursor.execute(create_sql)
-    conn.commit()
+    # Build the table from schema.sql (the single source of truth) so the COM
+    # ingest produces a schema identical to the seed and the raw mapper.
+    db_schema.apply_table(conn)
 
     print(f"Created database: {db_path}")
     print(f"Table: pl_detail ({len(COLUMNS)} columns)")
     return conn
 
 def create_indexes(conn):
-    """Create indexes for fast analytical queries."""
-    cursor = conn.cursor()
+    """Create every index from schema.sql (after the bulk load, for speed)."""
+    print("\nCreating indexes and views from schema.sql...")
+    start = time.time()
+    db_schema.apply_indexes_and_views(conn)
+    print(f"  {OK} indexes + views created - {time.time() - start:.1f}s")
 
-    indexes = [
-        ("idx_year", "year"),
-        ("idx_region", "region_desc"),
-        ("idx_country", "country_name"),
-        ("idx_customer", "customer_name"),
-        ("idx_mgroup", "m_group_desc"),
-        ("idx_class", "class"),
-        ("idx_version", "version"),
-        ("idx_period", "period"),
-        ("idx_profit_center", "profit_center"),
-        ("idx_product", "product_number"),
-        ("idx_year_region", "year, region_desc"),
-        ("idx_year_mgroup", "year, m_group_desc"),
-        ("idx_year_customer", "year, customer_name"),
-    ]
-
-    print("\nCreating indexes...")
-    for idx_name, idx_col in indexes:
-        start = time.time()
-        cursor.execute(f'CREATE INDEX "{idx_name}" ON pl_detail ({idx_col})')
-        elapsed = time.time() - start
-        print(f"  {OK} {idx_name} on ({idx_col}) - {elapsed:.1f}s")
-
-    conn.commit()
-    print("All indexes created.")
 
 def create_summary_views(conn):
-    """Create pre-computed summary views for the dashboard."""
-    cursor = conn.cursor()
+    """Views are created alongside the indexes by create_indexes (schema.sql).
 
-    # Yearly P&L summary (matches Sheet3 pivot)
-    cursor.execute("""
-        CREATE VIEW v_yearly_pl AS
-        SELECT
-            year,
-            SUM(net_sales) as net_sales,
-            SUM(cost_of_goods_sold) as cogs,
-            SUM(gross_margin) as gross_margin,
-            SUM(operating_expense) as opex,
-            SUM(operating_profit) as operating_profit,
-            SUM(net_income) as net_income,
-            SUM(s_gross_sales) as gross_sales,
-            SUM(s_return_amt) as returns,
-            SUM(sales_deduction) as sales_deduction,
-            SUM(material_cost) as material_cost,
-            SUM(sales_expense) as sales_expense,
-            SUM(profit_before_tax) as profit_before_tax,
-            SUM(corporate_tax) as corporate_tax,
-            SUM(royalty) as royalty
-        FROM pl_detail
-        WHERE version = 'Actual'
-        GROUP BY year
-        ORDER BY year
-    """)
-
-    # Regional P&L by year
-    cursor.execute("""
-        CREATE VIEW v_regional_pl AS
-        SELECT
-            year,
-            region_desc,
-            SUM(net_sales) as net_sales,
-            SUM(cost_of_goods_sold) as cogs,
-            SUM(gross_margin) as gross_margin,
-            SUM(operating_expense) as opex,
-            SUM(operating_profit) as operating_profit,
-            SUM(net_income) as net_income
-        FROM pl_detail
-        WHERE version = 'Actual'
-        GROUP BY year, region_desc
-        ORDER BY year, region_desc
-    """)
-
-    # Product group P&L by year
-    cursor.execute("""
-        CREATE VIEW v_mgroup_pl AS
-        SELECT
-            year,
-            m_group_desc,
-            SUM(net_sales) as net_sales,
-            SUM(cost_of_goods_sold) as cogs,
-            SUM(gross_margin) as gross_margin,
-            SUM(operating_expense) as opex,
-            SUM(operating_profit) as operating_profit,
-            SUM(net_income) as net_income
-        FROM pl_detail
-        WHERE version = 'Actual'
-        GROUP BY year, m_group_desc
-        ORDER BY year, m_group_desc
-    """)
-
-    # Country P&L by year
-    cursor.execute("""
-        CREATE VIEW v_country_pl AS
-        SELECT
-            year,
-            region_desc,
-            country_name,
-            SUM(net_sales) as net_sales,
-            SUM(cost_of_goods_sold) as cogs,
-            SUM(gross_margin) as gross_margin,
-            SUM(operating_expense) as opex,
-            SUM(operating_profit) as operating_profit,
-            SUM(net_income) as net_income
-        FROM pl_detail
-        WHERE version = 'Actual'
-        GROUP BY year, region_desc, country_name
-        ORDER BY year, region_desc, country_name
-    """)
-
-    # Customer P&L by year (top customers)
-    cursor.execute("""
-        CREATE VIEW v_customer_pl AS
-        SELECT
-            year,
-            customer_name,
-            region_desc,
-            SUM(net_sales) as net_sales,
-            SUM(cost_of_goods_sold) as cogs,
-            SUM(gross_margin) as gross_margin,
-            SUM(operating_expense) as opex,
-            SUM(operating_profit) as operating_profit,
-            SUM(net_income) as net_income
-        FROM pl_detail
-        WHERE version = 'Actual'
-        GROUP BY year, customer_name, region_desc
-        ORDER BY year, net_sales DESC
-    """)
-
-    # YoY variance view
-    cursor.execute("""
-        CREATE VIEW v_yoy_variance AS
-        SELECT
-            curr.year,
-            curr.net_sales as net_sales,
-            prev.net_sales as prev_net_sales,
-            curr.net_sales - prev.net_sales as net_sales_change,
-            CASE WHEN prev.net_sales != 0
-                THEN ROUND((curr.net_sales - prev.net_sales) / ABS(prev.net_sales) * 100, 2)
-                ELSE NULL END as net_sales_pct_change,
-            curr.gross_margin as gross_margin,
-            prev.gross_margin as prev_gross_margin,
-            curr.gross_margin - prev.gross_margin as gross_margin_change,
-            CASE WHEN prev.gross_margin != 0
-                THEN ROUND((curr.gross_margin - prev.gross_margin) / ABS(prev.gross_margin) * 100, 2)
-                ELSE NULL END as gross_margin_pct_change,
-            curr.operating_profit as operating_profit,
-            prev.operating_profit as prev_operating_profit,
-            curr.operating_profit - prev.operating_profit as operating_profit_change,
-            curr.net_income as net_income,
-            prev.net_income as prev_net_income,
-            curr.net_income - prev.net_income as net_income_change
-        FROM v_yearly_pl curr
-        LEFT JOIN v_yearly_pl prev ON curr.year = prev.year + 1
-    """)
-
-    conn.commit()
-    print("Created summary views: v_yearly_pl, v_regional_pl, v_mgroup_pl, v_country_pl, v_customer_pl, v_yoy_variance")
+    Kept as a no-op for backwards compatibility with older call sites.
+    """
+    return
 
 def _coerce_row(clean_cells):
     """Turn a cleaned cell list into an insert tuple, fixing integer columns."""

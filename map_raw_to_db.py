@@ -31,6 +31,7 @@ import argparse
 import fnmatch
 import glob
 import json
+import math
 import os
 import re
 import sqlite3
@@ -39,6 +40,7 @@ import tempfile
 
 from extractor import arabic
 import import_workspace as iw
+import db_schema
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEMA_PATH = os.path.join(BASE_DIR, "schema.sql")
@@ -58,46 +60,25 @@ class MappingError(Exception):
 # Schema (single source of truth for column names and types)
 # --------------------------------------------------------------------------- #
 def load_schema_columns(schema_path=SCHEMA_PATH):
-    """Parse `CREATE TABLE pl_detail (...)` from schema.sql -> {column: type}."""
-    with open(schema_path, "r", encoding="utf-8") as handle:
-        sql = handle.read()
-    match = re.search(r"CREATE TABLE pl_detail\s*\((.*?)\)\s*;", sql, re.S | re.I)
-    if not match:
-        raise MappingError("Could not find CREATE TABLE pl_detail in schema.sql")
-    columns = {}
-    for line in match.group(1).splitlines():
-        line = line.strip().rstrip(",")
-        if not line:
-            continue
-        m = re.match(r'"?(?P<name>[A-Za-z_][A-Za-z0-9_]*)"?\s+(?P<type>TEXT|INTEGER|REAL)', line, re.I)
-        if m:
-            columns[m.group("name")] = m.group("type").upper()
-    if not columns:
-        raise MappingError("No columns parsed from schema.sql")
-    return columns
+    """Parse `CREATE TABLE pl_detail (...)` from schema.sql -> {column: type}.
+
+    Thin wrapper over the canonical db_schema module so there is exactly one
+    parser shared by every load path (mapper, seed, COM ingest).
+    """
+    try:
+        return db_schema.column_types(schema_path)
+    except ValueError as error:
+        raise MappingError(str(error))
 
 
 def split_schema_statements(schema_path=SCHEMA_PATH):
     """Return (table_ddl, post_ddl): table/drop first, indexes+views after.
 
     Lets us create the table, bulk-insert, THEN build indexes and views, which
-    matches the project's documented performance plan for large loads.
+    matches the project's documented performance plan for large loads. Delegates
+    to db_schema so all paths split the schema identically.
     """
-    with open(schema_path, "r", encoding="utf-8") as handle:
-        raw = handle.read()
-    # Strip line comments so they don't confuse statement splitting.
-    cleaned = "\n".join(
-        line for line in raw.splitlines() if not line.strip().startswith("--")
-    )
-    statements = [s.strip() for s in cleaned.split(";") if s.strip()]
-    table_ddl, post_ddl = [], []
-    for stmt in statements:
-        head = stmt.lstrip().upper()
-        is_table = "PL_DETAIL" in head and (
-            head.startswith("CREATE TABLE") or head.startswith("DROP TABLE")
-        )
-        (table_ddl if is_table else post_ddl).append(stmt)
-    return table_ddl, post_ddl
+    return db_schema.split_statements(schema_path)
 
 
 # --------------------------------------------------------------------------- #
@@ -172,10 +153,21 @@ def convert(value, sql_type, where):
             return cleaned if cleaned != "" else None
         if sql_type == "INTEGER":
             number = arabic.parse_number(value)
-            return None if number is None else int(round(number))
+            if number is None:
+                return None
+            if not math.isfinite(number):
+                raise MappingError(f"{where}: non-finite number {value!r} (NaN/Infinity).")
+            return int(round(number))
         if sql_type == "REAL":
             number = arabic.parse_number(value)
-            return None if number is None else float(number)
+            if number is None:
+                return None
+            number = float(number)
+            # NaN/Infinity would poison every SUM in the views and serialise as
+            # null over the API — reject them at the door.
+            if not math.isfinite(number):
+                raise MappingError(f"{where}: non-finite number {value!r} (NaN/Infinity).")
+            return number
     except (ValueError, TypeError):
         raise MappingError(f"{where}: cannot convert {value!r} to {sql_type}.")
     return value
