@@ -1,6 +1,15 @@
 (function () {
 'use strict';
 
+// Render charts in the dashboard's Arabic-capable font, and right-to-left when
+// the page is Arabic. Chart.js is already loaded (script order in index.html).
+if (window.Chart) {
+    Chart.defaults.font.family = "Cairo, system-ui, -apple-system, sans-serif";
+    if (document.documentElement.getAttribute('dir') === 'rtl') {
+        Chart.defaults.locale = 'ar';
+    }
+}
+
 var API = '';
 var colors = {
     blue: '#3867f4',
@@ -71,24 +80,29 @@ function escapeHtml(value) {
         .replace(/'/g, '&#039;');
 }
 
+// Localize Western digits to Arabic-Indic when the user has chosen that mode.
+function loc(text) {
+    return (window.I18N && window.I18N.localizeDigits) ? window.I18N.localizeDigits(text) : text;
+}
+
 function formatCompact(value) {
     if (value == null || !Number.isFinite(Number(value))) return '--';
     var number = Number(value);
     var absolute = Math.abs(number);
-    if (absolute >= 1e9) return (number / 1e9).toFixed(2) + 'B';
-    if (absolute >= 1e6) return (number / 1e6).toFixed(2) + 'M';
-    if (absolute >= 1e3) return (number / 1e3).toFixed(1) + 'K';
-    return number.toFixed(2);
+    if (absolute >= 1e9) return loc((number / 1e9).toFixed(2) + 'B');
+    if (absolute >= 1e6) return loc((number / 1e6).toFixed(2) + 'M');
+    if (absolute >= 1e3) return loc((number / 1e3).toFixed(1) + 'K');
+    return loc(number.toFixed(2));
 }
 
 function formatFull(value) {
     if (value == null || !Number.isFinite(Number(value))) return '--';
-    return Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return loc(Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 }
 
 function formatPercent(value) {
     if (value == null || !Number.isFinite(Number(value))) return '--';
-    return (Number(value) * 100).toFixed(1) + '%';
+    return loc((Number(value) * 100).toFixed(1) + '%');
 }
 
 function percentChange(previous, current) {
@@ -1345,8 +1359,8 @@ function activateTab(tabName) {
         panel.classList.toggle('active', selected);
         panel.hidden = !selected;
     });
-    el('pageTitle').textContent = pageMeta[tabName][0];
-    el('pageSubtitle').textContent = pageMeta[tabName][1];
+    el('pageTitle').textContent = (window.I18N && window.I18N.t('page.' + tabName + '.title')) || pageMeta[tabName][0];
+    el('pageSubtitle').textContent = (window.I18N && window.I18N.t('page.' + tabName + '.sub')) || pageMeta[tabName][1];
     configureGlobalFiltersForTab(tabName);
     if (!tabLoaded[tabName]) loadActiveTab(false);
 }

@@ -18,10 +18,13 @@ const PROJECT_ROOT_PREFIX = PROJECT_ROOT.endsWith(path.sep) ? PROJECT_ROOT : PRO
 const DB_PATH = path.join(__dirname, 'pl_detail.db');
 const API_DATA_DIR = path.join(__dirname, 'api_data');
 const CHART_JS_PATH = path.join(__dirname, 'chart.umd.min.js');
-const PUBLIC_FILES = new Set(['index.html', 'app.js']);
+const PUBLIC_FILES = new Set(['index.html', 'app.js', 'i18n.js']);
 
 if (fs.existsSync(CHART_JS_PATH)) {
     PUBLIC_FILES.add('chart.umd.min.js');
+}
+if (fs.existsSync(path.join(__dirname, 'cairo.ttf'))) {
+    PUBLIC_FILES.add('cairo.ttf');
 }
 
 const VALID_DIMENSIONS = ['region_desc', 'country_name', 'm_group_desc', 'customer_name', 'class'];
@@ -82,7 +85,8 @@ const FULL_METRIC_SELECT = [
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
-    '.js': 'application/javascript; charset=utf-8'
+    '.js': 'application/javascript; charset=utf-8',
+    '.ttf': 'font/ttf'
 };
 
 let db = null;

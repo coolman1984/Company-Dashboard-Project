@@ -211,14 +211,21 @@ We are a team with different strengths. Use the right agent for the right job.
 
 ### In Progress (owner)
 - **Arabic-first extraction & RTL dashboard** (Claude Code) — staged plan in
-  `ROADMAP.md` (Stage 6). Stages 1, 2, 3 and 4a (CSV BOM + Excel RTL) are
-  **Done**; next is 4b (Arabic PDF — needs a font decision) then Stage 5 (RTL UI).
+  `ROADMAP.md` (Stage 6). Stages 1, 2, 3, 4a and 5 (RTL UI first version) are
+  **Done**; remaining: 4b (Arabic PDF — needs a font decision) and 5b (deep UI
+  content translation + Arabic seed data + RTL visual polish).
   Decisions locked: Gregorian only; full RTL UI; support
   `.xlsx/.xlsm/.xlsb/.xls/CSV`; **keep spellings exactly as typed — do NOT merge
   variants in totals** (owner decision, 6.2b declined); user-toggleable digits;
   vendored **Cairo** font (no CDN).
 
 ### Done
+- **Arabic RTL dashboard** (Stage 6.5 first version): defaults to Arabic
+  right-to-left with an EN toggle (falls back to the original LTR layout);
+  vendored Cairo font (`cairo.ttf`, served locally); `i18n.js` translates the
+  nav/filters/buttons/banner/per-tab titles; digit toggle (Western↔Arabic-Indic);
+  charts use Cairo; `[dir="rtl"]` CSS mirrors the explicit left/right rules.
+  Deep content strings (KPI/chart/table) remain English → 5b.
 - **Arabic export correctness 4a** (Stage 6.4 part): CSV now writes a UTF-8 BOM
   (`utf-8-sig`) so Excel opens Arabic without mojibake; Excel report sheets are
   flagged right-to-left when content is Arabic (`envelope_has_arabic`). Tests
@@ -269,6 +276,33 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — Claude Code — claude/docs-updates-7-files-4bs7ux (Arabic Stage 5 — RTL UI)
+**Did:** First version of the full Arabic right-to-left dashboard. Vendored the
+Cairo variable font (`cairo.ttf`, 599 KB, OFL, served locally — no CDN; added to
+`server.js` PUBLIC_FILES + `.ttf` MIME) and applied it via a `--app-font` CSS
+var. New `i18n.js` (loaded before `app.js`): defaults to `lang="ar" dir="rtl"`,
+translates every `data-i18n` element (nav, filters, buttons, banner, brand,
+sidebar meta), and provides `localizeDigits` + lang/digit toggles (persist in
+localStorage, reload to apply). `index.html` now defaults to Arabic RTL with a
+`[dir="rtl"]` CSS override block for the explicit left/right rules, and AR/EN +
+digit toggle buttons in the topbar. `app.js`: the three number formatters route
+through `loc()` (Western↔Arabic-Indic), per-tab titles use `I18N.t(...)`, and
+Chart.js defaults to the Cairo font (+ `locale='ar'` in RTL). Added `i18n.js` to
+the `npm run check` syntax gate.
+**Why:** Owner chose the full RTL Arabic UI. Built it so **English mode = the
+original known-good layout** (a safe fallback) and Arabic is the default.
+**Status:** ✅ all suites pass; verified live — page serves `dir="rtl"`,
+`i18n.js`/`cairo.ttf` serve (200), toggles present, smoke test green. NOTE: could
+not visually verify rendering (no headless browser here) — needs an owner look.
+**Next:** 5b — translate the deeper content still in English (KPI captions, chart
+titles, table headers; many strings scattered in `app.js`), add an Arabic
+synthetic dataset to `seed_db.py` for CI-visible RTL testing, and a visual polish
+pass (RTL spacing, chart legends/tooltips). Also 4b (Arabic PDF) still pending a
+font decision (Cairo may lack PDF presentation forms; Amiri/Noto Naskh safer).
+**Watch out:** Toggles reload the page by design (simple, robust). Deep content
+is intentionally still English in v1 — the UI will look RTL with Arabic chrome
+but English data headings until 5b.
 
 ### 2026-06-15 — Claude Code — claude/docs-updates-7-files-4bs7ux (Arabic Stage 4a)
 **Did:** Export correctness, part 1. (1) `reports/generate.py` `write_csv` now
