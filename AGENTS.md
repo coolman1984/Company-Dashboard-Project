@@ -211,13 +211,18 @@ We are a team with different strengths. Use the right agent for the right job.
 
 ### In Progress (owner)
 - **Arabic-first extraction & RTL dashboard** (Claude Code) — staged plan in
-  `ROADMAP.md` (Stage 6). Stage 1 (normalization core) is **Done**; next is
-  Stage 2 (Arabic-aware mapper: match-key/display-value, number & period
-  parsing). Decisions locked: Gregorian only; full RTL UI; support
+  `ROADMAP.md` (Stage 6). Stages 1 and 2 (first version) are **Done**; next is
+  Stage 3 (file formats `.xlsb`/`.xls`/CSV + fidelity) and 6.2b (group-key
+  schema decision so spelling variants total together). Decisions locked:
+  Gregorian only; full RTL UI; support
   `.xlsx/.xlsm/.xlsb/.xls/CSV`; fold-for-grouping + keep original display;
   user-toggleable digits; vendored **Cairo** font (no CDN).
 
 ### Done
+- **Arabic-aware mapper** (`map_raw_to_db.py`, Stage 6.2 first version): headers
+  and sheet names match via `match_key`; numbers parse via `parse_number`; text
+  stored cleaned (original spelling kept). Arabic fixture test added. Group-key
+  folding for dimensions (6.2b) deferred — needs a schema decision.
 - **Arabic normalization core** (`extractor/arabic.py`, Stage 6.1): shared,
   stdlib-only `clean_display` / `match_key` / `parse_number` / `to_ascii_digits`
   / `month_to_number` with the match-key-vs-display-value split. Tested
@@ -256,6 +261,31 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — Claude Code — claude/docs-updates-7-files-4bs7ux (Arabic Stage 2)
+**Did:** Wired the Stage 1 normalization core into `map_raw_to_db.py`. (1) Header
+matching now compares `arabic.match_key(...)` instead of exact strings, so a
+mapped header matches the sheet header across alef/yaa/taa-marbuta variants,
+diacritics, tatweel and stray bidi/format marks. (2) Sheet-name matching uses the
+same key. (3) `convert()` now routes TEXT through `clean_display` (keeps the
+original spelling, strips invisible junk) and INTEGER/REAL through `parse_number`
+(Arabic-Indic digits, ٬/٫ separators, currency, accounting negatives), replacing
+the old `_numeric` helper. Added `test_arabic_headers_numbers_and_text` to
+`test_map_raw_to_db.py` (Arabic headers with a yaa-variant + RTL mark, Arabic
+sheet name with an alef variant, Arabic-Indic numbers, accounting negative).
+**Why:** This is where real Arabic client spreadsheets were most likely to fail —
+exact header/sheet matching and a numeric parser that choked on Arabic digits and
+formats. Now an Arabic capture loads end to end.
+**Status:** ✅ all 9 suites pass. The English path is unchanged (existing mapper
+tests still pass). Additive behaviour — no schema change.
+**Next:** Stage 3 (`.xlsb` via pyxlsb, `.xls` via xlrd, CSV with encoding
+detection, merged/multi-row headers). Also **6.2b**: to make spelling variants of
+the SAME name total together in reports we need a normalized group-key stored
+beside each dimension value — that touches `schema.sql` (load-bearing), so it
+must be announced and decided separately before building.
+**Watch out:** Text is stored with the client's ORIGINAL spelling (only invisible
+junk removed); variant spellings are therefore NOT yet merged in GROUP BY — that
+is 6.2b. `match_key` is still display-unsafe; only used here for matching.
 
 ### 2026-06-15 — Claude Code — claude/docs-updates-7-files-4bs7ux (Arabic Stage 1)
 **Did:** Started the Arabic-first initiative (new ROADMAP Stage 6). Added the
