@@ -131,13 +131,15 @@ to respect the no-CDN rule.
 >   now match via `match_key` (tolerant of spelling variants, diacritics,
 >   tatweel and bidi marks); numeric cells parse via `parse_number`; text is
 >   stored cleaned but with its original spelling. Tested with Arabic fixtures.
->   *Still to do (6.2b, needs a schema decision — load-bearing):* store a
->   normalized group key beside each dimension value so spelling variants of a
->   name also total together in reports.
-> - **6.3 Format & fidelity.** `.xlsb` (pyxlsb), `.xls` (xlrd), CSV/TSV with
->   encoding auto-detection (Windows-1256 vs UTF-8±BOM); merged-cell and
->   multi-row headers, formula-without-cache detection, error cells, numbers
->   stored as text.
+>   *6.2b (group-key folding) was considered and **declined by owner decision**:*
+>   names are kept and grouped exactly as typed; spelling variants are NOT merged
+>   in totals.
+> - **6.3 Format & fidelity — *first version done*.** Added readers for `.xlsb`
+>   (pyxlsb), `.xls` (xlrd) and CSV/TSV with encoding auto-detection
+>   (Windows-1256 vs UTF-8±BOM) and delimiter sniffing; all emit the shared
+>   spreadsheet envelope so they load through the mapper unchanged. *Still to do:*
+>   merged-cell and multi-row headers, formula-without-cache detection, error
+>   cells, and date-serial handling for `.xlsb`/`.xls`.
 > - **6.4 Export correctness.** CSV written with a UTF-8 BOM (so Excel on Arabic
 >   Windows reads it); PDF board packs reshaped + bidi-ordered with the embedded
 >   Cairo font and right-aligned RTL tables; XLSX sheets flagged right-to-left.

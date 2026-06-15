@@ -26,7 +26,7 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Install extractor + report-render dependencies
-        run: pip install openpyxl python-docx reportlab
+        run: pip install openpyxl python-docx reportlab pyxlsb xlrd
 
       - name: Seed synthetic database
         run: python3 seed_db.py --force

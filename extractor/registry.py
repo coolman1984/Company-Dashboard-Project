@@ -8,16 +8,24 @@ cross-platform fallbacks keep the engine working everywhere else.
 """
 from __future__ import annotations
 
+from .csv_text import CsvTextExtractor
 from .excel_com import ExcelComExtractor
 from .excel_openpyxl import ExcelOpenpyxlExtractor
+from .excel_xls import ExcelXlsExtractor
+from .excel_xlsb import ExcelXlsbExtractor
 from .outlook_msg import OutlookMsgExtractor
 from .pdf_text import PdfTextExtractor
 from .word_docx import WordDocxExtractor
 
-# Order matters: COM Excel before openpyxl Excel.
+# Order matters: the Windows COM path is preferred for any format Excel can open
+# (.xlsx/.xlsm/.xlsb/.xls); the cross-platform readers below take over when COM
+# is unavailable (Linux/CI), each owning the formats openpyxl cannot read.
 EXTRACTORS = [
     ExcelComExtractor(),
     ExcelOpenpyxlExtractor(),
+    ExcelXlsbExtractor(),
+    ExcelXlsExtractor(),
+    CsvTextExtractor(),
     WordDocxExtractor(),
     PdfTextExtractor(),
     OutlookMsgExtractor(),

@@ -17,6 +17,7 @@ import tempfile
 
 from . import manifest, registry
 from .cli import run
+from .csv_text import CsvTextExtractor
 
 
 def _make_samples(intake_dir):
@@ -43,7 +44,43 @@ def _make_samples(intake_dir):
         fh.write("not a known format")
 
 
+def test_csv_arabic_encoding():
+    """A Windows-1256 Arabic CSV and a UTF-8 BOM CSV must decode correctly."""
+    extractor = CsvTextExtractor()
+    with tempfile.TemporaryDirectory() as tmp:
+        # Legacy Arabic code page, semicolon-delimited (common on Arabic Windows).
+        cp1256_path = os.path.join(tmp, "arabic.csv")
+        with open(cp1256_path, "wb") as fh:
+            fh.write("المنطقة;المبيعات\nأفريقيا;1250\n".encode("cp1256"))
+        content, warnings = extractor.extract_content(cp1256_path)
+        cells = content["sheets"][0]["cells"]
+        assert cells[0] == ["المنطقة", "المبيعات"], cells[0]
+        assert cells[1] == ["أفريقيا", "1250"], cells[1]
+        assert any("cp1256" in w for w in warnings), warnings
+
+        # UTF-8 with BOM: BOM must not leak into the first cell.
+        bom_path = os.path.join(tmp, "bom.csv")
+        with open(bom_path, "wb") as fh:
+            fh.write("﻿السنة,المبيعات\n2025,980\n".encode("utf-8"))
+        content, _ = extractor.extract_content(bom_path)
+        cells = content["sheets"][0]["cells"]
+        assert cells[0] == ["السنة", "المبيعات"], cells[0]
+
+
+def test_new_extractors_registered():
+    """The .xlsb/.xls/CSV readers must be wired in and own their extensions."""
+    names = {row["name"] for row in registry.describe_availability()}
+    for expected in ("excel-xlsb", "excel-xls", "csv-text"):
+        assert expected in names, f"{expected} not registered"
+    extractor, reason = registry.select_extractor("/tmp/whatever.csv")
+    assert extractor is not None and extractor.name == "csv-text", reason
+
+
 def main():
+    # These need no third-party libraries, so run them first/unconditionally.
+    test_csv_arabic_encoding()
+    test_new_extractors_registered()
+
     # Skip cleanly if the cross-platform libraries are unavailable.
     for module in ("openpyxl", "docx"):
         try:
