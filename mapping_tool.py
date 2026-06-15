@@ -175,6 +175,36 @@ def suggest_mappings(sheets: list[dict], schema_cols: dict) -> list[dict]:
     return results
 
 
+def build_mapping(suggestions: list[dict], constants: dict = None) -> dict:
+    """Convert suggestions into a mapping.json structure.
+    
+    The operator can edit the suggestions before calling this.
+    """
+    if not suggestions:
+        return {}
+    
+    # Use the first sheet by default
+    sheet = suggestions[0]
+    
+    columns = {}
+    for s in sheet["suggestions"]:
+        if s["target"] and s["confidence"] in ("high", "medium"):
+            columns[s["source"]] = s["target"]
+    
+    mapping = {
+        "source_glob": f"*{sheet['file'].replace('.raw.json', '')}*",
+        "sheet": sheet["sheet"],
+        "header_row": 0,
+        "skip_blank_rows": True,
+        "columns": columns,
+    }
+    
+    if constants:
+        mapping["constants"] = constants
+    
+    return mapping
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Auto-suggest column mappings from raw JSON captures.")
