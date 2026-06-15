@@ -148,10 +148,16 @@ to respect the no-CDN rule.
 >   (Cairo is a modern font and may lack the presentation-form glyphs the
 >   reshaping approach needs; a traditional face like Amiri/Noto Naskh is the
 >   safe choice for PDF).
-> - **6.5 Full RTL dashboard.** `dir="rtl"`/`lang="ar"`, vendored Cairo webfont,
->   CSS logical properties so the layout mirrors cleanly, bidi-isolated numbers,
->   RTL-configured Chart.js, a small en/ar string map and a language + digit
->   toggle. An Arabic synthetic dataset in `seed_db.py` so it's testable in CI.
+> - **6.5 Full RTL dashboard — *first version done*.** Defaults to Arabic
+>   right-to-left (`lang="ar" dir="rtl"`) with an EN toggle that falls back to the
+>   original LTR layout; vendored **Cairo** font (`cairo.ttf`, served locally, no
+>   CDN); `[dir="rtl"]` CSS mirrors the explicit left/right rules; charts use the
+>   Cairo font; a small en/ar string map (`i18n.js`) translates the navigation,
+>   filters, buttons, banner and per-tab titles; a digit toggle switches
+>   Western ↔ Arabic-Indic numerals. *Still to do (5b):* translate the deeper
+>   content (KPI captions, chart titles, table headers — still English), an
+>   Arabic synthetic dataset in `seed_db.py`, and a visual polish pass on RTL
+>   spacing/charts.
 
 ---
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,9 +8,19 @@
     <link rel="icon" href="data:,">
     <script src="chart.umd.min.js"></script>
     <style>
+        /* Vendored Cairo (Google Fonts, OFL) - self-contained, no CDN. Variable
+           font covers all weights and full Arabic + Latin coverage. */
+        @font-face {
+            font-family: 'Cairo';
+            src: url('cairo.ttf') format('truetype');
+            font-weight: 100 900;
+            font-display: swap;
+        }
+
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
+            --app-font: 'Cairo', system-ui, -apple-system, 'Segoe UI', sans-serif;
             --nav: #071426;
             --nav-soft: #10233d;
             --nav-text: #9fb0c7;
@@ -41,7 +51,7 @@
         html, body { width: 100%; height: 100%; }
 
         body {
-            font-family: system-ui, -apple-system, sans-serif;
+            font-family: var(--app-font);
             color: var(--ink);
             background: var(--workspace);
             overflow: hidden;
@@ -50,6 +60,22 @@
 
         button, select, input { font: inherit; }
         button { border: 0; }
+
+        /* Right-to-left mirroring (Stage 6.5). Grid/flex flow mirrors itself
+           under dir="rtl"; these target the few explicit left/right rules. */
+        [dir="rtl"] .tab { text-align: right; }
+        [dir="rtl"] .sidebar { border-right: 0; border-left: 1px solid rgba(255,255,255,0.05); }
+        [dir="rtl"] .sidebar-meta-value { text-align: left; }
+        [dir="rtl"] .data-table th { text-align: left; }
+        [dir="rtl"] .data-table td { text-align: left; }
+        [dir="rtl"] .data-table th:first-child,
+        [dir="rtl"] .data-table td:first-child { left: auto; right: 0; text-align: right; }
+        [dir="rtl"] .loading-spinner { margin-right: 0; margin-left: 8px; }
+        [dir="rtl"] .toast { right: auto; left: 22px; }
+        [dir="rtl"] .signal-card.critical { border-left: 0; border-right: 3px solid var(--red); }
+        [dir="rtl"] .signal-card.warning  { border-left: 0; border-right: 3px solid var(--amber); }
+        [dir="rtl"] .signal-card.positive { border-left: 0; border-right: 3px solid var(--green); }
+        [dir="rtl"] .signal-card.neutral  { border-left: 0; border-right: 3px solid var(--primary); }
 
         .app-shell {
             width: 100vw;
@@ -91,7 +117,7 @@
         .brand-mark svg { width: 21px; height: 21px; }
         .brand-copy strong {
             display: block;
-            font-family: system-ui, sans-serif;
+            font-family: var(--app-font);
             font-size: 14px;
             letter-spacing: -0.2px;
         }
@@ -170,7 +196,7 @@
         }
 
         .page-heading h1 {
-            font-family: system-ui, sans-serif;
+            font-family: var(--app-font);
             font-size: 20px;
             line-height: 1.2;
             letter-spacing: -0.55px;
@@ -340,7 +366,7 @@
             gap: 16px;
             margin-bottom: 13px;
         }
-        .section-head h2 { font-family: system-ui, sans-serif; font-size: 15px; letter-spacing: -0.3px; }
+        .section-head h2 { font-family: var(--app-font); font-size: 15px; letter-spacing: -0.3px; }
         .section-head p { color: var(--muted); font-size: 10px; margin-top: 3px; }
 
         .controls {
@@ -414,7 +440,7 @@
         }
         .kpi-value {
             margin-top: 5px;
-            font-family: system-ui, sans-serif;
+            font-family: var(--app-font);
             font-size: clamp(18px, 1.5vw, 25px);
             font-weight: 800;
             letter-spacing: -0.7px;
@@ -447,7 +473,7 @@
         .chart-card, .insights-card { padding: 16px; }
         .chart-card.full { grid-column: 1 / -1; }
         .chart-title {
-            font-family: system-ui, sans-serif;
+            font-family: var(--app-font);
             font-size: 12px;
             font-weight: 800;
             letter-spacing: -0.15px;
@@ -498,7 +524,7 @@
         }
         .signal-value {
             margin-top: 6px;
-            font-family: system-ui, sans-serif;
+            font-family: var(--app-font);
             font-size: 18px;
             font-weight: 800;
             letter-spacing: -.35px;
@@ -703,45 +729,45 @@
                     <path d="M4 19V9m6 10V5m6 14v-7m4 7H2" stroke-width="2" stroke-linecap="round"/>
                 </svg>
             </div>
-            <div class="brand-copy"><strong>Finance OS</strong><span>Company command center</span></div>
+            <div class="brand-copy"><strong data-i18n="brand.name">Finance OS</strong><span data-i18n="brand.tag">Company command center</span></div>
         </div>
 
-        <div class="nav-label">Analytics</div>
+        <div class="nav-label" data-i18n="nav.analytics">Analytics</div>
         <nav class="tabs" role="tablist" aria-label="Dashboard sections">
             <button class="tab active" type="button" role="tab" id="tab-overview" aria-selected="true" aria-controls="panel-overview" data-tab="overview">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
-                Overview
+                <span data-i18n="tab.overview">Overview</span>
             </button>
             <button class="tab" type="button" role="tab" id="tab-regional" aria-selected="false" aria-controls="panel-regional" data-tab="regional">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.6 3 14.4 0 18M12 3c-3 3.6-3 14.4 0 18"/></svg>
-                Regional
+                <span data-i18n="tab.regional">Regional</span>
             </button>
             <button class="tab" type="button" role="tab" id="tab-product" aria-selected="false" aria-controls="panel-product" data-tab="product">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
-                Products
+                <span data-i18n="tab.product">Products</span>
             </button>
             <button class="tab" type="button" role="tab" id="tab-drilldown" aria-selected="false" aria-controls="panel-drilldown" data-tab="drilldown">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/></svg>
-                Variance
+                <span data-i18n="tab.drilldown">Variance</span>
             </button>
             <button class="tab" type="button" role="tab" id="tab-scenario" aria-selected="false" aria-controls="panel-scenario" data-tab="scenario">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 19V9m7 10V4m7 15v-6"/><path d="m3 7 5-4 4 3 7-4"/></svg>
-                Scenario
+                <span data-i18n="tab.scenario">Scenario</span>
             </button>
             <button class="tab" type="button" role="tab" id="tab-trends" aria-selected="false" aria-controls="panel-trends" data-tab="trends">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 17l4-8 4 4 4-6 4 3"/><path d="M3 21h18"/></svg>
-                Trends
+                <span data-i18n="tab.trends">Trends</span>
             </button>
             <button class="tab" type="button" role="tab" id="tab-portfolio" aria-selected="false" aria-controls="panel-portfolio" data-tab="portfolio">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="8" cy="14" r="3"/><circle cx="16" cy="9" r="4"/><circle cx="13" cy="18" r="2"/></svg>
-                Portfolio
+                <span data-i18n="tab.portfolio">Portfolio</span>
             </button>
         </nav>
 
         <div class="sidebar-meta">
-            <div class="sidebar-meta-row"><span class="sidebar-meta-label">Records</span><span class="sidebar-meta-value" id="recordCount">Loading...</span></div>
-            <div class="sidebar-meta-row"><span class="sidebar-meta-label">Database</span><span class="sidebar-meta-value" id="databaseSize">Live SQLite</span></div>
-            <div class="sidebar-meta-row"><span class="sidebar-meta-label">Coverage</span><span class="sidebar-meta-value">FY22-FY26</span></div>
+            <div class="sidebar-meta-row"><span class="sidebar-meta-label" data-i18n="meta.records">Records</span><span class="sidebar-meta-value" id="recordCount">Loading...</span></div>
+            <div class="sidebar-meta-row"><span class="sidebar-meta-label" data-i18n="meta.database">Database</span><span class="sidebar-meta-value" id="databaseSize">Live SQLite</span></div>
+            <div class="sidebar-meta-row"><span class="sidebar-meta-label" data-i18n="meta.coverage">Coverage</span><span class="sidebar-meta-value">FY22-FY26</span></div>
         </div>
     </aside>
 
@@ -752,28 +778,30 @@
                 <p id="pageSubtitle">Live profit and loss performance from the SQLite detail ledger</p>
             </div>
             <div class="topbar-actions">
-                <div class="connection"><span class="status-dot" id="statusDot"></span><span id="statusLabel">Connecting...</span></div>
+                <div class="connection"><span class="status-dot" id="statusDot"></span><span id="statusLabel" data-i18n="status.connecting">Connecting...</span></div>
+                <button class="secondary-btn" type="button" id="langToggle">العربية</button>
+                <button class="secondary-btn" type="button" id="digitToggle">١٢٣</button>
                 <button class="secondary-btn" type="button" id="refreshBtn">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6v5h-5M4 18v-5h5"/><path d="M18.5 9A7 7 0 0 0 6 6.5L4 9m2 6a7 7 0 0 0 12.5 2.5L20 15"/></svg>
-                    Refresh
+                    <span data-i18n="btn.refresh">Refresh</span>
                 </button>
             </div>
         </header>
 
         <section class="filterbar" aria-label="Global database filters">
-            <div class="filter-group"><label for="globalYear">Year</label><select id="globalYear"><option value="">All years</option></select></div>
-            <div class="filter-group"><label for="globalVersion" id="globalVersionLabel">Version</label><select id="globalVersion"></select></div>
-            <div class="filter-group"><label for="globalRegion">Region</label><select id="globalRegion"><option value="">All regions</option></select></div>
-            <div class="filter-group"><label for="globalCountry">Country</label><select id="globalCountry"><option value="">All countries</option></select></div>
-            <button class="primary-btn" type="button" id="applyFiltersBtn">Apply filters</button>
-            <button class="secondary-btn" type="button" id="resetFiltersBtn">Reset</button>
+            <div class="filter-group"><label for="globalYear" data-i18n="filter.year">Year</label><select id="globalYear"><option value="" data-i18n="opt.all_years">All years</option></select></div>
+            <div class="filter-group"><label for="globalVersion" id="globalVersionLabel" data-i18n="filter.version">Version</label><select id="globalVersion"></select></div>
+            <div class="filter-group"><label for="globalRegion" data-i18n="filter.region">Region</label><select id="globalRegion"><option value="" data-i18n="opt.all_regions">All regions</option></select></div>
+            <div class="filter-group"><label for="globalCountry" data-i18n="filter.country">Country</label><select id="globalCountry"><option value="" data-i18n="opt.all_countries">All countries</option></select></div>
+            <button class="primary-btn" type="button" id="applyFiltersBtn" data-i18n="btn.apply">Apply filters</button>
+            <button class="secondary-btn" type="button" id="resetFiltersBtn" data-i18n="btn.reset">Reset</button>
         </section>
 
         <div class="workspace">
             <div class="app-alert" id="appAlert" role="alert">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 8v5m0 3h.01"/></svg>
-                <div class="app-alert-text"><strong id="appAlertTitle">We couldn't load the data</strong><span id="appAlertBody"></span></div>
-                <button class="app-alert-retry" type="button" id="appAlertRetry">Try again</button>
+                <div class="app-alert-text"><strong id="appAlertTitle" data-i18n="alert.load_fail">We couldn't load the data</strong><span id="appAlertBody"></span></div>
+                <button class="app-alert-retry" type="button" id="appAlertRetry" data-i18n="btn.try_again">Try again</button>
             </div>
             <section class="panel active" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
                 <div class="data-note" id="dataFreshnessNote" role="status">
@@ -923,6 +951,7 @@
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
