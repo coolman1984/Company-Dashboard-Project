@@ -205,6 +205,129 @@ def build_mapping(suggestions: list[dict], constants: dict = None) -> dict:
     return mapping
 
 
+HTML_TEMPLATE = """<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Mapping Review — {title}</title>
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: 'Cairo', 'Segoe UI', sans-serif; background: #1a1a2e;
+         color: #e0e0e0; padding: 20px; direction: rtl; }}
+  h1 {{ color: #00d4ff; margin-bottom: 10px; }}
+  h2 {{ color: #ffa500; margin: 20px 0 10px; }}
+  .summary {{ background: #16213e; padding: 15px; border-radius: 8px;
+              margin-bottom: 20px; }}
+  .summary span {{ margin-left: 20px; }}
+  .high {{ color: #00ff88; }}
+  .medium {{ color: #ffa500; }}
+  .low {{ color: #ff4444; }}
+  table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px;
+           background: #16213e; border-radius: 8px; overflow: hidden; }}
+  th {{ background: #0f3460; color: #00d4ff; padding: 12px; text-align: right; }}
+  td {{ padding: 10px 12px; border-bottom: 1px solid #2a2a4a; }}
+  tr:hover {{ background: #1a2744; }}
+  .badge {{ display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-size: 0.85em; }}
+  .badge.high {{ background: #00ff8833; }}
+  .badge.medium {{ background: #ffa50033; }}
+  .badge.low {{ background: #ff444433; }}
+  .sample {{ font-size: 0.85em; color: #888; }}
+  .arrow {{ color: #00d4ff; }}
+</style>
+</head>
+<body>
+<h1>🗺️ Mapping Review Report</h1>
+<p style="color:#888;margin-bottom:20px;">
+  Generated: {timestamp}
+</p>
+
+{content}
+
+<hr style="border-color:#2a2a4a;margin:30px 0;">
+<p style="color:#888;font-size:0.85em;">
+  Review the suggestions above. High-confidence matches (green) are likely
+  correct. Medium (orange) need verification. Low/unmatched (red) require manual
+  mapping. Edit the mapping.json before running map_raw_to_db.py.
+</p>
+</body>
+</html>"""
+
+
+def write_html_report(path: str, sheets: list[dict],
+                      suggestions: list[dict], schema_cols: dict):
+    """Write an HTML review report."""
+    import datetime
+    
+    parts = []
+    
+    for sug in suggestions:
+        high = sum(1 for s in sug["suggestions"] if s["confidence"] == "high")
+        medium = sum(1 for s in sug["suggestions"] if s["confidence"] == "medium")
+        low = sum(1 for s in sug["suggestions"] if s["confidence"] == "low" or s["target"] is None)
+        
+        parts.append(f"""
+<div class="summary">
+  <h2>📊 {sug["file"]} — Sheet: {sug["sheet"]}</h2>
+  <span>Rows: <strong>{sug["n_rows"]}</strong></span>
+  <span>Columns: <strong>{len(sug["suggestions"])}</strong></span>
+  <span class="high">✓ High: {high}</span>
+  <span class="medium">⚠ Medium: {medium}</span>
+  <span class="low">✗ Low/Unmatched: {low}</span>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Source Column</th>
+      <th></th>
+      <th>DB Column</th>
+      <th>Confidence</th>
+      <th>Method</th>
+    </tr>
+  </thead>
+  <tbody>""")
+        
+        for s in sug["suggestions"]:
+            target = s["target"] or "—"
+            badge_class = s["confidence"]
+            parts.append(f"""
+    <tr>
+      <td><code>{s["source"]}</code></td>
+      <td class="arrow">→</td>
+      <td><code>{target}</code></td>
+      <td><span class="badge {badge_class}">{s["confidence"]}</span></td>
+      <td>{s["method"]}</td>
+    </tr>""")
+        
+        parts.append("""
+  </tbody>
+</table>""")
+        
+        # Sample data
+        if sug.get("sample_rows"):
+            parts.append('<h3 style="color:#888;margin:10px 0;">Sample Data:</h3>')
+            parts.append('<table><thead><tr>')
+            for h in [s["source"] for s in sug["suggestions"]]:
+                parts.append(f'<th>{h}</th>')
+            parts.append('</tr></thead><tbody>')
+            for row in sug["sample_rows"][:3]:
+                parts.append('<tr>')
+                for cell in row:
+                    parts.append(f'<td>{cell if cell is not None else ""}</td>')
+                parts.append('</tr>')
+            parts.append('</tbody></table>')
+    
+    html = HTML_TEMPLATE.format(
+        title=suggestions[0]["file"] if suggestions else "unknown",
+        timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        content="\n".join(parts),
+    )
+    
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(html)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Auto-suggest column mappings from raw JSON captures.")
