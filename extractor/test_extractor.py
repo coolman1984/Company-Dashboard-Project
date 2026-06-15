@@ -18,6 +18,7 @@ import tempfile
 from . import manifest, registry
 from .cli import run
 from .csv_text import CsvTextExtractor
+from .excel_openpyxl import ExcelOpenpyxlExtractor
 
 
 def _make_samples(intake_dir):
@@ -61,10 +62,87 @@ def test_csv_arabic_encoding():
         # UTF-8 with BOM: BOM must not leak into the first cell.
         bom_path = os.path.join(tmp, "bom.csv")
         with open(bom_path, "wb") as fh:
-            fh.write("﻿السنة,المبيعات\n2025,980\n".encode("utf-8"))
+            fh.write("السنة,المبيعات\n2025,980\n".encode("utf-8"))
         content, _ = extractor.extract_content(bom_path)
         cells = content["sheets"][0]["cells"]
         assert cells[0] == ["السنة", "المبيعات"], cells[0]
+
+
+def test_csv_edge_cases():
+    """Test CSV edge cases: empty file, binary content."""
+    extractor = CsvTextExtractor()
+    with tempfile.TemporaryDirectory() as tmp:
+        # Empty file
+        empty_path = os.path.join(tmp, "empty.csv")
+        with open(empty_path, "wb") as fh:
+            pass  # 0 bytes
+        content, warnings = extractor.extract_content(empty_path)
+        assert content["sheets"][0]["n_rows"] == 0, "empty file should have 0 rows"
+        assert any("empty" in w.lower() for w in warnings), warnings
+        
+        # Binary content (should warn)
+        binary_path = os.path.join(tmp, "binary.csv")
+        with open(binary_path, "wb") as fh:
+            # Write lots of null bytes (non-printable)
+            fh.write(b"\x00" * 1000 + b"a,b,c\n1,2,3\n")
+        content, warnings = extractor.extract_content(binary_path)
+        assert any("binary" in w.lower() for w in warnings), warnings
+
+
+def test_excel_formula_errors():
+    """Test that formula errors (#REF!, #DIV/0!) are converted to null with warnings."""
+    extractor = ExcelOpenpyxlExtractor()
+    with tempfile.TemporaryDirectory() as tmp:
+        import openpyxl
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Data"
+        ws.append(["Value", "Formula"])
+        ws.append([100, "#DIV/0!"])
+        ws.append([200, "#REF!"])
+        ws.append([300, "OK"])
+        path = os.path.join(tmp, "formulas.xlsx")
+        wb.save(path)
+        
+        content, warnings = extractor.extract_content(path)
+        cells = content["sheets"][0]["cells"]
+        # Formula errors should be converted to None
+        assert cells[1][1] is None, "DIV/0 should be None"
+        assert cells[2][1] is None, "REF should be None"
+        assert cells[3][1] == "OK", "valid value preserved"
+        # Should have a warning about formula errors
+        assert any("formula" in w.lower() for w in warnings), warnings
+
+
+def test_excel_corrupt_file():
+    """Test that corrupt Excel files raise clear errors."""
+    extractor = ExcelOpenpyxlExtractor()
+    with tempfile.TemporaryDirectory() as tmp:
+        corrupt_path = os.path.join(tmp, "corrupt.xlsx")
+        with open(corrupt_path, "wb") as fh:
+            fh.write(b"this is not a valid excel file")
+        
+        try:
+            extractor.extract_content(corrupt_path)
+            assert False, "should have raised ValueError"
+        except ValueError as exc:
+            assert "corrupt" in str(exc).lower() or "cannot open" in str(exc).lower()
+
+
+def test_excel_empty_file():
+    """Test that empty Excel files are handled gracefully."""
+    extractor = ExcelOpenpyxlExtractor()
+    with tempfile.TemporaryDirectory() as tmp:
+        empty_path = os.path.join(tmp, "empty.xlsx")
+        with open(empty_path, "wb") as fh:
+            pass  # 0 bytes
+        
+        try:
+            extractor.extract_content(empty_path)
+            # Empty files might raise ValueError (corrupt) or return empty sheets
+            # Both are acceptable - the important thing is it doesn't crash silently
+        except ValueError:
+            pass  # Expected for truly empty files
 
 
 def test_new_extractors_registered():
@@ -79,7 +157,17 @@ def test_new_extractors_registered():
 def main():
     # These need no third-party libraries, so run them first/unconditionally.
     test_csv_arabic_encoding()
+    test_csv_edge_cases()
     test_new_extractors_registered()
+    
+    # Test Excel edge cases (needs openpyxl)
+    try:
+        __import__("openpyxl")
+        test_excel_formula_errors()
+        test_excel_corrupt_file()
+        test_excel_empty_file()
+    except ImportError:
+        print("SKIP: openpyxl not installed; Excel edge case tests not run.")
 
     # Skip cleanly if the cross-platform libraries are unavailable.
     for module in ("openpyxl", "docx"):

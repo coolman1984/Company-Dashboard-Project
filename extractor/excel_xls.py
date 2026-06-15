@@ -12,6 +12,8 @@ unavailable and falls back rather than crashing. Note xlrd>=2.0 reads .xls only
 """
 from __future__ import annotations
 
+import os
+
 from .base import Extractor, optional_import
 
 
@@ -29,23 +31,61 @@ class ExcelXlsExtractor(Extractor):
         import xlrd
 
         warnings = []
-        book = xlrd.open_workbook(path)
+        
+        # Guard: file size limit (50MB)
+        file_size = os.path.getsize(path)
+        if file_size > 50 * 1024 * 1024:
+            warnings.append(
+                f"File is very large ({file_size / (1024*1024):.1f} MB). "
+                "Extraction may be slow or incomplete."
+            )
+        
+        # Guard: empty file
+        if file_size == 0:
+            warnings.append("File is empty (0 bytes).")
+            return {"sheets": []}, warnings
+        
+        try:
+            book = xlrd.open_workbook(path)
+        except Exception as exc:
+            raise ValueError(
+                f"Cannot open .xls workbook: {exc}. File may be corrupt, "
+                "encrypted, or not a valid Excel 97-2003 file."
+            ) from exc
+        
         sheets = []
         for sheet in book.sheets():
-            rows = []
-            for row_index in range(sheet.nrows):
-                values = list(sheet.row_values(row_index))
-                while values and values[-1] in (None, ""):
-                    values.pop()
-                rows.append([_clean(v) for v in values])
-            while rows and not any(c not in (None, "") for c in rows[-1]):
-                rows.pop()
-            sheets.append({
-                "name": sheet.name,
-                "n_rows": len(rows),
-                "n_cols": sheet.ncols,
-                "cells": rows,
-            })
+            try:
+                rows = []
+                row_errors = 0
+                for row_index in range(sheet.nrows):
+                    try:
+                        values = list(sheet.row_values(row_index))
+                        while values and values[-1] in (None, ""):
+                            values.pop()
+                        rows.append([_clean(v) for v in values])
+                    except Exception as exc:
+                        row_errors += 1
+                        if row_errors <= 3:
+                            warnings.append(
+                                f"Sheet '{sheet.name}' row {row_index + 1}: {exc}"
+                            )
+                
+                if row_errors > 3:
+                    warnings.append(
+                        f"Sheet '{sheet.name}': ... and {row_errors - 3} more row errors"
+                    )
+                
+                while rows and not any(c not in (None, "") for c in rows[-1]):
+                    rows.pop()
+                sheets.append({
+                    "name": sheet.name,
+                    "n_rows": len(rows),
+                    "n_cols": sheet.ncols,
+                    "cells": rows,
+                })
+            except Exception as exc:
+                warnings.append(f"Sheet '{sheet.name}': could not read ({exc})")
 
         if not sheets:
             warnings.append("Workbook contained no readable sheets.")

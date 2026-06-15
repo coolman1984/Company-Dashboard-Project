@@ -12,6 +12,7 @@ unavailable and falls back rather than crashing.
 from __future__ import annotations
 
 import datetime as dt
+import os
 
 from .base import Extractor, optional_import
 
@@ -30,26 +31,62 @@ class ExcelXlsbExtractor(Extractor):
         from pyxlsb import open_workbook
 
         warnings = []
+        
+        # Guard: file size limit (100MB)
+        file_size = os.path.getsize(path)
+        if file_size > 100 * 1024 * 1024:
+            warnings.append(
+                f"File is very large ({file_size / (1024*1024):.1f} MB). "
+                "Extraction may be slow or incomplete."
+            )
+        
+        # Guard: empty file
+        if file_size == 0:
+            warnings.append("File is empty (0 bytes).")
+            return {"sheets": []}, warnings
+        
         sheets = []
-        with open_workbook(path) as workbook:
-            for sheet_name in workbook.sheets:
-                with workbook.get_sheet(sheet_name) as sheet:
-                    rows = []
-                    max_cols = 0
-                    for row in sheet.rows():
-                        values = [cell.v for cell in row]
-                        while values and values[-1] is None:
-                            values.pop()
-                        rows.append([_clean(v) for v in values])
-                        max_cols = max(max_cols, len(values))
-                    while rows and not any(c not in (None, "") for c in rows[-1]):
-                        rows.pop()
-                    sheets.append({
-                        "name": str(sheet_name),
-                        "n_rows": len(rows),
-                        "n_cols": max_cols,
-                        "cells": rows,
-                    })
+        try:
+            with open_workbook(path) as workbook:
+                for sheet_name in workbook.sheets:
+                    try:
+                        with workbook.get_sheet(sheet_name) as sheet:
+                            rows = []
+                            max_cols = 0
+                            row_errors = 0
+                            for row_idx, row in enumerate(sheet.rows(), start=1):
+                                try:
+                                    values = [cell.v for cell in row]
+                                    while values and values[-1] is None:
+                                        values.pop()
+                                    rows.append([_clean(v) for v in values])
+                                    max_cols = max(max_cols, len(values))
+                                except Exception as exc:
+                                    row_errors += 1
+                                    if row_errors <= 3:
+                                        warnings.append(
+                                            f"Sheet '{sheet_name}' row {row_idx}: {exc}"
+                                        )
+                            
+                            if row_errors > 3:
+                                warnings.append(
+                                    f"Sheet '{sheet_name}': ... and {row_errors - 3} more row errors"
+                                )
+                            
+                            while rows and not any(c not in (None, "") for c in rows[-1]):
+                                rows.pop()
+                            sheets.append({
+                                "name": str(sheet_name),
+                                "n_rows": len(rows),
+                                "n_cols": max_cols,
+                                "cells": rows,
+                            })
+                    except Exception as exc:
+                        warnings.append(f"Sheet '{sheet_name}': could not read ({exc})")
+        except Exception as exc:
+            raise ValueError(
+                f"Cannot open .xlsb workbook: {exc}. File may be corrupt or encrypted."
+            ) from exc
 
         if not sheets:
             warnings.append("Workbook contained no readable sheets.")
