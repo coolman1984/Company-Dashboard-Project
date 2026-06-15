@@ -120,7 +120,10 @@ def _score_match(source_header: str, db_column: str) -> tuple[float, str]:
         return 0.7, "normalized"
     
     # Substring match (db column name contains source or vice versa)
-    if db_col.replace("_", " ") in src_lower or src_lower in db_col.replace("_", " "):
+    # Normalize underscores to spaces for both sides so "gross_sales" matches "gross_sales_amount"
+    src_no_underscore = src_lower.replace("_", " ")
+    db_no_underscore = db_col.replace("_", " ")
+    if db_no_underscore in src_no_underscore or src_no_underscore in db_no_underscore:
         return 0.5, "substring"
     
     return 0.0, "none"
