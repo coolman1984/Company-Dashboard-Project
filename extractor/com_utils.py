@@ -68,6 +68,7 @@ def clean_com_value(value):
     * anything else                       -> (str(value), False)
     """
     import datetime as dt
+    import math
 
     if is_cv_error(value):
         return None, True
@@ -75,6 +76,10 @@ def clean_com_value(value):
         return value.isoformat(), False
     if isinstance(value, (dt.date, dt.time)):
         return value.isoformat(), False
+    # NaN/Infinity (e.g. a #DIV/0! that slips through as a float) would poison
+    # every SUM downstream — drop them to null and flag as an error cell.
+    if isinstance(value, float) and not math.isfinite(value):
+        return None, True
     if value is None or isinstance(value, (str, int, float, bool)):
         return value, False
     # pywintypes.TimeType and other COM scalars fall through to a safe string.

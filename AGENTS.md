@@ -27,6 +27,7 @@ overwriting each other and breaking the project.
    - `python3 -m extractor.test_extractor` — extraction engine
    - `python3 -m extractor.test_excel_com` — Excel COM helpers/extractor (mocked, runs on Linux)
    - `python3 -m extractor.test_arabic` — Arabic text/number normalization core
+   - `python3 test_db_schema.py` — schema compatibility (seed/mapper/COM all match schema.sql)
    - `python3 test_map_raw_to_db.py` — raw-to-database mapper (includes post-load validation)
    - `python3 -m reports.test_reports` — reports engine
    - `python3 -m reports.test_render` — Excel/PDF rendering
@@ -302,6 +303,34 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — Claude Code — `claude/db-hardening` (DB layer + extraction↔DB compatibility)
+**Did:** Analysed the database layer and fixed the main compatibility gap.
+New **`db_schema.py`** is the one module that turns `schema.sql` into a live DB
+(`apply_table` / `apply_indexes_and_views` / `apply_schema`, column helpers).
+**`ingest_sheet1.py` no longer hand-rolls its DDL** — it builds the table +
+indexes + views from `schema.sql`, so the Windows COM path now produces a schema
+identical to the seed and the mapper (it had drifted: `net_sales_pct_change` +
+an extra `gross_margin_pct_change` vs the schema's `net_sales_pct`). The mapper's
+`load_schema_columns`/`split_schema_statements` now delegate to `db_schema`
+(one parser). Edge cases: NaN/Infinity rejected in the mapper `convert`, dropped
+to null+flagged in `com_utils.clean_com_value`, and serialised as null
+defensively in `server.js`. New **`test_db_schema.py`** (10 tests, Linux/CI)
+guards against future drift; added to `ci.yml` + the rule-4 list. Wrote
+**`DATABASE.md`** (analysis + hardening, bilingual).
+**Why:** Owner asked to analyse the DB tech, harden edge cases, and make
+extraction fully compatible with the database. Centralising on `schema.sql`
+guarantees every build path agrees, forever (test-enforced).
+**Status:** ✅ all suites pass on Linux incl. the 10 new schema tests; the
+schema-construction parts of the COM ingest are exercised in CI without Windows.
+The COM *read* itself still needs an owner run on Windows (unchanged from the
+COM-hardening round).
+**Next:** optionally derive `seed_db.COLUMNS`/`ingest_sheet1.COLUMNS` from
+`db_schema.column_names()` (test already guarantees they match); WAL only if a
+concurrent-writer scenario appears.
+**Watch out:** `schema.sql` is now load-bearing for THREE paths via
+`db_schema.py` — change columns/views there and run `test_db_schema.py`. Did NOT
+touch `i18n.js` (another agent owns it).
 
 ### 2026-06-15 — Claude Code — `claude/com-extraction-hardening` (COM Excel hardening)
 **Did:** Hardened the whole Excel COM path. New `extractor/com_utils.py`
