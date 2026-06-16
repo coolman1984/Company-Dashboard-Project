@@ -37,10 +37,10 @@
 
 | # | المهمة | الوكيل | commit/PR | التاريخ |
 |---|--------|--------|-----------|---------|
-| D17 | Full-text search for knowledge base | hermes | pending | 2026-06-16 |
-| D18 | Excel/PDF download from web UI | hermes | pending | 2026-06-16 |
-| D19 | Source lineage tables + mapper integration | hermes | pending | 2026-06-16 |
-| D20 | MCP harness tools (project_status, run_test, brain_check, task_board_read) | hermes | pending | 2026-06-16 |
+| D17 | Full-text search for knowledge base | hermes | `5b47c76` → main | 2026-06-16 |
+| D18 | Excel/PDF download from web UI | hermes | `5b47c76` → main | 2026-06-16 |
+| D19 | Source lineage tables + mapper integration | hermes | `5b47c76` → main | 2026-06-16 |
+| D20 | MCP harness tools (project_status, run_test, brain_check, task_board_read) | hermes | `5b47c76` → main | 2026-06-16 |
 | D0 | Sample data + unified reports + MCP tools | hermes | `27e1bcf` → main | 2026-06-16 |
 | D1 | Mapping review tool | hermes | `74ce462` → main | 2026-06-15 |
 | D2 | CI gate + agent plan + DoD | claude | PR #15 | 2026-06-16 |
