@@ -352,6 +352,33 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — `claude/arabic-pdf-4b` (Arabic PDF 6.4b + font decision)
+**Did:** Finished the Arabic PDF substage and locked the font choice.
+**Font decision: Noto Naskh Arabic** (OFL, already vendored in `fonts/`) — a
+Naskh document face with full Presentation-Forms-A/B coverage (631 + 141 glyphs;
+verified it covers every word we render), chosen over Cairo (screen sans) and
+Amiri (heavier). Fixed the real gap: the WeasyPrint CSS named `"Noto Naskh
+Arabic"`/`"Noto Sans Arabic"` with **no `@font-face`**, so it relied on
+system-installed fonts (absent on servers/CI → tofu) and the no-CDN rule. Added
+`_arabic_font_css()` that embeds the **vendored TTF** via a `file://` `@font-face`
+and pointed both WeasyPrint CSS blocks (single + pack) at it (dropped the
+non-vendored "Noto Sans Arabic"). Removed an invalid `wordSpace='RTL'` kwarg
+(×2) in the ReportLab styles. Added a `test_arabic_font_css_is_self_contained`
+test; confirmed the ReportLab fallback embeds the vendored font (Arabic PDF
+renders, 15.7 KB, font embedded). Documented the choice in `ROADMAP.md` and
+`reports/README.md`.
+**Why:** Owner asked to finish 4b and pick the right font. Noto Naskh is the
+correct, safest choice; the missing `@font-face` would have produced broken
+Arabic PDFs in any environment without the system font.
+**Status:** ✅ render tests pass (reportlab + reshaper + bidi installed here);
+WeasyPrint path is the same fix (could not run WeasyPrint here — heavy system
+deps — but it's a CSS-level change verified by the self-containment test).
+**Next:** if you deploy where WeasyPrint is available, eyeball one Arabic board
+pack PDF for layout polish.
+**Watch out:** edits are in `reports/render.py` (OpenCode's Arabic PDF area) —
+kept surgical (one helper, CSS family swaps, 2 kwarg removals). Both PDF paths
+now depend on `fonts/NotoNaskhArabic.ttf` — keep it vendored.
+
 ### 2026-06-16 — Claude Code — `claude/i18n-5b-coverage` (Arabic deep content 5b)
 **Did:** Completed Stage 6.5b deep-content translation gaps on top of OpenCode's
 mechanism (AR_TEXT + regex + MutationObserver). Added a **" · " compositional

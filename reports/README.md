@@ -58,9 +58,24 @@ in `reports/__init__.py` and applied in both the CSV writer and Excel renderer.
 
 Install the office-format libraries with `pip install -r reports/requirements.txt`.
 Excel/PDF rendering is optional and degrades gracefully — if a library is
-missing, the CLI says so instead of crashing. Arabic PDF rendering uses the
-local font at `fonts/NotoNaskhArabic.ttf`; keep this font and its license/source
-note with the repo so reports stay offline and CDN-free.
+missing, the CLI says so instead of crashing.
+
+### Arabic PDF font (why Noto Naskh Arabic)
+The Arabic PDF font is **Noto Naskh Arabic** (OFL), vendored at
+`fonts/NotoNaskhArabic.ttf`. It was chosen over the dashboard's UI font (Cairo,
+a screen-tuned sans) and over Amiri (heavier/calligraphic) because a **Naskh**
+face is the document standard and stays legible in dense financial tables, and
+because it ships **full Arabic Presentation-Forms-A/B coverage** — exactly the
+glyphs Arabic shaping produces. Both PDF paths use it with **no system-font or
+CDN dependency**:
+- **WeasyPrint** (preferred — HarfBuzz shaping): an embedded `@font-face` points
+  at the vendored TTF, so output is identical and offline on any machine.
+- **ReportLab** (fallback when WeasyPrint isn't installed): registers the same
+  TTF and shapes text with `arabic-reshaper` + `python-bidi`.
+
+Keep the font and its license/source note with the repo so reports stay offline
+and CDN-free. `reports/test_render.py` asserts Arabic PDFs render and that the
+WeasyPrint CSS embeds the vendored font.
 
 ## What a report looks like (the "target" JSON envelope)
 

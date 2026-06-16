@@ -142,12 +142,25 @@ def test_pdf_pack():
         assert os.path.getsize(path) > 0
 
 
+def test_arabic_font_css_is_self_contained():
+    # The WeasyPrint path must embed the VENDORED font (no reliance on a
+    # system-installed "Noto …"), or Arabic renders as tofu on servers/CI.
+    css = render._arabic_font_css()
+    assert "@font-face" in css
+    assert "Noto Naskh Arabic" in css
+    assert "NotoNaskhArabic.ttf" in css
+    assert css.strip().endswith("}")
+    # The referenced font file must actually exist in the repo.
+    assert os.path.isfile(render._ARABIC_FONT_PATH), "vendored Arabic font missing"
+
+
 def main():
     test_number_formatting()
     test_excel()
     test_excel_arabic_is_rtl()
     test_pdf()
     test_pdf_arabic()
+    test_arabic_font_css_is_self_contained()
     test_excel_pack()
     test_pdf_pack()
     print("render tests passed.")
