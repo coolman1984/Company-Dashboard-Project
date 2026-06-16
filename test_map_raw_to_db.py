@@ -103,6 +103,21 @@ def test_dry_run_and_load():
                 "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_year'"
             ).fetchone()
             assert idx is not None, "indexes should exist after load"
+            lineage = conn.execute("SELECT COUNT(*) FROM row_lineage").fetchone()[0]
+            sources = conn.execute("SELECT COUNT(*) FROM source_file").fetchone()[0]
+            runs = conn.execute("SELECT COUNT(*) FROM import_run").fetchone()[0]
+            assert lineage == 2, lineage
+            assert sources == 1, sources
+            assert runs == 1, runs
+            sample = conn.execute(
+                """
+                SELECT sf.filename, rl.sheet_name, rl.source_row, rl.source_reference
+                FROM row_lineage rl
+                JOIN source_file sf ON sf.source_file_id = rl.source_file_id
+                ORDER BY rl.ledger_rowid LIMIT 1
+                """
+            ).fetchone()
+            assert sample == ("client_PL.raw.json", "Ledger", 2, "client_PL.raw.json:Ledger:row:2"), sample
         finally:
             conn.close()
 

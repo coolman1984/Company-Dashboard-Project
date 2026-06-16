@@ -284,29 +284,12 @@ def _iter_notes():
 
 def wiki_search(args):
     """Search the knowledge wiki. Args: {query, limit?}. Returns matches + snippets."""
+    from brain.search import search as search_notes
     query = (args or {}).get("query", "").strip()
     limit = max(1, min(int((args or {}).get("limit", 10)), 50))
     if not query:
         raise ToolError("query is required")
-    needle = query.lower()
-    matches = []
-    for path in sorted(_iter_notes()):
-        rel = os.path.relpath(path, ROOT)
-        try:
-            with open(path, encoding="utf-8") as handle:
-                text = handle.read()
-        except OSError:
-            continue
-        hay = text.lower()
-        if needle in os.path.basename(path).lower() or needle in hay:
-            idx = hay.find(needle)
-            snippet = ""
-            if idx >= 0:
-                start = max(0, idx - 60)
-                snippet = text[start:idx + 120].replace("\n", " ").strip()
-            matches.append({"note": rel, "snippet": snippet})
-        if len(matches) >= limit:
-            break
+    matches = search_notes(KNOWLEDGE_DIR, query, limit=limit)
     return {"query": query, "match_count": len(matches), "matches": matches}
 
 

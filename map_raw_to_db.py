@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import glob
+import hashlib
 import json
 import math
 import os
@@ -37,6 +38,7 @@ import re
 import sqlite3
 import sys
 import tempfile
+from datetime import datetime, timezone
 
 from extractor import arabic
 import import_workspace as iw
@@ -210,25 +212,31 @@ def find_raw_files(raw_dir, source_glob):
     return files
 
 
-def select_sheet(envelope, mapping, where):
-    sheets = (envelope.get("content") or {}).get("sheets") or []
-    if not sheets:
-        raise MappingError(f"{where}: no sheets in capture.")
-    if mapping.get("sheet"):
-        target = arabic.match_key(mapping["sheet"])
-        for sheet in sheets:
-            if arabic.match_key(sheet.get("name")) == target:
-                return sheet
-        raise MappingError(f"{where}: sheet '{mapping['sheet']}' not found "
-                           f"(available: {[s.get('name') for s in sheets]}).")
-    index = int(mapping.get("sheet_index", 0))
-    if index >= len(sheets):
-        raise MappingError(f"{where}: sheet_index {index} out of range.")
-    return sheets[index]
+def _file_sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
-def iter_records(mapping, schema_columns, raw_dir):
-    """Yield (record_dict, where) for every data row across matching files."""
+def _mapping_sha256(path):
+    return _file_sha256(path) if path and os.path.exists(path) else None
+
+
+def _lineage_source(envelope, raw_path):
+    source = envelope.get("source") or {}
+    return {
+        "filename": source.get("filename") or os.path.basename(raw_path),
+        "relpath": source.get("relpath") or source.get("path") or os.path.basename(raw_path),
+        "sha256": source.get("sha256") or source.get("hash") or _file_sha256(raw_path),
+        "extractor": envelope.get("extractor"),
+        "document_type": envelope.get("document_type"),
+    }
+
+
+def iter_records_with_lineage(mapping, schema_columns, raw_dir):
+    """Yield (record_dict, where, lineage_dict) for every mapped data row."""
     header_row = int(mapping.get("header_row", 0))
     skip_blank = mapping.get("skip_blank_rows", True)
     constants = mapping.get("constants", {})
@@ -267,6 +275,7 @@ def iter_records(mapping, schema_columns, raw_dir):
                     f"'{source_header}' not found in {headers}.")
             index_of[source_header] = header_index_by_key[key]
 
+        source_info = _lineage_source(envelope, path)
         for row_no, row in enumerate(cells[header_row + 1:], start=header_row + 2):
             if skip_blank and not any(c not in (None, "") for c in row):
                 continue
@@ -277,7 +286,38 @@ def iter_records(mapping, schema_columns, raw_dir):
                 value = row[idx] if idx < len(row) else None
                 record[target] = convert(value, schema_columns[target], where)
             validate_required(record, where)
-            yield record, where
+            lineage = dict(source_info)
+            lineage.update({
+                "raw_file": fname,
+                "sheet_name": sheet.get("name"),
+                "source_row": row_no,
+                "source_reference": f"{fname}:{sheet.get('name')}:row:{row_no}",
+            })
+            yield record, where, lineage
+
+
+def iter_records(mapping, schema_columns, raw_dir):
+    """Yield (record_dict, where) for compatibility with older tests/tools."""
+    for record, where, _lineage in iter_records_with_lineage(mapping, schema_columns, raw_dir):
+        yield record, where
+
+
+def select_sheet(envelope, mapping, where):
+    sheets = (envelope.get("content") or {}).get("sheets") or []
+    if not sheets:
+        raise MappingError(f"{where}: no sheets in capture.")
+    if mapping.get("sheet"):
+        target = arabic.match_key(mapping["sheet"])
+        for sheet in sheets:
+            if arabic.match_key(sheet.get("name")) == target:
+                return sheet
+        raise MappingError(f"{where}: sheet '{mapping['sheet']}' not found "
+                           f"(available: {[s.get('name') for s in sheets]}).")
+    index = int(mapping.get("sheet_index", 0))
+    if index >= len(sheets):
+        raise MappingError(f"{where}: sheet_index {index} out of range.")
+    return sheets[index]
+
 
 
 # --------------------------------------------------------------------------- #
@@ -286,6 +326,82 @@ def iter_records(mapping, schema_columns, raw_dir):
 _PL_IDENTITY_TOLERANCE = 1.0
 _GRAIN_COLS = ("year", "version", "period",
                "region_desc", "country_name", "customer_name", "m_group_desc")
+
+
+def _new_import_run_id(client_id=None):
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
+    prefix = re.sub(r"[^A-Za-z0-9_-]+", "-", client_id or "manual").strip("-") or "manual"
+    return f"import-{prefix}-{stamp}"
+
+
+def _register_import_run(conn, import_run_id, mapping, mapping_path, client_id, row_count=0):
+    started_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    conn.execute(
+        """
+        INSERT INTO import_run (
+            import_run_id, client_id, started_at, source, mapping_name,
+            mapping_path, mapping_sha256, row_count, status, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (import_run_id, client_id, started_at, "map_raw_to_db.py", mapping.get("name"),
+         os.path.abspath(mapping_path), _mapping_sha256(mapping_path), row_count, "running",
+         "Raw spreadsheet JSON mapped into pl_detail."),
+    )
+
+
+def _source_file_id(conn, import_run_id, lineage, cache):
+    key = (lineage.get("filename"), lineage.get("relpath"), lineage.get("sha256"))
+    if key in cache:
+        return cache[key]
+    cur = conn.execute(
+        """
+        INSERT INTO source_file (import_run_id, filename, relpath, sha256, extractor, document_type)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (import_run_id, lineage.get("filename") or lineage.get("raw_file"), lineage.get("relpath"),
+         lineage.get("sha256"), lineage.get("extractor"), lineage.get("document_type")),
+    )
+    cache[key] = cur.lastrowid
+    return cache[key]
+
+
+def _insert_batch_with_lineage(conn, insert_sql, batch, lineage_batch, stats, import_run_id, source_cache):
+    if not batch:
+        return
+    conn.executemany(insert_sql, batch)
+    last_rowid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    first_rowid = last_rowid - len(batch) + 1
+    lineage_rows = []
+    for offset, lineage in enumerate(lineage_batch):
+        source_file_id = _source_file_id(conn, import_run_id, lineage, source_cache)
+        ledger_rowid = first_rowid + offset
+        lineage_rows.append((
+            ledger_rowid,
+            import_run_id,
+            source_file_id,
+            lineage.get("sheet_name"),
+            lineage.get("source_row"),
+            lineage.get("raw_file"),
+            lineage.get("source_reference"),
+        ))
+    conn.executemany(
+        """
+        INSERT INTO row_lineage (
+            ledger_rowid, import_run_id, source_file_id, sheet_name,
+            source_row, raw_file, source_reference
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        lineage_rows,
+    )
+    stats["rows_inserted"] += len(batch)
+    stats["batches"] += 1
+
+
+def _finalize_import_run(conn, import_run_id, row_count, status="success"):
+    conn.execute(
+        "UPDATE import_run SET row_count=?, status=? WHERE import_run_id=?",
+        (row_count, status, import_run_id),
+    )
 
 
 def _validate_loaded_data(conn, stats):
@@ -332,6 +448,14 @@ def _validate_loaded_data(conn, stats):
     if null_counts:
         fatal.append(f"Null values in required columns: {null_counts}.")
 
+    lineage_count = conn.execute("SELECT COUNT(*) FROM row_lineage").fetchone()[0]
+    source_file_count = conn.execute("SELECT COUNT(*) FROM source_file").fetchone()[0]
+    import_run_count = conn.execute("SELECT COUNT(*) FROM import_run").fetchone()[0]
+    if lineage_count != total:
+        fatal.append(f"Lineage row count mismatch: {lineage_count} lineage rows for {total} ledger rows.")
+    if total > 0 and (source_file_count == 0 or import_run_count == 0):
+        fatal.append("Missing import/source lineage metadata for loaded ledger rows.")
+
     coverage = conn.execute("""
         SELECT year, version, COUNT(DISTINCT period) AS periods, COUNT(*) AS rows
         FROM pl_detail
@@ -350,6 +474,9 @@ def _validate_loaded_data(conn, stats):
         "coverage": [{"year": r[0], "version": r[1], "periods": r[2], "rows": r[3]}
                      for r in coverage],
         "pandl_identity_failures": gross_margin_failures,
+        "lineage_rows": lineage_count,
+        "source_files": source_file_count,
+        "import_runs": import_run_count,
         "fatal": fatal,
         "warnings": warnings,
         # Back-compat: combined view of everything flagged.
@@ -403,6 +530,7 @@ def load(mapping_path, raw_dir=DEFAULT_RAW_DIR, db_path=DEFAULT_DB_PATH,
     backup_path = ""
     effective_client = client_id
     run_id = iw.make_run_id()
+    import_run_id = run_id if effective_client else _new_import_run_id(client_id)
     workspace_log_path = None
 
     if effective_client and use_workspace and not dry_run:
@@ -476,24 +604,28 @@ def load(mapping_path, raw_dir=DEFAULT_RAW_DIR, db_path=DEFAULT_DB_PATH,
         try:
             for stmt in table_ddl:
                 conn.execute(stmt)
+            _register_import_run(conn, import_run_id, mapping, mapping_path, effective_client)
 
             placeholders = ", ".join("?" for _ in ordered_targets)
             col_list = ", ".join(f'"{c}"' for c in ordered_targets)
             insert_sql = f"INSERT INTO pl_detail ({col_list}) VALUES ({placeholders})"
 
             batch = []
-            for record, _where in iter_records(mapping, schema_columns, raw_dir):
+            lineage_batch = []
+            source_cache = {}
+            for record, _where, lineage in iter_records_with_lineage(mapping, schema_columns, raw_dir):
                 stats["rows_read"] += 1
                 batch.append(tuple(record.get(c) for c in ordered_targets))
+                lineage_batch.append(lineage)
                 if len(batch) >= batch_size:
-                    conn.executemany(insert_sql, batch)
-                    stats["rows_inserted"] += len(batch)
-                    stats["batches"] += 1
+                    _insert_batch_with_lineage(conn, insert_sql, batch, lineage_batch,
+                                               stats, import_run_id, source_cache)
                     batch.clear()
+                    lineage_batch.clear()
             if batch:
-                conn.executemany(insert_sql, batch)
-                stats["rows_inserted"] += len(batch)
-                stats["batches"] += 1
+                _insert_batch_with_lineage(conn, insert_sql, batch, lineage_batch,
+                                           stats, import_run_id, source_cache)
+            _finalize_import_run(conn, import_run_id, stats["rows_inserted"])
 
             # Build indexes + views AFTER the bulk load.
             for stmt in post_ddl:

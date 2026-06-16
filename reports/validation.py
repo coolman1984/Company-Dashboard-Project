@@ -46,6 +46,17 @@ def build_import_validation(conn: sqlite3.Connection):
         "SELECT MIN(period), MAX(period) FROM pl_detail"
     ).fetchone()
 
+    # Source lineage coverage. Older databases may not have the lineage tables,
+    # so fail gracefully rather than breaking report generation.
+    lineage_rows = source_files = import_runs = 0
+    try:
+        lineage_rows = cursor.execute("SELECT COUNT(*) FROM row_lineage").fetchone()[0]
+        source_files = cursor.execute("SELECT COUNT(*) FROM source_file").fetchone()[0]
+        import_runs = cursor.execute("SELECT COUNT(*) FROM import_run").fetchone()[0]
+    except sqlite3.Error:
+        lineage_rows = source_files = import_runs = 0
+    lineage_pct = round((lineage_rows / total_rows * 100), 2) if total_rows else 0
+
     # Null / missing checks on the business-critical columns
     null_checks = cursor.execute(
         """
@@ -77,6 +88,9 @@ def build_import_validation(conn: sqlite3.Connection):
         {"category": "Summary", "item": "Distinct customers", "value": customers, "status": "OK"},
         {"category": "Summary", "item": "Duplicate grain combinations", "value": duplicates, "status": "WARN" if duplicates else "OK"},
         {"category": "Summary", "item": "Period range", "value": f"{period_range[0]:.3f} - {period_range[1]:.3f}", "status": "OK"},
+        {"category": "Lineage", "item": "Rows with source lineage", "value": f"{lineage_rows} / {total_rows} ({lineage_pct:.2f}%)", "status": "OK" if lineage_rows == total_rows else "WARN"},
+        {"category": "Lineage", "item": "Source files", "value": source_files, "status": "OK" if source_files else "WARN"},
+        {"category": "Lineage", "item": "Import runs", "value": import_runs, "status": "OK" if import_runs else "WARN"},
     ]
     for year, cnt in year_rows:
         rows.append({"category": "By year", "item": f"Year {year}", "value": cnt, "status": "OK"})
@@ -105,5 +119,9 @@ def build_import_validation(conn: sqlite3.Connection):
     extra = {
         "ledger_row_count": total_rows,
         "duplicate_grain_count": duplicates,
+        "lineage_row_count": lineage_rows,
+        "lineage_coverage_pct": lineage_pct,
+        "source_file_count": source_files,
+        "import_run_count": import_runs,
     }
     return columns, rows, extra

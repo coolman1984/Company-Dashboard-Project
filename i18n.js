@@ -148,6 +148,8 @@
         "Database coverage is unavailable.": "تغطية قاعدة البيانات غير متاحة.",
         "Choose two different years": "اختر سنتين مختلفتين",
         "CSV exported": "تم تصدير CSV",
+        "Report downloaded": "تم تحميل التقرير",
+        "Download failed": "فشل التحميل",
         "Query failed": "فشل الاستعلام",
         "Querying SQLite": "جارٍ الاستعلام من SQLite",
         "Connecting": "جارٍ الاتصال",

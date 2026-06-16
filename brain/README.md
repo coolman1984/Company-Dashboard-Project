@@ -17,6 +17,7 @@ python3 -m brain.cli --check        # validate links; list orphans + broken link
 python3 -m brain.cli --index        # (re)write knowledge/index.md (the map)
 python3 -m brain.cli --graph        # write output/knowledge-graph.json
 python3 -m brain.cli --data-notes   # generate a note per region FROM the database
+python3 -m brain.cli --search margin # full-text search notes; returns ranked JSON
 python3 -m brain.test_brain         # run the tests
 ```
 
@@ -34,6 +35,9 @@ free of dangling links.
   from `pl_detail.db`, carrying the latest figures in frontmatter and linking
   into the curated wiki (`[[glossary]]`, `[[reports]]`, `[[index]]`). This is
   what makes curated knowledge and live numbers share one linked space.
+- **Search** (`search.py`): dependency-free full-text scan across titles, tags,
+  and bodies with weighted scoring and snippets. This gives agents and operators
+  a practical search surface before a heavier indexed service is justified.
 
 ## Layout
 

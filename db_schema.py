@@ -72,9 +72,7 @@ def split_statements(schema_path=SCHEMA_PATH):
     table_ddl, post_ddl = [], []
     for stmt in statements:
         head = stmt.lstrip().upper()
-        is_table = "PL_DETAIL" in head and (
-            head.startswith("CREATE TABLE") or head.startswith("DROP TABLE")
-        )
+        is_table = head.startswith("CREATE TABLE") or head.startswith("DROP TABLE")
         (table_ddl if is_table else post_ddl).append(stmt)
     return table_ddl, post_ddl
 

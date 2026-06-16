@@ -121,6 +121,20 @@ async function run() {
     const invalid = await getJson('/api/drilldown?dimension=not_a_column&year1=2025&year2=2026&metric=net_sales');
     assert.equal(invalid.response.status, 400);
 
+    const reports = await getJson('/api/reports');
+    assert.equal(reports.response.status, 200);
+    assert.equal(reports.body.reports.length, 9);
+    assert.ok(reports.body.reports.some(report => report.name === 'import_validation'));
+
+    const reportJson = await getJson('/api/reports/generate?name=import_validation');
+    assert.equal(reportJson.response.status, 200);
+    assert.ok(reportJson.body.rows.some(row => row.category === 'Lineage'));
+
+    const reportCsv = await fetch(baseUrl + '/api/reports/download?name=yearly_pl&format=csv');
+    assert.equal(reportCsv.status, 200);
+    assert.match(reportCsv.headers.get('content-disposition') || '', /yearly_pl\.csv/);
+    assert.match(await reportCsv.text(), /net_sales/);
+
     console.log('Smoke tests passed.');
 }
 

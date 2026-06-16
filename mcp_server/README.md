@@ -16,13 +16,19 @@ the project's minimal-dependency rule.
 | `db_overview` | data | columns, views, row count, years, versions |
 | `run_select` | data | rows from ONE read-only `SELECT` (max 500 rows; writes/PRAGMA/ATTACH rejected) |
 | `pl_summary` | data | the yearly Actual P&L roll-up (`v_yearly_pl`) |
+| `generate_report` | reports | one named report JSON envelope without writing files |
+| `project_status` | harness | git status, database/knowledge presence, task-board excerpt and test hints |
+| `run_test` | harness | run one allow-listed project test command and return output/status |
+| `brain_check` | second brain | run the knowledge-base link/tag/orphan validation check |
+| `task_board_read` | harness | read the project task board Markdown |
 | `extractor_availability` | extraction | which file-type extractors can run now |
 | `wiki_search` | second brain | notes matching a term, with snippets |
 | `wiki_get` | second brain | one knowledge note's Markdown |
 
 Every tool is read-only — nothing mutates the database, files, or anything else.
-The tool logic lives in `tools.py` (pure, unit-tested); `server.py` is just the
-transport.
+`generate_report` computes a report envelope in memory and returns it to the
+agent; it does not create report files. The tool logic lives in `tools.py` (pure,
+unit-tested); `server.py` is just the transport.
 
 ## Connect it to Claude Code
 

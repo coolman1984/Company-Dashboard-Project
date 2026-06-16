@@ -89,6 +89,18 @@ class TestSchemaApplication(unittest.TestCase):
         idx = [n for n in _objects(self.conn, "index") if n.startswith("idx_")]
         self.assertEqual(len(idx), 13, idx)
 
+    def test_lineage_tables_present(self):
+        tables = _objects(self.conn, "table")
+        self.assertIn("import_run", tables)
+        self.assertIn("source_file", tables)
+        self.assertIn("row_lineage", tables)
+
+    def test_lineage_indexes_present(self):
+        indexes = _objects(self.conn, "index")
+        self.assertIn("lineage_import_run_lookup", indexes)
+        self.assertIn("lineage_source_file_lookup", indexes)
+        self.assertIn("source_file_run_lookup", indexes)
+
     def test_yoy_variance_has_stable_columns(self):
         # The dashboard depends on these exact names; the old COM path used
         # net_sales_pct_change and an extra gross_margin_pct_change — drift.

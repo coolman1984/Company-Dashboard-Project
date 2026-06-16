@@ -9,6 +9,8 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 const crypto = require('crypto');
+const os = require('os');
+const { spawnSync } = require('child_process');
 
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -304,6 +306,64 @@ function jsonResponse(res, data, statusCode = 200) {
 
 function errorResponse(res, statusCode, message) {
     jsonResponse(res, { error: message }, statusCode);
+}
+
+function csvEscape(value) {
+    if (value === null || value === undefined) return '';
+    return '"' + String(value).replace(/"/g, '""') + '"';
+}
+
+function sendDownload(res, filename, contentType, data) {
+    res.writeHead(200, {
+        'Content-Type': contentType,
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff'
+    });
+    res.end(data);
+}
+
+function reportEnvelope(def) {
+    const rows = runDynamic(def.sql);
+    const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+    return {
+        report: def.name,
+        title: def.title,
+        description: def.description,
+        generated_at: new Date().toISOString(),
+        source: { database: path.basename(DB_PATH), rows_in_ledger: getSummary().totalRows },
+        columns: columns,
+        row_count: rows.length,
+        rows: rows
+    };
+}
+
+function reportCsvBuffer(envelope) {
+    const lines = [];
+    lines.push(envelope.columns.map(csvEscape).join(','));
+    envelope.rows.forEach(row => {
+        lines.push(envelope.columns.map(column => csvEscape(row[column])).join(','));
+    });
+    return Buffer.from('\ufeff' + lines.join('\n'), 'utf8');
+}
+
+function reportOfficeBuffer(name, format) {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdash-report-'));
+    try {
+        const result = spawnSync('python3', [
+            '-m', 'reports.cli', '--db', DB_PATH, '--out', tmpDir,
+            '--report', name, '--format', format
+        ], { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 120000 });
+        if (result.status !== 0) {
+            const details = (result.stderr || result.stdout || '').trim();
+            throw new Error(details || `reports.cli exited with ${result.status}`);
+        }
+        const filePath = path.join(tmpDir, `${name}.${format}`);
+        if (!fs.existsSync(filePath)) throw new Error(`report file was not generated: ${filePath}`);
+        return fs.readFileSync(filePath);
+    } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
 }
 
 function serveStatic(filePath, res) {
@@ -893,20 +953,30 @@ function handleApi(pathname, query, res) {
         const def = REPORT_DEFINITIONS.find(r => r.name === reportName);
         if (!def) return errorResponse(res, 404, `Unknown report: ${reportName}. Use /api/reports to list.`);
         try {
-            const rows = runDynamic(def.sql);
-            const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-            return jsonResponse(res, {
-                report: def.name,
-                title: def.title,
-                description: def.description,
-                generated_at: new Date().toISOString(),
-                source: { database: path.basename(DB_PATH), rows_in_ledger: getSummary().totalRows },
-                columns: columns,
-                row_count: rows.length,
-                rows: rows
-            });
+            return jsonResponse(res, reportEnvelope(def));
         } catch (error) {
             return errorResponse(res, 500, `Report generation failed: ${error.message}`);
+        }
+    }
+
+    if (pathname === '/api/reports/download') {
+        const reportName = query.name;
+        const format = String(query.format || 'csv').toLowerCase();
+        const def = REPORT_DEFINITIONS.find(r => r.name === reportName);
+        if (!def) return errorResponse(res, 404, `Unknown report: ${reportName}. Use /api/reports to list.`);
+        if (!['csv', 'xlsx', 'pdf'].includes(format)) {
+            return errorResponse(res, 400, 'Invalid format. Use csv, xlsx, or pdf.');
+        }
+        try {
+            if (format === 'csv') {
+                return sendDownload(res, `${reportName}.csv`, 'text/csv; charset=utf-8', reportCsvBuffer(reportEnvelope(def)));
+            }
+            const type = format === 'xlsx'
+                ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                : 'application/pdf';
+            return sendDownload(res, `${reportName}.${format}`, type, reportOfficeBuffer(reportName, format));
+        } catch (error) {
+            return errorResponse(res, 500, `Report download failed: ${error.message}`);
         }
     }
 

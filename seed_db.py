@@ -23,6 +23,7 @@ import os
 import random
 import sqlite3
 import sys
+from datetime import datetime, timezone
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "pl_detail.db")
@@ -250,6 +251,47 @@ def apply_schema(conn):
         conn.executescript(handle.read())
 
 
+def write_synthetic_lineage(conn, row_count, locale="en"):
+    """Attach synthetic-source lineage to every seeded ledger row.
+
+    The seed database is not real client data, but treating it like an imported
+    source proves the audit/provenance tables work end-to-end in demos and tests.
+    """
+    run_id = "seed-synthetic-ar" if locale == "ar" else "seed-synthetic-en"
+    now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    filename = f"synthetic-pl-detail-{locale}.generated"
+    conn.execute(
+        """
+        INSERT INTO import_run (
+            import_run_id, client_id, started_at, source, mapping_name,
+            mapping_path, mapping_sha256, row_count, status, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (run_id, "synthetic-demo", now, "seed_db.py", "synthetic-seed", "seed_db.py", None,
+         row_count, "success", "Deterministic synthetic development/demo data."),
+    )
+    cur = conn.execute(
+        """
+        INSERT INTO source_file (import_run_id, filename, relpath, sha256, extractor, document_type)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (run_id, filename, filename, None, "seed_db", "synthetic-ledger"),
+    )
+    source_file_id = cur.lastrowid
+    conn.executemany(
+        """
+        INSERT INTO row_lineage (
+            ledger_rowid, import_run_id, source_file_id, sheet_name,
+            source_row, raw_file, source_reference
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (rowid, run_id, source_file_id, "pl_detail", rowid, filename, f"{filename}:row:{rowid}")
+            for (rowid,) in conn.execute("SELECT rowid FROM pl_detail ORDER BY rowid")
+        ],
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate a synthetic pl_detail.db.")
     parser.add_argument("--force", action="store_true", help="Overwrite an existing database.")
@@ -278,6 +320,7 @@ def main():
         conn.executemany(
             f"INSERT INTO pl_detail ({col_names}) VALUES ({placeholders})", rows
         )
+        write_synthetic_lineage(conn, len(rows), locale=args.locale)
         conn.commit()
 
         total = conn.execute("SELECT COUNT(*) FROM pl_detail").fetchone()[0]

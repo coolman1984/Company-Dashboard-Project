@@ -17,6 +17,7 @@ import sys
 
 from .data_notes import generate_region_notes
 from .graph import build_graph
+from .search import search as search_notes
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_ROOT = os.path.join(BASE_DIR, "knowledge")
@@ -77,6 +78,13 @@ def cmd_graph(graph, out_path):
     return 0
 
 
+def cmd_search(root, query, limit):
+    hits = search_notes(root, query, limit=limit)
+    print(json.dumps({"query": query, "match_count": len(hits), "matches": hits},
+                     ensure_ascii=False, indent=2))
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Knowledge base tools.")
     parser.add_argument("--root", default=DEFAULT_ROOT, help="Knowledge folder.")
@@ -85,6 +93,10 @@ def main(argv=None):
     parser.add_argument("--graph", action="store_true", help="Write graph JSON.")
     parser.add_argument("--data-notes", action="store_true",
                         help="Generate region notes from the database.")
+    parser.add_argument("--search", default=None,
+                        help="Full-text search query for the knowledge base.")
+    parser.add_argument("--limit", type=int, default=10,
+                        help="Maximum search results for --search.")
     parser.add_argument("--db", default=None, help="Database for --data-notes.")
     args = parser.parse_args(argv)
 
@@ -104,7 +116,9 @@ def main(argv=None):
         cmd_index(graph, args.root)
     if args.graph:
         cmd_graph(graph, DEFAULT_GRAPH)
-    if args.check or not (args.index or args.graph or args.data_notes):
+    if args.search:
+        return cmd_search(args.root, args.search, args.limit)
+    if args.check or not (args.index or args.graph or args.data_notes or args.search):
         return cmd_check(graph)
     return 0
 

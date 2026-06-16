@@ -1373,7 +1373,9 @@ function loadReports(force) {
                     '</div>' +
                     '<div class="report-card-actions">' +
                         '<button class="primary-btn" type="button" data-report-name="' + escapeHtml(r.name) + '">' + tr('View') + '</button>' +
-                        '<button class="secondary-btn" type="button" data-report-name="' + escapeHtml(r.name) + '" data-report-title="' + escapeHtml(r.title) + '">CSV</button>' +
+                        '<button class="secondary-btn report-download-btn" type="button" data-report-name="' + escapeHtml(r.name) + '" data-format="csv">CSV</button>' +
+                        '<button class="secondary-btn report-download-btn" type="button" data-report-name="' + escapeHtml(r.name) + '" data-format="xlsx">XLSX</button>' +
+                        '<button class="secondary-btn report-download-btn" type="button" data-report-name="' + escapeHtml(r.name) + '" data-format="pdf">PDF</button>' +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -1383,9 +1385,9 @@ function loadReports(force) {
                     viewReport(btn.dataset.reportName);
                 });
             });
-            listEl.querySelectorAll('.secondary-btn').forEach(function (btn) {
+            listEl.querySelectorAll('.report-download-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
-                    downloadReportCSV(btn.dataset.reportName, btn.dataset.reportTitle);
+                    downloadReportFile(btn.dataset.reportName, btn.dataset.format || 'csv');
                 });
             });
 
@@ -1458,32 +1460,31 @@ function closeReportView() {
     el('reportList').style.display = '';
 }
 
-function downloadReportCSV(name, title) {
-    fetchJson(API + '/api/reports/generate?name=' + encodeURIComponent(name))
-        .then(function (data) {
-            if (!data.columns || !data.rows) return;
-            var lines = [];
-            lines.push(data.columns.map(function (c) { return '\"' + c.replace(/\"/g, '\"\"') + '\"'; }).join(','));
-            data.rows.forEach(function (row) {
-                lines.push(data.columns.map(function (c) {
-                    var val = row[c];
-                    if (val == null) return '';
-                    return '\"' + String(val).replace(/\"/g, '\"\"') + '\"';
-                }).join(','));
-            });
-            var blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+function downloadReportFile(name, format) {
+    format = (format || 'csv').toLowerCase();
+    var url = API + '/api/reports/download?name=' + encodeURIComponent(name) + '&format=' + encodeURIComponent(format);
+    fetch(url)
+        .then(function (response) {
+            if (!response.ok) {
+                return response.json().catch(function () { return {}; }).then(function (body) {
+                    throw new Error(body.error || 'HTTP ' + response.status);
+                });
+            }
+            return response.blob();
+        })
+        .then(function (blob) {
             var objectUrl = URL.createObjectURL(blob);
             var anchor = document.createElement('a');
             anchor.href = objectUrl;
-            anchor.download = (name || 'report') + '.csv';
+            anchor.download = (name || 'report') + '.' + format;
             document.body.appendChild(anchor);
             anchor.click();
             anchor.remove();
             URL.revokeObjectURL(objectUrl);
-            showToast(tr('CSV exported'));
+            showToast(tr('Report downloaded'));
         })
         .catch(function (err) {
-            showToast('Download failed: ' + err.message);
+            showToast(tr('Download failed') + ': ' + err.message, true);
         });
 }
 

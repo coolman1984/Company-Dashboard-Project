@@ -77,7 +77,9 @@ or exported to Excel/PDF.
 > single **board pack** (`--pack`). Arabic PDFs are rendered via HTML/CSS →
 > WeasyPrint for correct connected Arabic glyphs and RTL layout, with a final
 > source-confidence page. The core SQL reports are also available as live API
-> endpoints (`/api/reports`, `/api/reports/generate`). See `reports/README.md`.
+> endpoints (`/api/reports`, `/api/reports/generate`). The dashboard now has a
+> Reports tab for live report viewing and CSV/XLSX/PDF download, including
+> source-lineage import validation. See `reports/README.md`.
 > **Arabic PDF (6.4b) — done & self-contained:** the chosen font is **Noto Naskh
 > Arabic** (OFL, vendored in `fonts/`) — a Naskh face with full Arabic
 > Presentation-Forms coverage, the right document style for dense tables. Both

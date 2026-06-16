@@ -35,6 +35,27 @@ class _TempDB:
         conn.execute(
             "INSERT INTO pl_detail (year, version, period, region_desc, net_sales) "
             "VALUES (?,?,?,?,?)", (2025, "Actual", 2025.012, "Europe", 80.0))
+        conn.execute(
+            """
+            INSERT INTO import_run (import_run_id, started_at, source, mapping_name, row_count, status)
+            VALUES ('test-run', '2026-01-01T00:00:00Z', 'test_mcp.py', 'test', 2, 'success')
+            """
+        )
+        cur = conn.execute(
+            """
+            INSERT INTO source_file (import_run_id, filename, relpath, extractor, document_type)
+            VALUES ('test-run', 'test.raw.json', 'test.raw.json', 'test', 'spreadsheet')
+            """
+        )
+        source_file_id = cur.lastrowid
+        conn.executemany(
+            """
+            INSERT INTO row_lineage (ledger_rowid, import_run_id, source_file_id, sheet_name, source_row, raw_file, source_reference)
+            VALUES (?, 'test-run', ?, 'Ledger', ?, 'test.raw.json', ?)
+            """,
+            [(1, source_file_id, 2, 'test.raw.json:Ledger:row:2'),
+             (2, source_file_id, 3, 'test.raw.json:Ledger:row:3')]
+        )
         conn.commit()
         conn.close()
         self._saved = tools.DB_PATH
@@ -86,6 +107,19 @@ class TestDataTools(unittest.TestCase):
             out = tools.pl_summary()
         years = [r["year"] for r in out["years"]]
         self.assertEqual(years, [2025, 2026])
+
+    def test_generate_report_returns_envelope(self):
+        with _TempDB():
+            out = tools.generate_report({"name": "import_validation"})
+        self.assertEqual(out["report"], "import_validation")
+        self.assertEqual(out["source"]["rows_in_ledger"], 2)
+        self.assertIn("lineage_coverage_pct", out)
+        self.assertEqual(out["lineage_coverage_pct"], 100.0)
+
+    def test_generate_report_rejects_unknown(self):
+        with _TempDB():
+            with self.assertRaises(tools.ToolError):
+                tools.generate_report({"name": "nope"})
 
 
 class TestExtractionTool(unittest.TestCase):

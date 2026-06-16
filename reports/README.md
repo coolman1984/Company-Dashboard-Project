@@ -31,14 +31,24 @@ The source database must exist first — either the synthetic dev data
 
 ### Live API access (from the dashboard)
 
-The six core SQL-based reports are also available as live API endpoints:
+All nine reports are also available as live API endpoints from the dashboard,
+including the source-lineage import validation report and the two outlook
+reports:
 
 ```bash
 curl http://localhost:3001/api/reports                    # list reports
 curl http://localhost:3001/api/reports/generate?name=yearly_pl  # JSON report
+curl http://localhost:3001/api/reports/generate?name=import_validation
+curl http://localhost:3001/api/reports/generate?name=outlook_pl
+curl -OJ 'http://localhost:3001/api/reports/download?name=yearly_pl&format=xlsx'
+curl -OJ 'http://localhost:3001/api/reports/download?name=yearly_pl&format=pdf'
 ```
 
-No Python needed — the server runs the report SQL directly against the live database.
+No Python needed for live viewing and CSV download — the server runs those
+queries directly against the current database. XLSX/PDF downloads reuse the
+Python report renderer in a temporary directory so office artifacts stay
+consistent with the CLI/board-pack path. The Python report engine remains the
+source for self-describing JSON files and richer office artifacts.
 
 ### Export safety
 
@@ -105,6 +115,7 @@ when it was made, from which database).
 | `country_pl` | P&L by country and year |
 | `customer_pl` | P&L by customer and year |
 | `yoy_variance` | Year-over-year change in key P&L lines |
+| `import_validation` | Row counts, duplicate grain checks, and source-lineage coverage |
 | `outlook_pl` | **Forecast** full-year P&L (Actual P01-P05 + T06 P06 + T07 P07-P12) vs prior-year actual, with variance |
 | `outlook_monthly` | Monthly net sales / gross margin, flagged actual vs outlook |
 

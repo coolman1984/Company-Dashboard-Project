@@ -12,6 +12,7 @@ import tempfile
 from . import data_notes
 from .graph import build_graph
 from .parse import parse_note
+from .search import search
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCHEMA_PATH = os.path.join(BASE_DIR, "schema.sql")
@@ -78,10 +79,21 @@ def test_data_notes_link_into_wiki():
         assert not graph.broken_links(), graph.broken_links()
 
 
+def test_search_ranks_title_and_returns_snippet():
+    with tempfile.TemporaryDirectory() as tmp:
+        _write(tmp, "reports.md", "---\ntags: [finance]\n---\n# Reports\n\nGross margin report definitions.\n")
+        _write(tmp, "process.md", "# Process\n\nThis mentions margin once.\n")
+        hits = search(tmp, "reports margin", limit=5)
+        assert hits[0]["note"] == "reports", hits
+        assert hits[0]["score"] > hits[1]["score"], hits
+        assert "margin" in hits[0]["snippet"].lower(), hits[0]
+
+
 def main():
     test_parse()
     test_graph()
     test_data_notes_link_into_wiki()
+    test_search_ranks_title_and_returns_snippet()
     print("brain tests passed.")
     return 0
 

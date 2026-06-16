@@ -79,6 +79,47 @@ CREATE TABLE pl_detail (
     sa_royalty_hq          REAL
 );
 
+DROP TABLE IF EXISTS row_lineage;
+DROP TABLE IF EXISTS source_file;
+DROP TABLE IF EXISTS import_run;
+
+CREATE TABLE import_run (
+    import_run_id          TEXT PRIMARY KEY,
+    client_id              TEXT,
+    started_at             TEXT NOT NULL,
+    source                 TEXT NOT NULL,
+    mapping_name           TEXT,
+    mapping_path           TEXT,
+    mapping_sha256         TEXT,
+    row_count              INTEGER NOT NULL DEFAULT 0,
+    status                 TEXT NOT NULL DEFAULT 'success',
+    notes                  TEXT
+);
+
+CREATE TABLE source_file (
+    source_file_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    import_run_id          TEXT NOT NULL,
+    filename               TEXT NOT NULL,
+    relpath                TEXT,
+    sha256                 TEXT,
+    extractor              TEXT,
+    document_type          TEXT,
+    FOREIGN KEY(import_run_id) REFERENCES import_run(import_run_id)
+);
+
+CREATE TABLE row_lineage (
+    ledger_rowid           INTEGER PRIMARY KEY,
+    import_run_id          TEXT NOT NULL,
+    source_file_id         INTEGER NOT NULL,
+    sheet_name             TEXT,
+    source_row             INTEGER,
+    raw_file               TEXT,
+    source_reference       TEXT,
+    FOREIGN KEY(import_run_id) REFERENCES import_run(import_run_id),
+    FOREIGN KEY(source_file_id) REFERENCES source_file(source_file_id),
+    FOREIGN KEY(ledger_rowid) REFERENCES pl_detail(rowid)
+);
+
 -- ----------------------------------------------------------------------------
 -- Indexes (created after bulk load in production; safe to define up front here)
 -- ----------------------------------------------------------------------------
@@ -95,6 +136,9 @@ CREATE INDEX IF NOT EXISTS idx_product       ON pl_detail (product_number);
 CREATE INDEX IF NOT EXISTS idx_year_region   ON pl_detail (year, region_desc);
 CREATE INDEX IF NOT EXISTS idx_year_mgroup   ON pl_detail (year, m_group_desc);
 CREATE INDEX IF NOT EXISTS idx_year_customer ON pl_detail (year, customer_name);
+CREATE INDEX IF NOT EXISTS lineage_import_run_lookup ON row_lineage (import_run_id);
+CREATE INDEX IF NOT EXISTS lineage_source_file_lookup ON row_lineage (source_file_id);
+CREATE INDEX IF NOT EXISTS source_file_run_lookup ON source_file (import_run_id);
 
 -- ----------------------------------------------------------------------------
 -- Analytical views (Actual-only roll-ups used as a fallback / convenience)

@@ -115,13 +115,15 @@ Today the agents are governed entirely by **documents the harness reads**:
 - `Agent.md` → technical lessons (COM, performance, pitfalls).
 
 **Built: an MCP server (`mcp_server/`)** so an agent can *act on* the system
-through safe, **read-only** tools instead of guessing — `db_overview`,
-`run_select` (guarded SELECT), `pl_summary`, `extractor_availability`,
-`wiki_search`, `wiki_get`. It speaks MCP over stdio with the Python stdlib only
-(no extra dependency); the tool **logic** lives in plain, unit-tested functions
-(`mcp_server/tools.py`) and the transport (`server.py`) is a thin wrapper. A
-project-scoped `.mcp.json` lets Claude Code discover it. This is the bridge that
-lets the harness "see" layers 1–4 directly. See [`mcp_server/README.md`](mcp_server/README.md).
+through safe, read-oriented tools instead of guessing — database inspection
+(`db_overview`, `run_select`, `pl_summary`), report generation in memory
+(`generate_report`), extraction availability, wiki search/read, and harness
+helpers (`project_status`, `run_test`, `brain_check`, `task_board_read`). It
+speaks MCP over stdio with the Python stdlib only (no extra dependency); the tool
+**logic** lives in plain, unit-tested functions (`mcp_server/tools.py`) and the
+transport (`server.py`) is a thin wrapper. A project-scoped `.mcp.json` lets
+Claude Code discover it. This is the bridge that lets the harness "see" layers
+1–4 directly. See [`mcp_server/README.md`](mcp_server/README.md).
 
 ---
 
