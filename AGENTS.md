@@ -372,6 +372,33 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Hermes — `5b47c76` → main (full-text search + report downloads + source lineage + MCP harness tools)
+**Did:** Landed four backlog items in one push (D17–D20):
+- **Full-text search (R5):** new `brain/search.py` — dependency-free weighted
+  scoring over the knowledge base; `brain/cli.py` gains `--search`; MCP
+  `wiki_search` now delegates to `brain.search`.
+- **Report downloads (D18):** `server.js` `/api/reports/download` endpoint serving
+  CSV/XLSX/PDF; `app.js` adds three per-report download buttons.
+- **Source lineage (D19):** `schema.sql` adds `import_run`, `source_file`,
+  `row_lineage` tables + indexes; `seed_db.py` `write_synthetic_lineage` populates
+  demo lineage; `map_raw_to_db.py` `iter_records_with_lineage` tracks provenance;
+  `reports/validation.py` adds lineage-coverage checks.
+- **MCP harness tools (D20):** `project_status`, `run_test`, `brain_check`,
+  `task_board_read` added to `mcp_server/tools.py`.
+Docs (ARCHITECTURE/ROADMAP/READMEs) and TASK_BOARD updated; R5/R11 marked done.
+**Why:** Closes the four highest-ready backlog items — search made the knowledge
+base usable, downloads finished the Reports UI, lineage gives every imported row a
+verifiable origin, and the harness tools let agents inspect/test the project safely.
+**Status:** ✅ All tests passing (`npm test`, `brain`, `test_db_schema`,
+`test_map_raw_to_db`, `mcp`). CI run #61 on `main` green. Task Board records
+D17–D20 against `5b47c76` (hash backfill `2b38703`).
+**Next:** Scenarios in the dashboard (R3), client-specific report templates (R1),
+OCR for scanned PDFs (R8).
+**Watch out:** `/api/reports/download` PDF/XLSX paths regenerate from the API per
+click — fine for 6–9 reports but watch memory on the large Customer P&L.
+`row_lineage` is populated synthetically by `seed_db.py` for demo data; real
+imports must go through `map_raw_to_db.iter_records_with_lineage` to stay covered.
+
 ### 2026-06-16 — Hermes — `hermes/reports-dashboard-ui` (reports download UI)
 **Did:** Added the **Reports tab** to the dashboard — the most-repeated "next" from
 every recent journal entry. The sidebar now has a "Reports" tab (with document
