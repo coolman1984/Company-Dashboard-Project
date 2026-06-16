@@ -25,9 +25,9 @@ ALLOWED_ROOT_PY = {
     "db_schema.py", "seed_db.py",
     # extraction / load layer
     "map_raw_to_db.py", "ingest_sheet1.py",
-    "import_workspace.py", "import_workspace_cli.py",
+    "import_workspace.py", "import_workspace_cli.py", "mapping_tool.py",
     # tests live next to the root modules they cover
-    "test_db_schema.py", "test_map_raw_to_db.py",
+    "test_db_schema.py", "test_map_raw_to_db.py", "test_mapping_tool.py",
     "test_import_workspace.py", "test_phase2_integration.py",
     "test_project_structure.py",
 }

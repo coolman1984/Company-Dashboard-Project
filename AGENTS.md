@@ -30,6 +30,7 @@ overwriting each other and breaking the project.
    - `python3 -m extractor.test_arabic` — Arabic text/number normalization core
    - `python3 test_db_schema.py` — schema compatibility (seed/mapper/COM all match schema.sql)
    - `python3 test_map_raw_to_db.py` — raw-to-database mapper (includes post-load validation)
+   - `python3 test_mapping_tool.py` — mapping review tool (auto-suggest + HTML review report)
    - `python3 -m reports.test_reports` — reports engine
    - `python3 -m reports.test_render` — Excel/PDF rendering
    - `python3 -m reports.test_scenario` — what-if scenarios
@@ -370,6 +371,13 @@ what to do, and that it stay consistent after today's reorg + MCP work.
 Did not rewrite historical journal entries (they are records). `i18n.js` untouched.
 **Next:** keep `ARCHITECTURE.md` + this file in sync when layers change (the
 quick-start makes that step 8 of every task).
+
+### 2026-06-15 — Hermes / OpenAI Codex — `mohamed/phase-2-import-workspace` → `main` (mapping review tool)
+**Did:** Added `mapping_tool.py`, a dependency-light review tool for Phase 2 real-data onboarding. It scans spreadsheet raw JSON captures, extracts sheet headers/sample rows, suggests schema mappings using exact / known bilingual patterns / Arabic normalization / substring matching, writes a reviewable RTL HTML report, and emits a draft `mapping.json`. Added `test_mapping_tool.py` with 15 stdlib `unittest` checks, wired it into CI, added the root structure allow-list entry, and saved the implementation plan in `.hermes/plans/2026-06-15-mapping-review-tool.md`.
+**Why:** Phase 2 needed a guided mapping file generator so a second operator can repeat a client import without hand-writing JSON from scratch.
+**Status:** Local mapping-tool tests pass; full suite was run before push. No new runtime dependency.
+**Next:** The tool is still operator-reviewed, not a full browser editor. Next useful step is surfacing import validation/history in the dashboard UI.
+**Watch out:** The generated mapping is intentionally a draft: low-confidence columns are omitted and the operator must review constants/required fields before running `map_raw_to_db.py`.
 
 ### 2026-06-15 — Claude Code — `claude/mcp-server` (harness layer, phase 2)
 **Did:** Built the **MCP server** (`mcp_server/`) — the harness bridge from
