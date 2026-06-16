@@ -372,6 +372,30 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — main (P1 #4: interactive what-if scenario levers in the dashboard)
+**Did:** Made the what-if engine interactive from the browser (audit P1 #4).
+- **Backend:** new `/api/scenario-whatif?ns=&cogs=&opex=&tax=&scales=` endpoint
+  that builds a scenario config and **reuses the tested Python engine**
+  (`reports/scenario.py`) via a new `evaluate_config()` + `--eval-stdin` CLI mode
+  — the dashboard never re-implements the P&L math (ARCHITECTURE single-source
+  rule). Levers are clamped server-side.
+- **Frontend:** a "What-if levers" card on the Scenario tab — sliders for net
+  sales / COGS / opex (±30%), a tax-rate slider, and a "COGS scales with revenue"
+  toggle. Changes are debounced (250ms) → live baseline-vs-scenario P&L table with
+  coloured deltas + a net-income headline. Reset + Export CSV. Fully bilingual.
+- **Tests:** new `evaluate_config` unit test (no-op reproduces baseline; a lever
+  moves net income) and smoke assertions for the endpoint (flat == baseline,
+  positive lever lifts NI).
+**Why:** What-if forecasting is only valuable when management can move the levers
+themselves; the backend supported it but the UI was static.
+**Status:** ✅ Full gate green on EN *and* AR seeds (npm smoke + i18n coverage +
+scenario/render/reports/mcp/com/structure). Verified the endpoint live.
+**Next:** P2 — executive narrative one-pager (top changes/risks/actions) and
+per-row source drill-back from a dashboard figure.
+**Watch out:** `/api/scenario-whatif` spawns Python per request (debounced on the
+client). Levers are global (no per-dimension `where`) by design for v1; the engine
+already supports dimension-scoped adjustments if we want to expose them later.
+
 ### 2026-06-16 — Claude Code — main (P1 defensibility: Source & Health tab + COM orphan-kill safety net)
 **Did:** Worked the external audit's top actionable items.
 - **Source & Health dashboard tab (audit P1 #3).** New `/api/import-health`

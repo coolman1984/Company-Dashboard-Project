@@ -196,14 +196,47 @@ def generate_scenario(db_path, scenario_path, out_dir,
     return envelope, written
 
 
+def evaluate_config(db_path, config):
+    """Run a scenario config dict against the database, returning a JSON-ready
+    dict of {columns, rows, basis, scenario_name}. Used by the dashboard's
+    interactive what-if endpoint so the UI reuses this one tested engine rather
+    than re-implementing the P&L math.
+    """
+    validate_scenario(config)
+    if not os.path.exists(db_path):
+        raise FileNotFoundError(
+            f"Database not found: {db_path}. Seed it or load client data first.")
+    conn = sqlite3.connect(db_path)
+    try:
+        columns, rows, extra = run_scenario(conn, config)
+    finally:
+        conn.close()
+    return {"columns": columns, "rows": rows, **extra}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Run a what-if scenario on the outlook.")
-    parser.add_argument("--scenario", required=True, help="Scenario JSON file.")
+    parser.add_argument("--scenario", help="Scenario JSON file.")
+    parser.add_argument("--eval-stdin", action="store_true",
+                        help="Read a scenario config as JSON from stdin and print "
+                             "the baseline-vs-scenario result as JSON (for the UI).")
     parser.add_argument("--db", default=DEFAULT_DB, help="Source database.")
     parser.add_argument("--out", default=DEFAULT_OUT, help="Output folder.")
     parser.add_argument("--format", nargs="+", default=["json", "xlsx", "pdf"],
                         choices=["json", "csv", "xlsx", "pdf"], help="Output format(s).")
     args = parser.parse_args(argv)
+
+    if args.eval_stdin:
+        try:
+            config = json.loads(sys.stdin.read() or "{}")
+            print(json.dumps(evaluate_config(args.db, config)))
+        except (ScenarioError, FileNotFoundError, json.JSONDecodeError) as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 1
+        return 0
+
+    if not args.scenario:
+        parser.error("either --scenario or --eval-stdin is required")
     try:
         generate_scenario(args.db, args.scenario, args.out, formats=tuple(args.format))
     except (ScenarioError, FileNotFoundError, RuntimeError) as error:

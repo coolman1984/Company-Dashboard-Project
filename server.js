@@ -998,6 +998,40 @@ function handleApi(pathname, query, res) {
         return jsonResponse(res, rows.slice(0, limit));
     }
 
+    if (pathname === '/api/scenario-whatif') {
+        // Interactive what-if levers — reuse the tested Python scenario engine
+        // (reports/scenario.py) so the dashboard never re-implements the P&L math.
+        const pct = value => {
+            const n = Number(value);
+            return Number.isFinite(n) ? Math.max(-95, Math.min(500, n)) : 0;
+        };
+        let tax = Number(query.tax);
+        if (!Number.isFinite(tax)) tax = 22;
+        tax = Math.max(0, Math.min(95, tax)) / 100;   // UI sends a percent; engine wants a rate
+        const scales = query.scales === undefined ? true : (query.scales === 'true' || query.scales === '1');
+        const config = {
+            name: 'Interactive what-if',
+            adjustments: [
+                { metric: 'net_sales', change_pct: pct(query.ns) },
+                { metric: 'cost_of_goods_sold', change_pct: pct(query.cogs) },
+                { metric: 'operating_expense', change_pct: pct(query.opex) }
+            ],
+            tax_rate: tax,
+            cogs_scales_with_revenue: scales
+        };
+        try {
+            const result = spawnSync('python3', ['-m', 'reports.scenario', '--eval-stdin', '--db', DB_PATH],
+                { cwd: PROJECT_ROOT, encoding: 'utf8', input: JSON.stringify(config), timeout: 30000 });
+            if (result.status !== 0) {
+                const details = (result.stderr || result.stdout || '').trim();
+                return errorResponse(res, 500, `Scenario evaluation failed: ${details || result.status}`);
+            }
+            return jsonResponse(res, JSON.parse(result.stdout));
+        } catch (error) {
+            return errorResponse(res, 500, `Scenario evaluation failed: ${error.message}`);
+        }
+    }
+
     if (pathname === '/api/reports') {
         return jsonResponse(res, {
             reports: REPORT_DEFINITIONS.map(r => ({ name: r.name, title: r.title, description: r.description })),

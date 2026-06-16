@@ -1266,6 +1266,7 @@ function loadDrilldown(force) {
 
 function loadScenario(force) {
     setLoading('scenarioTable');
+    initWhatif();
     return fetchJson(API + '/api/scenario-pl' + queryString({}, { ignoreYear: true, ignoreVersion: true }), { force: force })
         .then(function (data) {
             scenarioData = data;
@@ -1273,6 +1274,84 @@ function loadScenario(force) {
             tabLoaded.scenario = true;
         })
         .catch(handleLoadError);
+}
+
+var whatifWired = false;
+var whatifTimer = null;
+
+function signedPct(value) {
+    var n = Number(value) || 0;
+    return (n > 0 ? '+' : '') + n + '%';
+}
+
+function updateLeverOutputs() {
+    el('leverNsOut').textContent = signedPct(el('leverNs').value);
+    el('leverCogsOut').textContent = signedPct(el('leverCogs').value);
+    el('leverOpexOut').textContent = signedPct(el('leverOpex').value);
+    el('leverTaxOut').textContent = (Number(el('leverTax').value) || 0) + '%';
+}
+
+function scheduleWhatif() {
+    if (whatifTimer) window.clearTimeout(whatifTimer);
+    whatifTimer = window.setTimeout(runWhatif, 250);
+}
+
+function initWhatif() {
+    if (whatifWired) { runWhatif(); return; }
+    whatifWired = true;
+    ['leverNs', 'leverCogs', 'leverOpex', 'leverTax'].forEach(function (id) {
+        el(id).addEventListener('input', function () { updateLeverOutputs(); scheduleWhatif(); });
+    });
+    el('leverScales').addEventListener('change', scheduleWhatif);
+    el('whatifReset').addEventListener('click', function () {
+        el('leverNs').value = 0; el('leverCogs').value = 0; el('leverOpex').value = 0;
+        el('leverTax').value = 22; el('leverScales').checked = true;
+        updateLeverOutputs(); runWhatif();
+    });
+    updateLeverOutputs();
+    runWhatif();
+}
+
+function runWhatif() {
+    var q = '?ns=' + encodeURIComponent(el('leverNs').value) +
+        '&cogs=' + encodeURIComponent(el('leverCogs').value) +
+        '&opex=' + encodeURIComponent(el('leverOpex').value) +
+        '&tax=' + encodeURIComponent(el('leverTax').value) +
+        '&scales=' + (el('leverScales').checked ? 'true' : 'false');
+    fetchJson(API + '/api/scenario-whatif' + q, { force: true })
+        .then(renderWhatif)
+        .catch(function (err) {
+            el('whatifTable').innerHTML = '<tbody><tr><td>' + escapeHtml(err.message) + '</td></tr></tbody>';
+            el('whatifHeadline').textContent = '';
+        });
+}
+
+function renderWhatif(data) {
+    var rows = (data && data.rows) || [];
+    var head = '<thead><tr><th>' + tr('Line item') + '</th><th>' + tr('Baseline') + '</th><th>' +
+        tr('Scenario') + '</th><th>' + tr('Change') + '</th><th>%</th></tr></thead>';
+    var body = '<tbody>' + rows.map(function (r) {
+        var cls = r.change > 0 ? 'delta-up' : (r.change < 0 ? 'delta-down' : '');
+        var pctTxt = (r.change_pct == null) ? '' : (r.change_pct > 0 ? '+' : '') + r.change_pct + '%';
+        var chTxt = (r.change > 0 ? '+' : '') + formatFull(r.change);
+        return '<tr><td>' + escapeHtml(tr(String(r.line_item))) + '</td><td>' + formatFull(r.baseline) +
+            '</td><td>' + formatFull(r.scenario) + '</td><td class="' + cls + '">' + chTxt +
+            '</td><td class="' + cls + '">' + escapeHtml(pctTxt) + '</td></tr>';
+    }).join('') + '</tbody>';
+    el('whatifTable').innerHTML = head + body;
+
+    var ni = rows.find(function (r) { return r.line_item === 'Net Income'; });
+    var headline = el('whatifHeadline');
+    if (ni) {
+        var dir = ni.change > 0.5 ? 'up' : (ni.change < -0.5 ? 'down' : '');
+        headline.className = 'whatif-headline ' + dir;
+        var verb = ni.change >= 0 ? tr('increases by') : tr('decreases by');
+        headline.textContent = tr('Net income') + ' ' + verb + ' ' + formatFull(Math.abs(ni.change)) +
+            ' → ' + formatFull(ni.scenario) + ' (' + tr('baseline') + ' ' + formatFull(ni.baseline) + ')';
+    } else {
+        headline.textContent = '';
+        headline.className = 'whatif-headline';
+    }
 }
 
 function renderScenario() {

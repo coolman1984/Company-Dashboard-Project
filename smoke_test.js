@@ -161,6 +161,19 @@ async function run() {
     assert.ok(health.body.checks.some(c => c.category === 'Lineage'));
     assert.ok(Array.isArray(health.body.history));
 
+    // Interactive what-if levers: a no-op scenario reproduces the baseline exactly,
+    // and a real lever moves net income.
+    const whatifFlat = await getJson('/api/scenario-whatif?ns=0&cogs=0&opex=0&tax=22');
+    assert.equal(whatifFlat.response.status, 200);
+    assert.ok(Array.isArray(whatifFlat.body.rows) && whatifFlat.body.rows.length > 0);
+    const niFlat = whatifFlat.body.rows.find(r => r.line_item === 'Net Income');
+    assert.ok(niFlat && Math.abs(niFlat.scenario - niFlat.baseline) < 0.01);
+
+    const whatif = await getJson('/api/scenario-whatif?ns=10&opex=-5&tax=22&scales=true');
+    assert.equal(whatif.response.status, 200);
+    const ni = whatif.body.rows.find(r => r.line_item === 'Net Income');
+    assert.ok(ni && ni.scenario > ni.baseline, 'positive sales + lower opex should lift net income');
+
     const reportCsv = await fetch(baseUrl + '/api/reports/download?name=yearly_pl&format=csv');
     assert.equal(reportCsv.status, 200);
     assert.match(reportCsv.headers.get('content-disposition') || '', /yearly_pl\.csv/);

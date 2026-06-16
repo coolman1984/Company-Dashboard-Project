@@ -255,6 +255,7 @@ All endpoints are `GET` and return JSON. Common filters: `version`, `year`,
 | `/api/regional-pl`, `/api/country-pl`, `/api/mgroup-pl`, `/api/customer-pl` | Dimensional P&L |
 | `/api/yoy-variance` | Year-over-year deltas |
 | `/api/scenario-pl` | Actual vs T06/T07 by year |
+| `/api/scenario-whatif?ns=&cogs=&opex=&tax=&scales=` | Interactive what-if: baseline vs scenario P&L for live lever changes |
 | `/api/executive-outlook` | Reconciled CFO outlook cockpit |
 | `/api/drilldown` | Variance contributors between two years |
 | `/api/top-products`, `/api/portfolio` | Product economics |

@@ -753,6 +753,17 @@
         .status-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
         .status-badge.ok { background: #dcfce7; color: #166534; }
         .status-badge.warn { background: #fef3c7; color: #92400e; }
+        .whatif-levers { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 22px; margin: 14px 0 10px; }
+        .lever label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px; }
+        .lever output { font-weight: 800; color: var(--primary, #2563eb); }
+        .lever input[type=range] { width: 100%; }
+        .lever-check { display: flex; align-items: center; }
+        .lever-check label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #334155; }
+        .whatif-headline { font-size: 14px; font-weight: 700; margin: 6px 0 12px; padding: 10px 14px; border-radius: 8px; background: var(--primary-soft, #eff6ff); }
+        .whatif-headline.up { color: #166534; background: #f0fdf4; }
+        .whatif-headline.down { color: #991b1b; background: #fef2f2; }
+        .data-table td.delta-up { color: #166534; }
+        .data-table td.delta-down { color: #991b1b; }
     </style>
 </head>
 <body>
@@ -950,6 +961,26 @@
 
             <section class="panel" id="panel-scenario" role="tabpanel" aria-labelledby="tab-scenario" hidden>
                 <div class="section-head"><div><h2>2026 operating outlook</h2><p>Actual P01-P05 plus T06 P06 plus T07 P07-P12</p></div></div>
+
+                <article class="table-card" id="whatifCard">
+                    <div class="table-head">
+                        <div><div class="chart-title" data-i18n="whatif.title">What-if levers</div><div class="chart-subtitle" data-i18n="whatif.subtitle">Adjust assumptions and see the full-year outlook impact live</div></div>
+                        <div>
+                            <button class="secondary-btn" type="button" id="whatifReset" data-i18n="whatif.reset">Reset</button>
+                            <button class="export-btn" type="button" data-export-table="whatifTable" data-export-name="what-if-scenario">Export CSV</button>
+                        </div>
+                    </div>
+                    <div class="whatif-levers">
+                        <div class="lever"><label><span data-i18n="whatif.netsales">Net sales</span> <output id="leverNsOut">0%</output></label><input type="range" id="leverNs" min="-30" max="30" step="1" value="0"></div>
+                        <div class="lever"><label><span data-i18n="whatif.cogs">COGS</span> <output id="leverCogsOut">0%</output></label><input type="range" id="leverCogs" min="-30" max="30" step="1" value="0"></div>
+                        <div class="lever"><label><span data-i18n="whatif.opex">Operating expense</span> <output id="leverOpexOut">0%</output></label><input type="range" id="leverOpex" min="-30" max="30" step="1" value="0"></div>
+                        <div class="lever"><label><span data-i18n="whatif.tax">Tax rate</span> <output id="leverTaxOut">22%</output></label><input type="range" id="leverTax" min="0" max="40" step="1" value="22"></div>
+                        <div class="lever-check"><label><input type="checkbox" id="leverScales" checked> <span data-i18n="whatif.scales">COGS scales with revenue</span></label></div>
+                    </div>
+                    <div id="whatifHeadline" class="whatif-headline"></div>
+                    <div class="table-scroll"><table class="data-table" id="whatifTable"></table></div>
+                </article>
+
                 <div class="controls"><div class="control-group"><label for="scenMetric">Metric</label><select id="scenMetric"><option value="net_sales">Net Sales</option><option value="cogs">COGS</option><option value="gross_margin">Gross Margin</option><option value="opex">OpEx</option><option value="operating_profit">Operating Profit</option><option value="net_income">Net Income</option></select></div></div>
                 <div class="chart-grid">
                     <article class="chart-card"><div class="chart-title">Period plan</div><div class="chart-subtitle">Actual history with remaining 2026 operating versions</div><div class="chart-container tall"><canvas id="scenarioChart"></canvas></div></article>

@@ -108,10 +108,27 @@ def test_validation():
             raise AssertionError(f"expected ScenarioError for {bad}")
 
 
+def test_evaluate_config_json_ready():
+    # The interactive dashboard endpoint goes through evaluate_config; it must
+    # return a JSON-ready dict and reproduce the baseline for a no-op scenario.
+    with tempfile.TemporaryDirectory() as tmp:
+        db = os.path.join(tmp, "pl_detail.db")
+        _make_db(db)
+        result = scenario.evaluate_config(db, {"name": "Flat", "adjustments": []})
+        assert set(result) >= {"columns", "rows", "basis", "scenario_name"}, result
+        lines = _lines(result["rows"])
+        assert lines["Net Income"]["change"] == 0
+        # A real lever moves net income.
+        lifted = scenario.evaluate_config(
+            db, {"name": "Up", "adjustments": [{"metric": "net_sales", "change_pct": 10}]})
+        assert _lines(lifted["rows"])["Net Income"]["change"] > 0
+
+
 def main():
     test_zero_adjustment_reproduces_baseline()
     test_regional_revenue_cut()
     test_validation()
+    test_evaluate_config_json_ready()
     print("scenario tests passed.")
     return 0
 
