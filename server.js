@@ -347,6 +347,29 @@ function reportCsvBuffer(envelope) {
     return Buffer.from('\ufeff' + lines.join('\n'), 'utf8');
 }
 
+// Office exports (xlsx/pdf) need optional Python libraries (openpyxl / reportlab).
+// Probe once and cache so a clean install degrades gracefully — the UI hides the
+// buttons it can't fulfil and the API returns a clear "needs setup" 503 instead
+// of a raw 500 traceback.
+let _exportCapabilities = null;
+function getExportCapabilities() {
+    if (_exportCapabilities) return _exportCapabilities;
+    const fallback = { json: true, csv: true, xlsx: false, pdf: false };
+    try {
+        const result = spawnSync('python3', ['-m', 'reports.cli', '--capabilities'],
+            { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 15000 });
+        if (result.status === 0 && result.stdout) {
+            const caps = JSON.parse(result.stdout.trim());
+            _exportCapabilities = { json: true, csv: true, xlsx: !!caps.xlsx, pdf: !!caps.pdf };
+            return _exportCapabilities;
+        }
+    } catch (error) {
+        // fall through to the CSV-only fallback below
+    }
+    _exportCapabilities = fallback;
+    return _exportCapabilities;
+}
+
 function reportOfficeBuffer(name, format) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdash-report-'));
     try {
@@ -944,7 +967,8 @@ function handleApi(pathname, query, res) {
 
     if (pathname === '/api/reports') {
         return jsonResponse(res, {
-            reports: REPORT_DEFINITIONS.map(r => ({ name: r.name, title: r.title, description: r.description }))
+            reports: REPORT_DEFINITIONS.map(r => ({ name: r.name, title: r.title, description: r.description })),
+            exportFormats: getExportCapabilities()
         });
     }
 
@@ -966,6 +990,16 @@ function handleApi(pathname, query, res) {
         if (!def) return errorResponse(res, 404, `Unknown report: ${reportName}. Use /api/reports to list.`);
         if (!['csv', 'xlsx', 'pdf'].includes(format)) {
             return errorResponse(res, 400, 'Invalid format. Use csv, xlsx, or pdf.');
+        }
+        if (format !== 'csv' && !getExportCapabilities()[format]) {
+            return jsonResponse(res, {
+                error: `${format.toUpperCase()} export is not available on this server.`,
+                code: 'export_unavailable',
+                format: format,
+                hint: format === 'xlsx'
+                    ? 'Install report dependencies (pip install openpyxl) — see setup.sh or reports/requirements.txt. CSV export always works.'
+                    : 'Install report dependencies (pip install reportlab) — see setup.sh or reports/requirements.txt. CSV export always works.'
+            }, 503);
         }
         try {
             if (format === 'csv') {

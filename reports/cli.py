@@ -32,11 +32,24 @@ def main(argv=None):
                         choices=["json", "csv", "xlsx", "pdf"],
                         help="Output format(s): json, csv, xlsx, pdf.")
     parser.add_argument("--list", action="store_true", help="List reports and exit.")
+    parser.add_argument("--capabilities", action="store_true",
+                        help="Print available export formats as JSON and exit.")
     parser.add_argument("--pack", action="store_true",
                         help="Bundle all reports into a single board-pack file per format.")
     parser.add_argument("--title", default="Board Pack",
                         help="Title for the board pack cover.")
     args = parser.parse_args(argv)
+
+    if args.capabilities:
+        import json
+        from . import render
+        print(json.dumps({
+            "json": True,
+            "csv": True,
+            "xlsx": render.excel_available(),
+            "pdf": render.pdf_available(),
+        }))
+        return 0
 
     if args.list:
         print("Available reports:")

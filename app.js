@@ -1360,10 +1360,23 @@ function loadReports(force) {
     return fetchJson(API + '/api/reports', { force: force })
         .then(function (data) {
             var reports = data.reports || [];
+            var exportFormats = data.exportFormats || { csv: true, xlsx: true, pdf: true };
             if (!reports.length) {
                 listEl.innerHTML = '<div class="report-card"><div class="report-card-body"><div class="report-card-title">No reports available</div></div></div>';
                 tabLoaded.reports = true;
                 return;
+            }
+            function downloadButton(name, format) {
+                var label = format.toUpperCase();
+                if (format !== 'csv' && !exportFormats[format]) {
+                    // The server can't render this format (optional dependency missing).
+                    // Show a disabled button with a "needs setup" hint instead of a
+                    // button that would fail when clicked.
+                    return '<button class="secondary-btn report-download-btn" type="button" disabled ' +
+                        'title="' + escapeHtml(tr('Export needs setup')) + '">' + label + '</button>';
+                }
+                return '<button class="secondary-btn report-download-btn" type="button" data-report-name="' +
+                    escapeHtml(name) + '" data-format="' + format + '">' + label + '</button>';
             }
             listEl.innerHTML = reports.map(function (r) {
                 return '<div class="report-card">' +
@@ -1373,9 +1386,9 @@ function loadReports(force) {
                     '</div>' +
                     '<div class="report-card-actions">' +
                         '<button class="primary-btn" type="button" data-report-name="' + escapeHtml(r.name) + '">' + tr('View') + '</button>' +
-                        '<button class="secondary-btn report-download-btn" type="button" data-report-name="' + escapeHtml(r.name) + '" data-format="csv">CSV</button>' +
-                        '<button class="secondary-btn report-download-btn" type="button" data-report-name="' + escapeHtml(r.name) + '" data-format="xlsx">XLSX</button>' +
-                        '<button class="secondary-btn report-download-btn" type="button" data-report-name="' + escapeHtml(r.name) + '" data-format="pdf">PDF</button>' +
+                        downloadButton(r.name, 'csv') +
+                        downloadButton(r.name, 'xlsx') +
+                        downloadButton(r.name, 'pdf') +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -1467,6 +1480,11 @@ function downloadReportFile(name, format) {
         .then(function (response) {
             if (!response.ok) {
                 return response.json().catch(function () { return {}; }).then(function (body) {
+                    if (body.code === 'export_unavailable') {
+                        var err = new Error(tr('Export needs setup'));
+                        err.handled = true;
+                        throw err;
+                    }
                     throw new Error(body.error || 'HTTP ' + response.status);
                 });
             }

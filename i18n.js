@@ -150,6 +150,7 @@
         "CSV exported": "تم تصدير CSV",
         "Report downloaded": "تم تحميل التقرير",
         "Download failed": "فشل التحميل",
+        "Export needs setup": "هذا التنسيق يحتاج إلى تثبيت إضافي على الخادم",
         "Query failed": "فشل الاستعلام",
         "Querying SQLite": "جارٍ الاستعلام من SQLite",
         "Connecting": "جارٍ الاتصال",

@@ -37,6 +37,12 @@ jobs:
       - name: Run dashboard tests
         run: npm test
 
+      - name: Run dashboard tests against the Arabic seed (locale-independence)
+        run: |
+          python3 seed_db.py --force --locale ar
+          npm test
+          python3 seed_db.py --force
+
       - name: Run Arabic translation coverage test
         run: node test_i18n_coverage.js
 

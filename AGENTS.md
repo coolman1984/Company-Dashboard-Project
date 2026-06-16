@@ -372,6 +372,36 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — main (P0 client-readiness: graceful exports + locale-independent tests + one-command setup)
+**Did:** Acted on a blunt end-client drive-through of the product and fixed the
+three things that broke "it just works":
+- **Export 500s → graceful degradation.** `/api/reports/download` for `xlsx`/`pdf`
+  now returns a clean `503 {code:"export_unavailable", hint}` when the optional
+  Python libs (openpyxl/reportlab) are absent, instead of a raw 500 traceback.
+  `/api/reports` advertises an `exportFormats` capability object; the dashboard
+  (`app.js`) hides/disables the buttons it can't fulfil with a localized "needs
+  setup" tooltip. New `reports.cli --capabilities` (probed + cached by the server)
+  is the single source of truth for what's available.
+- **Locale-coupled tests fixed.** `smoke_test.js` hard-coded English `region=Africa`
+  and failed on the Arabic seed (product *default* is Arabic). It now reads a real
+  region from `/api/filters`, so the suite passes on **both** English and Arabic
+  seeds. Added a CI step that runs `npm test` against the Arabic seed.
+- **One-command setup.** New `setup.sh`: checks prerequisites, installs node +
+  optional report deps, seeds a DB, and prints a readiness report (which export
+  formats work). README quickstart updated.
+**Why:** A clean-install client clicked "PDF" and got a 500, and the flagship
+Arabic mode couldn't pass its own smoke test. These are trust-killers before any
+feature work matters.
+**Status:** ✅ `npm test` passes on EN *and* AR seeds; verified both runtime paths
+— deps present → 200 with valid .xlsx/.pdf; deps absent → 503 + disabled buttons.
+Structure, reports, render, mcp tests green. New i18n key `Export needs setup`
+(Arabic provided), so `test_i18n_coverage.js` stays green.
+**Next:** P1 — surface source lineage + import-validation in the dashboard UI so a
+challenged number can be defended on screen.
+**Watch out:** The server caches export capabilities at first probe; restart after
+installing report deps. `setup.sh` installs into the active Python env (no venv) —
+fine for the pilot box; revisit if we need isolation.
+
 ### 2026-06-16 — Hermes — `5b47c76` → main (full-text search + report downloads + source lineage + MCP harness tools)
 **Did:** Landed four backlog items in one push (D17–D20):
 - **Full-text search (R5):** new `brain/search.py` — dependency-free weighted

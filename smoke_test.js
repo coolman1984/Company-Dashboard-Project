@@ -62,7 +62,12 @@ async function run() {
     assert.ok(filters.body.versions.includes('Actual'));
     assert.ok(filters.body.regions.length > 0);
 
-    const regionalFilters = await getJson(`/api/filters?region=${encodeURIComponent(filters.body.regions[0])}`);
+    // Use a real region value from the database so the suite passes against any
+    // locale (English or Arabic seed) — never hard-code dimension names.
+    const region = filters.body.regions[0];
+    const regionQ = encodeURIComponent(region);
+
+    const regionalFilters = await getJson(`/api/filters?region=${regionQ}`);
     assert.equal(regionalFilters.response.status, 200);
     assert.ok(regionalFilters.body.countries.length > 0);
 
@@ -88,29 +93,29 @@ async function run() {
     const monthlyRevenue = executive.body.monthly.reduce((sum, row) => sum + row.net_sales, 0);
     assert.ok(Math.abs(monthlyRevenue - executive.body.outlook.net_sales) < 0.01);
 
-    const executiveAfrica = await getJson('/api/executive-outlook?region=Africa');
-    assert.equal(executiveAfrica.response.status, 200);
-    assert.equal(executiveAfrica.body.monthly.length, 12);
-    assert.ok(executiveAfrica.body.outlook.net_sales < executive.body.outlook.net_sales);
+    const executiveRegion = await getJson(`/api/executive-outlook?region=${regionQ}`);
+    assert.equal(executiveRegion.response.status, 200);
+    assert.equal(executiveRegion.body.monthly.length, 12);
+    assert.ok(executiveRegion.body.outlook.net_sales < executive.body.outlook.net_sales);
 
-    const yearly = await getJson('/api/yearly-pl?version=Actual&region=Africa');
+    const yearly = await getJson(`/api/yearly-pl?version=Actual&region=${regionQ}`);
     assert.equal(yearly.response.status, 200);
     assert.ok(yearly.body.length > 0);
     assert.ok(yearly.body.every(row => row.net_sales != null));
 
-    const product = await getJson('/api/mgroup-pl?version=Actual&year=2025&region=Africa');
+    const product = await getJson(`/api/mgroup-pl?version=Actual&year=2025&region=${regionQ}`);
     assert.equal(product.response.status, 200);
     assert.ok(product.body.length > 0);
 
-    const country = await getJson('/api/country-pl?version=Actual&region=Africa');
+    const country = await getJson(`/api/country-pl?version=Actual&region=${regionQ}`);
     assert.equal(country.response.status, 200);
     assert.ok(country.body.length > 0);
 
-    const customer = await getJson('/api/customer-pl?version=Actual&year=2025&region=Africa&limit=10');
+    const customer = await getJson(`/api/customer-pl?version=Actual&year=2025&region=${regionQ}&limit=10`);
     assert.equal(customer.response.status, 200);
     assert.ok(customer.body.length > 0);
 
-    const topProducts = await getJson('/api/top-products?version=Actual&year=2025&region=Africa&limit=10');
+    const topProducts = await getJson(`/api/top-products?version=Actual&year=2025&region=${regionQ}&limit=10`);
     assert.equal(topProducts.response.status, 200);
     assert.ok(topProducts.body.length > 0);
 
@@ -125,6 +130,24 @@ async function run() {
     assert.equal(reports.response.status, 200);
     assert.equal(reports.body.reports.length, 9);
     assert.ok(reports.body.reports.some(report => report.name === 'import_validation'));
+    // The reports list advertises which export formats this server can fulfil.
+    assert.ok(reports.body.exportFormats, 'reports response must advertise exportFormats');
+    assert.equal(reports.body.exportFormats.csv, true);
+    assert.equal(typeof reports.body.exportFormats.xlsx, 'boolean');
+    assert.equal(typeof reports.body.exportFormats.pdf, 'boolean');
+
+    // Office exports degrade gracefully: when a format is unavailable the server
+    // returns a clean 503 with a machine-readable code, never a raw 500 traceback.
+    for (const format of ['xlsx', 'pdf']) {
+        const dl = await fetch(baseUrl + `/api/reports/download?name=yearly_pl&format=${format}`);
+        if (reports.body.exportFormats[format]) {
+            assert.equal(dl.status, 200, `${format} export should succeed when available`);
+        } else {
+            assert.equal(dl.status, 503, `${format} export should return 503 when unavailable`);
+            const body = await dl.json();
+            assert.equal(body.code, 'export_unavailable');
+        }
+    }
 
     const reportJson = await getJson('/api/reports/generate?name=import_validation');
     assert.equal(reportJson.response.status, 200);

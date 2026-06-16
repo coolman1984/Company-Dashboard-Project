@@ -27,7 +27,21 @@ and is **not** committed. For development, tests and CI, generate a realistic
 synthetic database instead — no Excel, no network, standard library only:
 
 ```bash
+./setup.sh                   # one command: deps + optional exports + synthetic DB + readiness report
+npm start                    # serves http://localhost:3001 (127.0.0.1 only)
+```
+
+`setup.sh` installs the Node dependency, the **optional** Excel/PDF export
+libraries, builds a synthetic database, and prints which export formats are
+available. The dashboard and CSV export work even if the optional libraries are
+missing — the UI simply hides the Excel/PDF buttons it cannot fulfil, and the
+download API returns a clear "needs setup" response instead of an error.
+
+To do the same steps by hand:
+
+```bash
 npm install                 # installs better-sqlite3
+pip install -r reports/requirements.txt   # optional: enables Excel/PDF export
 python3 seed_db.py --force  # writes a synthetic pl_detail.db
 npm start                    # serves http://localhost:3001 (127.0.0.1 only)
 ```
