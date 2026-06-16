@@ -367,6 +367,11 @@
         "Loss-making revenue exposure": "التعرض لإيرادات الخسارة",
         "Top 5 customer concentration": "تركيز أكبر 5 عملاء",
         "Operating leverage": "الرافعة التشغيلية",
+        // Standalone signal labels + user-facing error messages (Stage 6.5b)
+        "Strong growth": "نمو قوي",
+        "Growing but margin eroding": "نمو لكن الهامش يتآكل",
+        "Database query timed out": "انتهت مهلة استعلام قاعدة البيانات",
+        "Chart.js did not load": "تعذّر تحميل Chart.js",
     };
 
     function getLang() {
@@ -448,7 +453,25 @@
             // Table headers
             .replace(/^Change vs FY(\d{4})$/, "التغير مقابل السنة المالية $1")
             .replace(/^Actual (\d{4}) P01-P05$/, "فعلي $1 P01-P05")
-            .replace(/^(\d{4}) Outlook P01-P12$/, "توقعات $1 P01-P12");
+            .replace(/^(\d{4}) Outlook P01-P12$/, "توقعات $1 P01-P12")
+            // Signal action sentences (Stage 6.5b)
+            .replace(/^Gross margin fell (\d+(?:\.\d+)?) pp YoY\. Review discount policy, channel mix, and COGS drivers urgently\.$/,
+                "انخفض هامش الربح الإجمالي $1 نقطة مئوية سنويًا. راجع سياسة الخصم ومزيج القنوات ومحركات تكلفة المبيعات بشكل عاجل.")
+            .replace(/^Margin slipping (\d+(?:\.\d+)?) pp — monitor channel mix and discount exposure before it accelerates\.$/,
+                "الهامش ينزلق $1 نقطة مئوية — راقب مزيج القنوات والتعرض للخصومات قبل أن يتسارع.")
+            // Profitability footer — segments (also reachable via the " · " split below)
+            .replace(/^Top (\d+) groups by (\d{4}) outlook revenue$/, "أكبر $1 مجموعات حسب إيرادات توقعات $2")
+            .replace(/^(\d+) loss-making \((.+) revenue at risk\)$/, "$1 خاسرة ($2 إيرادات معرضة للخطر)")
+            .replace(/^(\d+) margin eroding$/, "$1 بهامش متآكل")
+            .replace(/^(\d+) below safe threshold$/, "$1 دون الحد الآمن")
+            .replace(/^All (\d+) product groups profitable and stable$/, "جميع مجموعات المنتجات الـ$1 رابحة ومستقرة");
+
+        // Compositional fallback: many footers/notes are segments joined by
+        // " · ". If the whole string didn't match, translate each segment.
+        if (dynamic === core && core.indexOf(" · ") !== -1) {
+            var segments = core.split(" · ").map(function (seg) { return translateText(seg); });
+            dynamic = segments.join(" · ");
+        }
         return leading + dynamic + trailing;
     }
 

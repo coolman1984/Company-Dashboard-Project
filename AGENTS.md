@@ -25,6 +25,7 @@ overwriting each other and breaking the project.
    journal is updated.**
 4. **DON'T BREAK THE BUILD.** All tests must pass before you push:
    - `npm test` — dashboard (syntax check + smoke test)
+   - `node test_i18n_coverage.js` — Arabic deep-translation coverage (i18n.js)
    - `python3 -m extractor.test_extractor` — extraction engine
    - `python3 -m extractor.test_excel_com` — Excel COM helpers/extractor (mocked, runs on Linux)
    - `python3 -m extractor.test_arabic` — Arabic text/number normalization core
@@ -350,6 +351,28 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-16 — Claude Code — `claude/i18n-5b-coverage` (Arabic deep content 5b)
+**Did:** Completed Stage 6.5b deep-content translation gaps on top of OpenCode's
+mechanism (AR_TEXT + regex + MutationObserver). Added a **" · " compositional
+fallback** to `translateText` so multi-segment notes (e.g. the profitability
+footer "Top N groups by … · X loss-making (…) · Y margin eroding · Z below safe
+threshold") translate segment-by-segment instead of leaking English. Added the
+missing exact entries (signal labels "Strong growth"/"Growing but margin
+eroding", error messages "Database query timed out"/"Chart.js did not load") and
+regex rules (the two `gmDrop` signal-action sentences + the footer segments).
+New **`test_i18n_coverage.js`** loads `i18n.js` under a stubbed DOM and asserts
+the EXACT strings `app.js` renders translate in Arabic (Arabic glyphs present, no
+English leakage) and pass through unchanged in English — wired into `ci.yml`,
+the rule-4 list, and the structure allow-list.
+**Why:** Owner asked to finish 5b. translateText is exported, so coverage is now
+verifiable without a browser and protected from regressing.
+**Status:** ✅ coverage test + full suite pass.
+**Watch out:** Additive to `i18n.js` (OpenCode's layer) — kept changes contained
+(appended dict entries, appended regex rules, one fallback block). The page
+titles/subtitles already translate via `I18N.t()`; the remaining gaps were the
+*dynamic* sentences and the compositional footer. Visual QA on a real browser
+still recommended for layout polish.
 
 ### 2026-06-15 — Claude Code — `claude/docs-alignment` (documentation alignment)
 **Did:** Aligned all the docs so any agent knows exactly what to do. Added an
