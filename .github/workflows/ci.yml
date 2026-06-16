@@ -37,6 +37,9 @@ jobs:
       - name: Run dashboard tests
         run: npm test
 
+      - name: Run Arabic translation coverage test
+        run: node test_i18n_coverage.js
+
       - name: Run extraction engine tests
         run: python3 -m extractor.test_extractor
 

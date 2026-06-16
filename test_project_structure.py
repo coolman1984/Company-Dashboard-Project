@@ -34,6 +34,7 @@ ALLOWED_ROOT_PY = {
 ALLOWED_ROOT_JS = {
     "server.js", "app.js", "i18n.js",   # presentation runtime
     "smoke_test.js",                      # server smoke test
+    "test_i18n_coverage.js",              # Arabic deep-translation coverage test
     "chart.umd.min.js",                   # vendored asset (no CDN)
 }
 

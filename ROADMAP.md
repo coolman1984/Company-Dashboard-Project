@@ -156,9 +156,14 @@ to respect the no-CDN rule.
   Cairo font; `i18n.js` translates navigation, filters, buttons, page headings,
   dynamic KPI/table labels, chart text, and common management-action messages;
   a digit toggle switches Western ↔ Arabic-Indic numerals. Arabic sample data is
-  available via `python3 seed_db.py --force --locale ar`. *Still to do:* English
-  desktop and tablet/mobile QA, plus client-specific wording polish once real
-  client files are available.
+  available via `python3 seed_db.py --force --locale ar`.
+  **5b (deep content) — done & guarded:** the dynamic signal sentences, the
+  compositional profitability footer (segments joined by " · " now translate
+  individually) and user-facing error messages are covered, and
+  `test_i18n_coverage.js` (in CI) asserts the exact rendered strings translate in
+  Arabic and pass through untouched in English — so coverage can't silently
+  regress. *Still to do:* English desktop and tablet/mobile QA, plus
+  client-specific wording polish once real client files are available.
 
 ---
 
