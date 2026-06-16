@@ -31,6 +31,8 @@ overwriting each other and breaking the project.
    - `python3 -m extractor.test_arabic` — Arabic text/number normalization core
    - `python3 test_db_schema.py` — schema compatibility (seed/mapper/COM all match schema.sql)
    - `python3 test_map_raw_to_db.py` — raw-to-database mapper (includes post-load validation)
+   - `python3 test_import_workspace.py` + `python3 test_phase2_integration.py` — Phase 2 import workspace
+   - `python3 test_mapping_tool.py` — mapping review tool
    - `python3 test_mapping_tool.py` — mapping review tool (auto-suggest + HTML review report)
    - `python3 -m reports.test_reports` — reports engine
    - `python3 -m reports.test_render` — Excel/PDF rendering
@@ -78,6 +80,18 @@ Follow these steps in order. Don't skip.
 > **Where is the truth?** `ARCHITECTURE.md` = structure & where code goes ·
 > this file = the rules & history · `ROADMAP.md` = product vision ·
 > `Agent.md` = technical lessons · `docs/` = reference · `docs/README.md` = index.
+
+### Definition of Done (every PR — keep the docs alive)
+A change is done **only** when all of these are true:
+- [ ] The full **test gate** (rule 4) is green; new behaviour has a test.
+- [ ] **Docs updated in the same PR** — this is mandatory, every time:
+  - `ARCHITECTURE.md` if a layer/boundary/where-code-goes changed;
+  - `ROADMAP.md` stage status if a stage moved;
+  - the relevant `README.md` (root or the package's) for new commands/files;
+  - new technical gotchas → `Agent.md`.
+- [ ] **Task Board** updated (your row moved to *Done*; new follow-ups added to Backlog).
+- [ ] A **Work Journal** entry at the top (template above).
+- [ ] No stale references (moved/renamed files) and all internal doc links resolve.
 
 ---
 
@@ -242,22 +256,28 @@ We are a team with different strengths. Use the right agent for the right job.
 
 > Move items between columns and put your agent name on anything you take.
 
-### Backlog (not started)
-- **Knowledge base — extend** (Stage 4 first version is Done): more curated
-  content, full-text search, HTML/graph viewer, note→report deep links.
-- **Scenarios — extend** (Stage 3 first version is Done): multi-scenario
-  comparison, scenarios surfaced in the live dashboard, volume/price split.
-- **OCR stage for scanned PDFs / photos** — detect image-only pages (the
-  `pdf-text` extractor already flags them) and run text-recognition + AI.
-- **Validate COM extractors on Windows** — run `excel_com.py` against real
-  `.xlsx`/`.xlsb` on a Windows machine with Office; record results.
-- **Live Outlook COM** — read a live mailbox / `.pst` (saved `.msg`/`.eml`
-  already work cross-platform).
-- **Enable PDF + Outlook extractors in CI** — once a clean install path exists
-  (this container's `pdfplumber`/`cryptography` is broken; a normal machine is
-  fine).
-- **AI agent "Hermes" (Stage 5)** — see ROADMAP.
-- **Reports engine — extend** (Stage 2 Done): client-specific templates.
+### Backlog — prioritised plan (pick the highest open priority that fits you)
+
+> **How to take one:** read [§0 Quick start](#0-quick-start--exactly-what-to-do),
+> move the row to *In Progress* with your name, branch `<agent>/<task>`, satisfy
+> the **Done when** line, keep docs current, open a PR. "Suggested owner" is a
+> hint by strength (see §2) — not a lock; coordinate if you take another's hint.
+
+| P | Task | Suggested owner | Done when |
+|---|------|-----------------|-----------|
+| **P0** | **Visual QA pass** — Arabic RTL + English desktop and tablet/mobile in a real browser; screenshot the dashboard; eyeball one Arabic board-pack PDF on a WeasyPrint-enabled box. File issues for anything off. | OpenCode (has Playwright/browser) | Screenshots attached; layout/RTL/number issues logged or confirmed clean. |
+| **P0** | **Validate COM on Windows** — run `python3 ingest_sheet1.py --yes` and an `excel_com` extract against real `.xlsx`/`.xlsb` on Windows+Excel; confirm no orphaned `EXCEL.EXE`, password/corrupt files give clean errors. | Owner / any Windows agent | Results recorded in the journal; bugs filed or path confirmed working. |
+| **P1** | **Report download UI** — surface report/board-pack generation + download in the dashboard (Stage 2 extend). | OpenCode / Claude (frontend) | Buttons call `/api/reports*`; files download; smoke-tested. |
+| **P1** | **Import validation + history in the dashboard** — show Phase 2 `import_history.json` / `validation.json` in the UI. | Codex (built Phase 2 + mapping tool) | A panel lists past imports + their validation status. |
+| **P1** | **Mapping tool → guided editor** — turn `mapping_tool.py`'s draft into an operator-reviewable browser step. | Codex | Operator can adjust/confirm a mapping before `map_raw_to_db.py`. |
+| **P2** | **Knowledge base extend** — full-text search, HTML/graph viewer, note→report deep links (Stage 4 extend). | DeepSeek / Claude | Search + a viewer work; `brain.cli --check` stays green. |
+| **P2** | **Scenarios extend** — multi-scenario compare, scenarios in the live dashboard, volume/price split (Stage 3 extend). | DeepSeek / Claude | New scenario views + tests; zero-adjustment still reproduces baseline. |
+| **P2** | **OCR stage for scanned PDFs/photos** — the `pdf-text` extractor already flags image-only pages; add text-recognition + AI + a review step. | Claude (backend) | Scanned fixtures extract to raw JSON with a confidence/review flag + tests. |
+| **P2** | **Live Outlook COM** — read a live mailbox / `.pst` (saved `.msg`/`.eml` already work). | Windows agent | New COM extractor mirrors `excel_com` patterns; validated on Windows. |
+| **P3** | **`src/` restructure** — the deferred move of core code into layered folders. Guarded migration only (update `server.js` PUBLIC_FILES, `package.json`, CI, `test_project_structure.py` together). | Claude (refactor) | All paths/tests updated in one PR; everything green; ARCHITECTURE.md map updated. |
+| **P3** | **Enable PDF + Outlook extractors in CI** — once a clean install path exists (this container's `pdfplumber`/`cryptography` is broken; a normal machine is fine). | any | CI installs the deps and runs those extractor tests. |
+| **P3** | **AI agent "Hermes" (Stage 5)** — needs Stages 1–4 mature; can build on the read-only MCP server in `mcp_server/`. | TBD | See ROADMAP; design doc first. |
+| **P3** | **Reports engine — client-specific templates** (Stage 2 extend). | Codex / Claude | Per-client template config + a generated example. |
 
 ### In Progress (owner)
 - _(none currently)_
@@ -351,6 +371,27 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-16 — Claude Code — `claude/team-plan-ci` (agent plan + complete the CI gate)
+**Did:** Two things for the team. (1) **Closed the CI gate gap** — the Phase 2
+`test_import_workspace.py` and `test_phase2_integration.py` existed but weren't
+run in CI; added both to `ci.yml` and the rule-4 list, so every test in the repo
+now runs on every push. (2) **Rewrote the Task Board into a prioritised,
+owner-assigned plan** (P0–P3 table with a suggested owner by strength and a
+"Done when" acceptance line for each) so any agent knows exactly what to pick up:
+P0 = visual QA (OpenCode) + COM-on-Windows validation; P1 = report download UI,
+import validation/history UI, mapping→guided editor (Codex/frontend); P2 =
+knowledge/scenarios extend, OCR, live Outlook; P3 = `src/` restructure, PDF/Outlook
+in CI, Hermes, client report templates. Added a **Definition of Done** checklist
+to §0 that makes "update the docs in the same PR" mandatory (keeps docs alive).
+**Why:** Owner asked to continue with what's best for us, plan work for the other
+agents, and keep documentation continuously updated. A complete gate + a clear
+plan + an enforced DoD is the highest-leverage, lowest-risk move right now.
+**Status:** ✅ full gate green locally incl. the two newly-wired Phase 2 suites.
+**Next:** agents pick P0/P1 items from the board. I can't do the P0 visual QA
+(no browser here) — flagged it for OpenCode.
+**Watch out:** "Suggested owner" is a hint, not a lock — coordinate before taking
+someone else's hinted task. `i18n.js` still owned by the active translation agent.
 
 ### 2026-06-16 — Claude Code — `claude/arabic-pdf-4b` (Arabic PDF 6.4b + font decision)
 **Did:** Finished the Arabic PDF substage and locked the font choice.
