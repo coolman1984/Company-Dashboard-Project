@@ -50,6 +50,35 @@ overwriting each other and breaking the project.
 
 ---
 
+## 0. Quick start — exactly what to do (every agent, every task)
+
+Follow these steps in order. Don't skip.
+
+1. **Read** this file, then [`ARCHITECTURE.md`](ARCHITECTURE.md) (the 5 layers +
+   the one-way dependency rule + *where code goes*), then [`ROADMAP.md`](ROADMAP.md).
+2. **Claim** your task on the [Task Board](#task-board) (move it to *In Progress*
+   with your agent name). If someone owns it, pick something else.
+3. **Branch:** `git checkout -b <agent>/<short-task>` (e.g. `claude/pdf-fonts`).
+   Never push to `main` or another agent's branch.
+4. **Locate the layer** in `ARCHITECTURE.md` and put your change *there*, behind
+   its existing contract. New code never lands at the repo root (the structure
+   guard will fail) — use the layer package or `scripts/`. Reuse the one source
+   of truth (schema → `schema.sql`; UI strings → `i18n.js`; COM → `extractor/com_utils.py`).
+5. **Explore safely if unsure:** the read-only MCP server (`mcp_server/`) can
+   show you the DB (`db_overview`, `run_select`), what extractors are available,
+   and the knowledge wiki — without guessing.
+6. **Implement + add/extend tests** next to the code you touched.
+7. **Run the full test gate** (the list in rule 4). All green, or don't push.
+8. **Update docs** you affected, and **add a Work Journal entry at the top**
+   (template below). A task is *not done* until the journal is updated.
+9. **Open a PR to `main`**; merge only when CI is green.
+
+> **Where is the truth?** `ARCHITECTURE.md` = structure & where code goes ·
+> this file = the rules & history · `ROADMAP.md` = product vision ·
+> `Agent.md` = technical lessons · `docs/` = reference · `docs/README.md` = index.
+
+---
+
 ## 1. What this project is (so you understand it like the rest of us)
 
 A platform that takes a company's **messy files → clean data → a management
@@ -58,6 +87,10 @@ useful on its own. The full vision and staged plan live in
 [`ROADMAP.md`](ROADMAP.md) — **read it.**
 
 ### Current architecture (what exists today)
+
+> 📐 **Canonical map: [`ARCHITECTURE.md`](ARCHITECTURE.md)** — the five layers,
+> how data flows, the one-way dependency rule, and where new code goes. The
+> sketch below is a quick orientation; `ARCHITECTURE.md` is the source of truth.
 
 ```
 intake/ (messy files)
@@ -78,8 +111,10 @@ pl_detail.db (SQLite ledger)
 | Dashboard server | `server.js` | Node `http`, ONE dependency (`better-sqlite3`), read-only SQLite, dynamic metadata, CSP, optional access token, reports API. |
 | Dashboard UI | `index.html`, `app.js` | Vanilla JS + Chart.js, lazy-loaded tabs, client cache. |
 | Database schema | `schema.sql` | Canonical table + indexes + views (single source of truth). |
+| Schema applier | `db_schema.py` | Applies `schema.sql` for **all** build paths (seed/mapper/COM) — no drift. |
 | Dev/test data | `seed_db.py` | Deterministic **synthetic** `pl_detail.db` — runs anywhere, no Excel. |
 | Production ingest | `ingest_sheet1.py` | Windows + Excel COM, real `.xlsb` (790K rows). Not the dev path. |
+| Agent tools (MCP) | `mcp_server/` | Read-only MCP server: DB / extraction / wiki tools. See `mcp_server/README.md`. |
 | **Extraction engine** | `extractor/` | **Stage 1**: messy files → raw JSON. See `extractor/README.md`. |
 | Raw-to-DB mapper | `map_raw_to_db.py` | Spreadsheet raw JSON → `pl_detail` via reviewed mapping config. |
 | Reports/scenarios | `reports/` | Saved reports, outlook reports, board packs, what-if scenarios. |
@@ -96,8 +131,12 @@ pip install -r extractor/requirements.txt -r reports/requirements.txt
 python3 seed_db.py --force          # build synthetic dev database
 npm start                            # dashboard at http://localhost:3001
 npm test                             # dashboard smoke tests
+python3 test_project_structure.py    # repo structure guard (root stays clean)
+python3 test_db_schema.py            # schema compatibility (all paths == schema.sql)
+python3 -m mcp_server.test_mcp       # MCP server tools + JSON-RPC dispatch
 python3 -m extractor.cli --list      # show which extractors are available
 python3 -m extractor.test_extractor  # extraction engine tests
+python3 -m extractor.test_excel_com  # Excel COM helpers/extractor (mocked, no Windows)
 python3 -m extractor.test_arabic     # Arabic normalization core tests
 python3 test_map_raw_to_db.py        # raw-to-database mapper tests
 python3 -m reports.test_reports      # reports engine tests
@@ -106,6 +145,10 @@ python3 -m reports.test_scenario     # what-if scenario tests
 python3 -m brain.test_brain          # knowledge engine tests
 python3 -m brain.cli --check         # validate knowledge links
 ```
+
+> The authoritative, must-pass gate is the list in **THE RULES → rule 4**; this
+> block is the same set with one-line descriptions. CI (`.github/workflows/ci.yml`)
+> runs all of it on every push.
 
 ### Conventions everyone must follow
 - **Keep dependencies minimal.** The server has exactly one (`better-sqlite3`). Justify any new one.
@@ -306,6 +349,27 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-15 — Claude Code — `claude/docs-alignment` (documentation alignment)
+**Did:** Aligned all the docs so any agent knows exactly what to do. Added an
+**§0 Quick start — exactly what to do** to AGENTS.md (9 unambiguous steps:
+read → claim → branch → locate the layer → explore via MCP → implement+test →
+run the gate → journal → PR) and a "where is the truth?" doc map. Made AGENTS §1
+defer to `ARCHITECTURE.md` as the canonical map and refreshed its component table
+(added `db_schema.py`, `mcp_server/`) and the run/test block (added structure /
+schema / excel_com / mcp tests, with a note that rule 4 is the authoritative
+gate). `CLAUDE.md` now points to ARCHITECTURE.md + the MCP server. Fixed stale
+references: README no longer lists `precompute_data.py` as a current step (now
+flagged archived under `scripts/legacy/`), and the layout table gained
+`ARCHITECTURE.md`, `db_schema.py`, `mcp_server/`, `scripts/legacy/`. Marked the
+`Agent.md` pre-compute lesson as legacy. Verified every internal doc link
+resolves (0 broken).
+**Why:** Owner asked to tune all documentation so every agent knows precisely
+what to do, and that it stay consistent after today's reorg + MCP work.
+**Status:** ✅ docs-only; structure guard + smoke pass; all internal links valid.
+Did not rewrite historical journal entries (they are records). `i18n.js` untouched.
+**Next:** keep `ARCHITECTURE.md` + this file in sync when layers change (the
+quick-start makes that step 8 of every task).
 
 ### 2026-06-15 — Claude Code — `claude/mcp-server` (harness layer, phase 2)
 **Did:** Built the **MCP server** (`mcp_server/`) — the harness bridge from

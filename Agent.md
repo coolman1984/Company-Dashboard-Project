@@ -16,6 +16,11 @@ The executive overview is a reconciled CFO decision cockpit. Cards, monthly char
 
 ## 1. Pre-Computation Pattern (The Biggest Lesson)
 
+> ⚠️ **Legacy pattern.** The dashboard is now SQLite-first (live queries in
+> `server.js`); the `precompute_data.py` script is archived under
+> `scripts/legacy/`. Keep this lesson for the *idea* (cache expensive/immutable
+> workloads + always add a fallback), not as the current architecture.
+
 ### Problem
 When a dashboard allows users to select any combination of filters (dimension × metric × year range), querying the database on every request is too slow. Python subprocess for each API call added 1-5 seconds of latency.
 

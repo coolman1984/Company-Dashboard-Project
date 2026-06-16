@@ -148,12 +148,13 @@ automation. This path requires Windows + Excel + `pywin32` and is not needed for
 development:
 
 ```bash
-python ingest_sheet1.py          # Excel COM -> pl_detail.db (schema + indexes + views)
-python precompute_data.py        # optional: api_data/*.json fallback cache
+python ingest_sheet1.py --yes    # Excel COM -> pl_detail.db (schema + indexes + views)
 ```
 
 If `pl_detail.db` is unavailable at runtime, the server falls back to any
-precomputed JSON in `api_data/` for a subset of endpoints.
+precomputed JSON in `api_data/` for a subset of endpoints. (That cache was built
+by the now-archived `scripts/legacy/precompute_data.py`; live SQLite is the
+current path.)
 
 ## Extraction engine (data intake)
 
@@ -208,16 +209,18 @@ For a blunt end-client readiness critique and development plan, see
 | `server.js` | HTTP server + all `/api/*` endpoints (live SQLite, dynamic metadata) |
 | `index.html`, `app.js` | Dashboard UI |
 | `chart.umd.min.js` | Vendored Chart.js v4.4.7 (self-contained, no CDN needed) |
-| `schema.sql` | Canonical DB schema (table, indexes, views) |
+| `ARCHITECTURE.md` | **The layer/workflow map + where new code goes — read before adding code** |
+| `schema.sql` | Canonical DB schema (table, indexes, views) — single source of truth |
+| `db_schema.py` | Applies `schema.sql` for ALL build paths (seed, mapper, COM ingest) |
 | `seed_db.py` | Synthetic database generator (dev/test/CI) |
 | `smoke_test.js` | End-to-end API smoke test (`npm test`) |
 | `reports/` | Reports engine: JSON/CSV/Excel/PDF, Arabic board pack, outlook, scenarios, import validation, source-confidence |
+| `mcp_server/` | MCP server: read-only agent tools (DB, extraction, wiki) — see `mcp_server/README.md` |
 | `docs/client-demo-script.md` | Arabic pilot demo script |
 | `brain/`, `knowledge/` | Knowledge base ("second brain"): Obsidian-style wiki + graph |
 | `map_raw_to_db.py` | Load extracted raw JSON into `pl_detail` via a mapping + post-load validation |
 | `ingest_sheet1.py` | Production Excel → SQLite ingestion (Windows) |
-| `precompute_data.py` | Builds `api_data/` JSON fallback cache |
-| `scripts/legacy/analysis_cfo.py` | Offline CFO analysis utilities (legacy) |
+| `scripts/legacy/` | Archived one-off scripts (superseded — see `scripts/legacy/README.md`) |
 | `Start Dashboard.bat` | Windows one-click launcher |
 | `fonts/` | Vendored fonts: Cairo (UI), Noto Naskh Arabic (PDF) |
 | `docs/arabic-stage6-handoff.md` | Current Arabic Stage 6 state, QA notes, and remaining work |
