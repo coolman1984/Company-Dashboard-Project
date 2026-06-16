@@ -212,6 +212,31 @@ _ARABIC_FONT_PATH = os.path.join(
 _ARABIC_FONT_REGISTERED = False
 _ARABIC_RESHAPER = None
 
+# The chosen Arabic PDF font is **Noto Naskh Arabic** (OFL, vendored in fonts/):
+# a traditional Naskh face that stays readable in dense financial tables and —
+# critically — ships full Arabic Presentation Forms-A/B coverage, which is what
+# both shaping paths need (ReportLab+arabic-reshaper emit presentation-form
+# codepoints; WeasyPrint/HarfBuzz shapes from the same glyphs). Cairo (the UI
+# font) is screen-tuned sans; Amiri is heavier/more calligraphic. Naskh is the
+# document-standard and the safest, most legible choice for reports.
+
+
+def _arabic_font_css():
+    """An @font-face that embeds the *vendored* Arabic font for WeasyPrint.
+
+    Without this, the CSS would rely on a system-installed "Noto …" font, which
+    is absent on servers/CI and would render Arabic as tofu boxes — and would
+    break the project's self-contained / no-CDN rule. Pointing at the local TTF
+    makes the WeasyPrint PDF path deterministic and offline.
+    """
+    from pathlib import Path
+    font_uri = Path(_ARABIC_FONT_PATH).as_uri()
+    return (
+        "@font-face { font-family: 'Noto Naskh Arabic'; "
+        "src: url('" + font_uri + "') format('truetype'); "
+        "font-weight: normal; font-style: normal; }\n"
+    )
+
 
 def _arabic_shaper():
     """Lazy-load and return (reshape_fn, bidi_fn) or (None, None) if unavailable."""
@@ -283,7 +308,7 @@ def _pdf_report_flowables(envelope, doc_width, is_arabic=False):
         body_font = "Arabic"
         ar_title_style = ParagraphStyle(
             'ArRptTitle', parent=styles['Title'],
-            fontName='Arabic', alignment=TA_RIGHT, wordSpace='RTL'
+            fontName='Arabic', alignment=TA_RIGHT
         )
         ar_normal_style = ParagraphStyle(
             'ArRptNormal', parent=styles['Normal'],
@@ -434,23 +459,23 @@ def _render_pdf_single_html(envelope, out_path):
             return f'{val:,.0f}'
         return escape(str(val))
 
-    css = """
+    css = _arabic_font_css() + """
     @page { size: A4 landscape; margin: 14mm; }
     body {
-      font-family: "Noto Naskh Arabic", "Noto Sans Arabic", serif;
+      font-family: "Noto Naskh Arabic", serif;
       color: #172033; background: white; font-size: 10pt; line-height: 1.55;
       margin: 0; padding: 0;
     }
     .rtl { direction: rtl; text-align: right; }
-    h1 { font-family: "Noto Sans Arabic", sans-serif; font-size: 30px; margin: 0 0 6px; color: #12395a; }
-    h2 { font-family: "Noto Sans Arabic", sans-serif; font-size: 18px; margin: 16px 0 6px; color: #12395a; }
+    h1 { font-family: "Noto Naskh Arabic", serif; font-size: 30px; margin: 0 0 6px; color: #12395a; }
+    h2 { font-family: "Noto Naskh Arabic", serif; font-size: 18px; margin: 16px 0 6px; color: #12395a; }
     .meta { color: #667085; margin-bottom: 14px; }
     .intro { margin: 10px 0 16px; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; direction: rtl; }
-    th { background: #12395a; color: white; font-family: "Noto Sans Arabic", sans-serif; padding: 7px 9px; text-align: right; }
+    th { background: #12395a; color: white; font-family: "Noto Naskh Arabic", serif; padding: 7px 9px; text-align: right; }
     td { padding: 6px 9px; border: 1px solid #d9e2ec; text-align: right; }
     tr:nth-child(even) td { background: #f7f9fc; }
-    .num { direction: ltr; unicode-bidi: isolate; text-align: left; font-family: "Noto Sans Arabic", sans-serif; }
+    .num { direction: ltr; unicode-bidi: isolate; text-align: left; font-family: "Noto Naskh Arabic", serif; }
     """
 
     parts = [
@@ -509,7 +534,7 @@ def render_pdf_pack(envelopes, out_path, title="Board Pack"):
         # Build dedicated Arabic paragraph styles (RTL)
         ar_title_style = ParagraphStyle(
             'ArabicTitle', parent=styles['Title'],
-            fontName='Arabic', alignment=TA_RIGHT, wordSpace='RTL'
+            fontName='Arabic', alignment=TA_RIGHT
         )
         ar_heading_style = ParagraphStyle(
             'ArabicHeading', parent=styles['Heading2'],
@@ -622,26 +647,26 @@ def render_pdf_pack_html(envelopes, out_path, title="Board Pack"):
             return f'{val:,.0f}'
         return escape(str(val))
 
-    css = """
+    css = _arabic_font_css() + """
     @page { size: A4 landscape; margin: 14mm; }
     body {
-      font-family: "Noto Naskh Arabic", "Noto Sans Arabic", serif;
+      font-family: "Noto Naskh Arabic", serif;
       color: #172033; background: white; font-size: 10pt; line-height: 1.55;
       margin: 0; padding: 0;
     }
     .rtl { direction: rtl; text-align: right; }
     .ltr { direction: ltr; text-align: left; }
     .cover { border: 1.5px solid #d9e2ec; border-radius: 12px; padding: 22px 28px; background: #fbfcff; }
-    h1 { font-family: "Noto Sans Arabic", sans-serif; font-size: 32px; margin: 0 0 6px; color: #12395a; }
-    h2 { font-family: "Noto Sans Arabic", sans-serif; font-size: 20px; margin: 18px 0 8px; color: #12395a; page-break-after: avoid; }
+    h1 { font-family: "Noto Naskh Arabic", serif; font-size: 32px; margin: 0 0 6px; color: #12395a; }
+    h2 { font-family: "Noto Naskh Arabic", serif; font-size: 20px; margin: 18px 0 8px; color: #12395a; page-break-after: avoid; }
     .meta { color: #667085; margin-bottom: 14px; }
     .section { margin-top: 10px; page-break-before: always; }
     .section:first-of-type { page-break-before: auto; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; direction: rtl; }
-    th { background: #12395a; color: white; font-family: "Noto Sans Arabic", sans-serif; padding: 7px 9px; text-align: right; }
+    th { background: #12395a; color: white; font-family: "Noto Naskh Arabic", serif; padding: 7px 9px; text-align: right; }
     td { padding: 6px 9px; border: 1px solid #d9e2ec; text-align: right; }
     tr:nth-child(even) td { background: #f7f9fc; }
-    .num { direction: ltr; unicode-bidi: isolate; text-align: left; font-family: "Noto Sans Arabic", sans-serif; }
+    .num { direction: ltr; unicode-bidi: isolate; text-align: left; font-family: "Noto Naskh Arabic", serif; }
     .toc-item { margin: 5px 0; }
     .intro { margin: 10px 0 16px; }
     .status-ok { color: #0f6e31; font-weight: bold; }

@@ -78,6 +78,13 @@ or exported to Excel/PDF.
 > WeasyPrint for correct connected Arabic glyphs and RTL layout, with a final
 > source-confidence page. The core SQL reports are also available as live API
 > endpoints (`/api/reports`, `/api/reports/generate`). See `reports/README.md`.
+> **Arabic PDF (6.4b) — done & self-contained:** the chosen font is **Noto Naskh
+> Arabic** (OFL, vendored in `fonts/`) — a Naskh face with full Arabic
+> Presentation-Forms coverage, the right document style for dense tables. Both
+> PDF paths use it: WeasyPrint (preferred, HarfBuzz shaping) via an embedded
+> `@font-face` to the vendored TTF, and a ReportLab + arabic-reshaper + bidi
+> fallback when WeasyPrint isn't installed. No system-font or CDN dependency;
+> `reports/test_render.py` covers Arabic PDF + the @font-face self-containment.
 > Next: client-specific templates, report download UI in the dashboard.
 
 ### Stage 3 — Scenarios & forecasting — *first version built*
