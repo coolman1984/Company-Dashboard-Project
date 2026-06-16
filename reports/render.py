@@ -173,6 +173,7 @@ def render_excel(envelope, out_path):
     _excel_write_sheet(ws, envelope)
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     wb.save(out_path)
+    wb.close()
     return out_path
 
 
@@ -199,6 +200,7 @@ def render_excel_pack(envelopes, out_path, title="Board Pack"):
 
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     wb.save(out_path)
+    wb.close()
     return out_path
 
 

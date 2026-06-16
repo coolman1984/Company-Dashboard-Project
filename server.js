@@ -404,8 +404,10 @@ function getExportCapabilities() {
 
 function reportOfficeBuffer(name, format) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdash-report-'));
+    // Windows uses 'python', Linux/macOS use 'python3'
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
     try {
-        const result = spawnSync('python3', [
+        const result = spawnSync(pythonCmd, [
             '-m', 'reports.cli', '--db', activeDbPath(), '--out', tmpDir,
             '--report', name, '--format', format
         ], { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 120000 });
@@ -1424,6 +1426,7 @@ function handleApi(pathname, query, res) {
 
     if (pathname === '/api/reports/generate') {
         const reportName = query.name;
+        if (!reportName) return errorResponse(res, 400, 'Missing required parameter: name. Use /api/reports to list available reports.');
         const def = REPORT_DEFINITIONS.find(r => r.name === reportName);
         if (!def) return errorResponse(res, 404, `Unknown report: ${reportName}. Use /api/reports to list.`);
         try {
@@ -1435,6 +1438,7 @@ function handleApi(pathname, query, res) {
 
     if (pathname === '/api/reports/download') {
         const reportName = query.name;
+        if (!reportName) return errorResponse(res, 400, 'Missing required parameter: name. Use /api/reports to list available reports.');
         const format = String(query.format || 'csv').toLowerCase();
         const def = REPORT_DEFINITIONS.find(r => r.name === reportName);
         if (!def) return errorResponse(res, 404, `Unknown report: ${reportName}. Use /api/reports to list.`);

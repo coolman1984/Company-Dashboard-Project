@@ -55,6 +55,7 @@ def test_excel():
         assert ws.cell(row=6, column=1).value == 2024
         assert ws.cell(row=6, column=2).value == 114248976.0
         assert ws.cell(row=6, column=2).number_format == "#,##0"
+        wb.close()
 
 
 ARABIC = {
@@ -71,9 +72,11 @@ def test_excel_arabic_is_rtl():
         path = os.path.join(tmp, "arabic.xlsx")
         render.render_excel(ARABIC, path)
         import openpyxl
-        ws = openpyxl.load_workbook(path).active
+        wb = openpyxl.load_workbook(path)
+        ws = wb.active
         assert ws.sheet_view.rightToLeft, "Arabic sheet should be right-to-left"
         assert ws.cell(row=6, column=2).value == "أفريقيا"
+        wb.close()
     # English reports must stay left-to-right.
     assert render.envelope_has_arabic(ARABIC) is True
     assert render.envelope_has_arabic(ENVELOPE) is False
@@ -128,6 +131,7 @@ def test_excel_pack():
         assert wb.sheetnames == ["Contents", "yearly_pl", "regional_pl"], wb.sheetnames
         assert wb["Contents"]["A1"].value == "Test Pack"
         assert wb["regional_pl"].cell(row=6, column=3).value == 1200.0
+        wb.close()
 
 
 def test_pdf_pack():
