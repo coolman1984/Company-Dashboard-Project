@@ -58,6 +58,12 @@ jobs:
       - name: Run raw-to-database mapper tests
         run: python3 test_map_raw_to_db.py
 
+      - name: Run Phase 2 import-workspace tests
+        run: python3 test_import_workspace.py
+
+      - name: Run Phase 2 integration tests
+        run: python3 test_phase2_integration.py
+
       - name: Run reports engine tests
         run: python3 -m reports.test_reports
 
