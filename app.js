@@ -28,7 +28,7 @@ var freshness = null;
 var summary = null;
 var activeTab = 'overview';
 var standardFilterState = { year: '', version: 'Actual' };
-var tabLoaded = { overview: false, briefing: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false, reports: false, health: false, knowledge: false };
+var tabLoaded = { overview: false, briefing: false, guardian: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false, reports: false, health: false, knowledge: false };
 var yearlyData = [];
 var executiveData = null;
 var productData = [];
@@ -1820,6 +1820,93 @@ function viewNote(id) {
         .catch(function (err) { noteEl.innerHTML = '<div class="wiki-empty">' + escapeHtml(err.message) + '</div>'; });
 }
 
+function updateGuardianBadge(count) {
+    var badge = el('guardianBadge');
+    if (!badge) return;
+    if (count > 0) { badge.textContent = count; badge.hidden = false; }
+    else { badge.hidden = true; }
+}
+
+function primeGuardianBadge() {
+    // Passive guardian: surface the alert count on the nav without opening the tab.
+    fetchJson(API + '/api/anomalies', { force: true })
+        .then(function (d) { updateGuardianBadge(d.count || 0); })
+        .catch(function () { /* badge stays hidden if detection is unavailable */ });
+}
+
+function guardianMetricLabel(metric) {
+    var map = {
+        operating_expense: tr('Operating expense'), net_sales: tr('Net sales'),
+        operating_profit: tr('Operating profit'), gross_margin_pct: tr('Gross margin %')
+    };
+    return map[metric] || metric;
+}
+
+function guardianText(a) {
+    var label = escapeHtml(tr(String(a.label || '')));
+    var d = a.detail || {};
+    if (a.type === 'first_negative_margin') {
+        return label + ' — ' + tr('operating profit turned negative for the first time after') + ' ' +
+            (d.positive_years || 0) + ' ' + tr('profitable years') + ' (' + formatFull(a.value) + ')';
+    }
+    if (a.type === 'margin_erosion') {
+        return label + ' — ' + tr('gross margin fell') + ' ' + pctVal(d.drop_pp) + ' pp (' +
+            pctVal(a.baseline) + ' → ' + pctVal(a.value) + ')';
+    }
+    if (a.type === 'customer_churn') {
+        return label + ' — ' + tr('purchases collapsed') + ' (' + tr('avg') + ' ' +
+            formatFull(a.baseline) + ' → ' + formatFull(a.value) + ')';
+    }
+    if (a.type === 'expense_spike') {
+        return label + ' — ' + tr('operating expense surged') + ' ' + pctVal(a.delta_pct) +
+            ' (' + tr('revenue grew') + ' ' + pctVal(d.revenue_growth_pct) + ')';
+    }
+    if (a.type === 'period_spike') {
+        var pp = ('0' + a.period).slice(-2);
+        return 'P' + pp + ' — ' + guardianMetricLabel(a.metric) + ' ' + tr('spiked vs the year average') +
+            ' (' + pctVal(a.delta_pct) + ', z=' + loc(String(d.z_score)) + ')';
+    }
+    return label;
+}
+
+function guardianTrace(a) {
+    var where = a.dimension ? (a.dimension + '=' + a.label) : (a.period ? ('P' + ('0' + a.period).slice(-2)) : '');
+    return 'FY' + a.year + (where ? ' · ' + where : '') + ' · ' + a.metric;
+}
+
+function loadGuardian(force) {
+    var list = el('guardianList');
+    el('guardianSummary').innerHTML = '';
+    list.innerHTML = '<div class="loading-spinner"></div>';
+    return fetchJson(API + '/api/anomalies', { force: force })
+        .then(function (d) { renderGuardian(d); tabLoaded.guardian = true; })
+        .catch(function (err) {
+            list.innerHTML = '<div class="wiki-empty">' + escapeHtml(err.message) + '</div>';
+            tabLoaded.guardian = true;
+        });
+}
+
+function renderGuardian(d) {
+    var anomalies = d.anomalies || [];
+    var high = (d.by_severity && d.by_severity.high) || 0;
+    var medium = (d.by_severity && d.by_severity.medium) || 0;
+    updateGuardianBadge(d.count || 0);
+    el('guardianSummary').innerHTML =
+        '<div class="health-card ' + (d.count ? 'is-warn' : 'is-ok') + '"><div class="health-num">' + (d.count || 0) + '</div><div class="health-lbl">' + tr('Alerts') + '</div></div>' +
+        '<div class="health-card ' + (high ? 'is-warn' : 'is-ok') + '"><div class="health-num">' + high + '</div><div class="health-lbl">' + tr('High') + '</div></div>' +
+        '<div class="health-card"><div class="health-num">' + medium + '</div><div class="health-lbl">' + tr('Medium') + '</div></div>';
+    if (!anomalies.length) {
+        el('guardianList').innerHTML = '<div class="guardian-clear">✓ ' + tr('All clear — no anomalies detected.') + '</div>';
+        return;
+    }
+    el('guardianList').innerHTML = '<div class="guardian-list">' + anomalies.map(function (a) {
+        return '<div class="alert-card sev-' + a.severity + '">' +
+            '<span class="a-sev ' + a.severity + '">' + tr(a.severity === 'high' ? 'High' : 'Medium') + '</span>' +
+            '<div class="a-body"><div class="a-text">' + guardianText(a) + '</div>' +
+            '<div class="a-trace">' + escapeHtml(guardianTrace(a)) + '</div></div></div>';
+    }).join('') + '</div>';
+}
+
 function loadActiveTab(force) {
     setStatus(true, tr('Querying SQLite'));
     var loader = {
@@ -1833,7 +1920,8 @@ function loadActiveTab(force) {
         reports: loadReports,
         health: loadHealth,
         briefing: loadBriefing,
-        knowledge: loadKnowledge
+        knowledge: loadKnowledge,
+        guardian: loadGuardian
     }[activeTab];
     return Promise.resolve(loader(force)).then(function () {
         setStatus(true, tr('Live SQLite'));
@@ -2035,6 +2123,7 @@ function bootstrap() {
                 tr('The live database is not connected, so the dashboard is showing only saved summary data. Some sections may be empty until the database is set up.'));
         }
         setStatus(status.database === 'connected', status.backend === 'sqlite-live' ? tr('Live SQLite') : tr('Fallback cache'));
+        primeGuardianBadge();
         return loadOverview(false);
     }).catch(function () {
         setStatus(false, tr('Connection failed'));

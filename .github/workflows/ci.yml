@@ -79,6 +79,9 @@ jobs:
       - name: Run what-if scenario tests
         run: python3 -m reports.test_scenario
 
+      - name: Run anomaly guardian tests
+        run: python3 -m reports.test_anomaly
+
       - name: Run knowledge base tests
         run: python3 -m brain.test_brain
 

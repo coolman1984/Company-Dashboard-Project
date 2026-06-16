@@ -1117,6 +1117,22 @@ function handleApi(pathname, query, res) {
         }
     }
 
+    if (pathname === '/api/anomalies') {
+        // The "passive guardian": deterministic, source-traceable anomaly
+        // detection. Reuses the tested Python engine (reports/anomaly.py).
+        try {
+            const result = spawnSync('python3', ['-m', 'reports.anomaly', '--db', DB_PATH, '--json'],
+                { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 30000 });
+            if (result.status !== 0) {
+                const details = (result.stderr || result.stdout || '').trim();
+                return errorResponse(res, 500, `Anomaly detection failed: ${details || result.status}`);
+            }
+            return jsonResponse(res, JSON.parse(result.stdout));
+        } catch (error) {
+            return errorResponse(res, 500, `Anomaly detection failed: ${error.message}`);
+        }
+    }
+
     if (pathname === '/api/wiki/search') {
         // Knowledge-base search — delegates to the tested brain engine. Args are
         // passed as argv (no shell), and note ids are dictionary keys (no path

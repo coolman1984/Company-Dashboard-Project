@@ -163,6 +163,16 @@ async function run() {
 
     // Interactive what-if levers: a no-op scenario reproduces the baseline exactly,
     // and a real lever moves net income.
+    const anomalies = await getJson('/api/anomalies');
+    assert.equal(anomalies.response.status, 200);
+    assert.ok(typeof anomalies.body.count === 'number');
+    assert.ok(Array.isArray(anomalies.body.anomalies));
+    assert.ok(anomalies.body.by_severity && typeof anomalies.body.by_severity === 'object');
+    // Each anomaly must be source-traceable.
+    anomalies.body.anomalies.forEach(a => {
+        assert.ok(a.type && a.severity && a.source && a.source.metric);
+    });
+
     const wiki = await getJson('/api/wiki/search?q=margin&limit=5');
     assert.equal(wiki.response.status, 200);
     assert.ok(Array.isArray(wiki.body.matches));

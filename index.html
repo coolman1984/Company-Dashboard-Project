@@ -794,6 +794,17 @@
         .wiki-note code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
         .wiki-note a.wikilink { color: var(--primary, #2563eb); cursor: pointer; text-decoration: underline; }
         .wiki-empty { color: #64748b; font-size: 13px; padding: 12px; }
+        .nav-badge { display: inline-block; min-width: 18px; text-align: center; font-size: 10px; font-weight: 800; color: #fff; background: #dc2626; border-radius: 999px; padding: 1px 6px; margin-inline-start: auto; }
+        .guardian-list { display: flex; flex-direction: column; gap: 10px; }
+        .alert-card { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--border, #e3e8f0); border-inline-start-width: 4px; border-radius: 10px; padding: 12px 14px; background: #fff; }
+        .alert-card.sev-high { border-inline-start-color: #dc2626; }
+        .alert-card.sev-medium { border-inline-start-color: #d97706; }
+        .alert-card .a-body { flex: 1; }
+        .alert-card .a-text { font-size: 13px; font-weight: 600; color: #1e293b; }
+        .alert-card .a-trace { font-size: 11px; color: #64748b; margin-top: 4px; font-family: ui-monospace, monospace; }
+        .alert-card .a-sev { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; flex: none; }
+        .a-sev.high { background: #fee2e2; color: #991b1b; } .a-sev.medium { background: #fef3c7; color: #92400e; }
+        .guardian-clear { text-align: center; padding: 32px; color: #166534; font-weight: 700; font-size: 15px; }
         @media print {
             .app-sidebar, .topbar, .global-filters, #briefingPrint, .tab, .app-shell > aside { display: none !important; }
             .panel:not(#panel-briefing) { display: none !important; }
@@ -823,6 +834,11 @@
             <button class="tab" type="button" role="tab" id="tab-briefing" aria-selected="false" aria-controls="panel-briefing" data-tab="briefing">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>
                 <span data-i18n="tab.briefing">Briefing</span>
+            </button>
+            <button class="tab" type="button" role="tab" id="tab-guardian" aria-selected="false" aria-controls="panel-guardian" data-tab="guardian">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M12 8v4M12 16h.01"/></svg>
+                <span data-i18n="tab.guardian">Guardian</span>
+                <span id="guardianBadge" class="nav-badge" hidden></span>
             </button>
             <button class="tab" type="button" role="tab" id="tab-regional" aria-selected="false" aria-controls="panel-regional" data-tab="regional">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.6 3 14.4 0 18M12 3c-3 3.6-3 14.4 0 18"/></svg>
@@ -972,6 +988,12 @@
                     <button class="primary-btn" type="button" id="briefingPrint" data-i18n="briefing.print">Print / Save PDF</button>
                 </div>
                 <div id="briefingBody"><div class="loading-spinner"></div></div>
+            </section>
+
+            <section class="panel" id="panel-guardian" role="tabpanel" aria-labelledby="tab-guardian" hidden>
+                <div class="section-head"><div><h2 data-i18n="guardian.title">Guardian — anomaly watch</h2><p data-i18n="guardian.subtitle">The system watches the ledger and flags what looks unusual — every alert is traced to its source.</p></div></div>
+                <div id="guardianSummary" class="health-summary"></div>
+                <div id="guardianList"><div class="loading-spinner"></div></div>
             </section>
 
             <section class="panel" id="panel-regional" role="tabpanel" aria-labelledby="tab-regional" hidden>

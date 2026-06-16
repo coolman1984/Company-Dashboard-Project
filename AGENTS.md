@@ -372,6 +372,36 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — main (Guardian: deterministic anomaly detection — "passive guardian")
+**Did:** Built the highest-impact idea from Hermes's product brief — turn the
+product from passive (you open it and ask) to active (it watches and warns).
+- **Engine:** new `reports/anomaly.py` — a deterministic, **source-traceable**
+  anomaly detector (no LLM, no network: a finance audience must be able to ask
+  "why did you flag this?" and get an explicit rule). Five detectors respecting
+  the outlook convention: first-time negative operating profit, gross-margin
+  erosion, customer churn, expense-vs-revenue spike (regions), and intra-year
+  period spikes (z-score). Each anomaly carries `{year, dimension, label, metric}`
+  provenance. Thresholds are explicit module constants (auditable).
+- **Tests:** `reports/test_anomaly.py` — one focused crafted ledger per detector
+  plus a clean-data test that must stay silent (no false positives). Added to CI.
+- **Server:** `/api/anomalies` reuses the engine.
+- **Frontend:** new **Guardian** tab (3rd) — severity summary, a list of alerts
+  with localized descriptions + a monospace **source trace** line, and an
+  "all clear" state. A red **nav badge** shows the alert count, primed on startup
+  so the guardian warns without opening the tab. Fully bilingual.
+**Why:** "Data alone isn't enough — someone has to watch." This is the feature
+that most changes what the product *is*.
+**Status:** ✅ Full gate green on EN *and* AR seeds; 6 anomaly unit tests pass;
+clean synthetic data correctly yields zero alerts (no false positives); Arabic
+phrases verified. New smoke assertions check every anomaly is source-traceable.
+**Next:** persist a baseline so spikes compare against history across imports;
+optional email/desktop alerting; fold the top anomaly into the Briefing risks.
+**Watch out:** `/api/anomalies` spawns Python (primed once on load + on tab
+visit). Detectors are tuned for the synthetic distribution — revisit thresholds
+(`MARGIN_EROSION_PP`, `CHURN_DROP_FRACTION`, `PERIOD_SPIKE_Z`, …) against real
+client data. Deliberately deterministic (not ML/LLM) for auditability + the
+no-network runtime constraint.
+
 ### 2026-06-16 — Claude Code — main (P2 #7: knowledge-base web integration — Knowledge tab)
 **Did:** Brought the "second brain" into the dashboard (audit P2 #7).
 - **Brain CLI:** added `--note <id>` to `brain/cli.py` (prints one note as JSON:
