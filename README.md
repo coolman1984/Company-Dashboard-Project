@@ -258,5 +258,7 @@ All endpoints are `GET` and return JSON. Common filters: `version`, `year`,
 | `/api/executive-outlook` | Reconciled CFO outlook cockpit |
 | `/api/drilldown` | Variance contributors between two years |
 | `/api/top-products`, `/api/portfolio` | Product economics |
-| `/api/reports` | List available saved reports |
+| `/api/reports` | List available saved reports (+ `exportFormats` capability flags) |
 | `/api/reports/generate?name=` | Generate a saved report as JSON (6 core P&L reports) |
+| `/api/reports/download?name=&format=` | Download a report as CSV/XLSX/PDF (clean `503` if an export library is missing) |
+| `/api/import-health` | Live data-integrity checks + per-client import-run history (powers the **Source & Health** tab) |

@@ -389,6 +389,39 @@ function reportOfficeBuffer(name, format) {
     }
 }
 
+// Import health & history — surfaces source-confidence in the UI so a challenged
+// number can be defended on screen. The validation checks are computed live from
+// the database; the run history is read from per-client workspace manifests when
+// a real client import has been performed (absent for the synthetic seed).
+function readImportHistory() {
+    const runs = [];
+    const wsRoot = path.join(PROJECT_ROOT, 'workspaces');
+    try {
+        if (!fs.existsSync(wsRoot)) return runs;
+        for (const client of fs.readdirSync(wsRoot)) {
+            const manifest = path.join(wsRoot, client, 'import_history.json');
+            if (!fs.existsSync(manifest)) continue;
+            try {
+                const data = JSON.parse(fs.readFileSync(manifest, 'utf8'));
+                (data.runs || []).forEach(r => runs.push({
+                    client_id: data.client_id || client,
+                    run_id: r.run_id || null,
+                    timestamp: r.timestamp || null,
+                    status: r.status || 'unknown',
+                    row_count: r.row_count != null ? r.row_count : null,
+                    warnings: Array.isArray(r.warnings) ? r.warnings.length : 0
+                }));
+            } catch (error) {
+                // skip a malformed manifest rather than failing the whole panel
+            }
+        }
+    } catch (error) {
+        // no workspaces directory — synthetic / pre-import state
+    }
+    runs.sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+    return runs.slice(0, 50);
+}
+
 function serveStatic(filePath, res) {
     const safePath = path.resolve(filePath);
     if (safePath !== PROJECT_ROOT && !safePath.startsWith(PROJECT_ROOT_PREFIX)) {
@@ -969,6 +1002,25 @@ function handleApi(pathname, query, res) {
         return jsonResponse(res, {
             reports: REPORT_DEFINITIONS.map(r => ({ name: r.name, title: r.title, description: r.description })),
             exportFormats: getExportCapabilities()
+        });
+    }
+
+    if (pathname === '/api/import-health') {
+        const def = REPORT_DEFINITIONS.find(r => r.name === 'import_validation');
+        let checks = [];
+        if (def) {
+            try {
+                checks = reportEnvelope(def).rows;
+            } catch (error) {
+                return errorResponse(res, 500, `Import health failed: ${error.message}`);
+            }
+        }
+        const warn = checks.filter(c => String(c.status).toUpperCase() === 'WARN').length;
+        const ok = checks.filter(c => String(c.status).toUpperCase() === 'OK').length;
+        return jsonResponse(res, {
+            summary: { ok, warn, total: checks.length, overall: warn > 0 ? 'WARN' : 'OK' },
+            checks,
+            history: readImportHistory()
         });
     }
 

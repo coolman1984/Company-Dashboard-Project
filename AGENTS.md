@@ -372,6 +372,38 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — main (P1 defensibility: Source & Health tab + COM orphan-kill safety net)
+**Did:** Worked the external audit's top actionable items.
+- **Source & Health dashboard tab (audit P1 #3).** New `/api/import-health`
+  endpoint returns live data-integrity checks (lineage coverage, duplicate grains,
+  null critical fields, row counts — computed from the DB) plus per-client import
+  history read from `workspaces/<client>/import_history.json`. New dashboard tab
+  renders a health summary (passed / warnings / overall), a status-badged checks
+  grid, and a run-history table. Fully bilingual (keyed + phrase i18n, Arabic
+  provided). A challenged number can now be defended on screen.
+- **COM orphan-process safety net (audit P0 #1, partial).** `excel_session()` now
+  captures the Excel PID (via `Hwnd`) and **force-terminates** it if `Quit()`
+  doesn't take — closing the "orphaned EXCEL.EXE eats memory" risk. New pure
+  helpers `_excel_pid` / `_terminate_orphan` are unit-tested for the edge cases.
+  ⚠️ A live **Windows** validation sweep with real client files is still required
+  (can't run from Linux/CI) — flagged in `Agent.md`.
+- **Audit reconciliation:** items #5 (report download UI) and the "System Check"
+  env issues are already resolved on `main` (downloads + `setup.sh` from the prior
+  P0 push); noted so we don't redo them.
+**Why:** Defensibility (where did this number come from, is it clean?) is the
+highest-trust gap for a finance client, and orphaned Excel processes are a real
+unattended-run risk.
+**Status:** ✅ Full gate green on EN *and* AR seeds (npm smoke + i18n coverage +
+db/mcp/mapper/phase2/reports/render/scenario/brain/mapping). New smoke assertions
+for `/api/import-health`; COM tests 13→15. Verified history rendering with a
+simulated workspace manifest, and the empty/synthetic state.
+**Next:** P1 #4 — interactive scenario levers in the dashboard; then surface
+per-row source drill-back from a dashboard figure.
+**Watch out:** `/api/import-health` history reads `workspaces/` (git-ignored,
+client data) — empty for the synthetic seed by design. The COM force-kill is
+Windows-only/best-effort and untested on real Office; do the Windows sweep before
+trusting it in production.
+
 ### 2026-06-16 — Claude Code — main (P0 client-readiness: graceful exports + locale-independent tests + one-command setup)
 **Did:** Acted on a blunt end-client drive-through of the product and fixed the
 three things that broke "it just works":

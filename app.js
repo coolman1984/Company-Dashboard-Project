@@ -28,7 +28,7 @@ var freshness = null;
 var summary = null;
 var activeTab = 'overview';
 var standardFilterState = { year: '', version: 'Actual' };
-var tabLoaded = { overview: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false, reports: false };
+var tabLoaded = { overview: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false, reports: false, health: false };
 var yearlyData = [];
 var executiveData = null;
 var productData = [];
@@ -1506,6 +1506,63 @@ function downloadReportFile(name, format) {
         });
 }
 
+function loadHealth(force) {
+    var summaryEl = el('healthSummary');
+    var checksTable = el('healthChecksTable');
+    var historyTable = el('healthHistoryTable');
+    summaryEl.innerHTML = '<div class="loading-spinner"></div>';
+    checksTable.innerHTML = '';
+    historyTable.innerHTML = '';
+
+    return fetchJson(API + '/api/import-health', { force: force })
+        .then(function (data) {
+            var s = data.summary || { ok: 0, warn: 0, total: 0, overall: 'OK' };
+            var overallOk = s.overall !== 'WARN';
+            summaryEl.innerHTML =
+                '<div class="health-card ' + (overallOk ? 'is-ok' : 'is-warn') + '">' +
+                    '<div class="health-num">' + (overallOk ? tr('Healthy') : tr('Review')) + '</div>' +
+                    '<div class="health-lbl">' + tr('Overall status') + '</div>' +
+                '</div>' +
+                '<div class="health-card is-ok"><div class="health-num">' + s.ok + '</div><div class="health-lbl">' + tr('Checks passed') + '</div></div>' +
+                '<div class="health-card ' + (s.warn ? 'is-warn' : 'is-ok') + '"><div class="health-num">' + s.warn + '</div><div class="health-lbl">' + tr('Warnings') + '</div></div>';
+
+            var checks = data.checks || [];
+            if (!checks.length) {
+                checksTable.innerHTML = '<tbody><tr><td>' + tr('No checks available') + '</td></tr></tbody>';
+            } else {
+                var head = '<thead><tr><th>' + tr('Category') + '</th><th>' + tr('Check') + '</th><th>' + tr('Value') + '</th><th>' + tr('Status') + '</th></tr></thead>';
+                var body = '<tbody>' + checks.map(function (c) {
+                    var st = String(c.status || '').toUpperCase();
+                    var cls = st === 'WARN' ? 'warn' : 'ok';
+                    var label = st === 'WARN' ? tr('Warning') : tr('OK');
+                    return '<tr><td>' + escapeHtml(String(c.category || '')) + '</td><td>' + escapeHtml(String(c.item || '')) +
+                        '</td><td>' + escapeHtml(String(c.value)) + '</td><td><span class="status-badge ' + cls + '">' + label + '</span></td></tr>';
+                }).join('') + '</tbody>';
+                checksTable.innerHTML = head + body;
+            }
+
+            var history = data.history || [];
+            if (!history.length) {
+                historyTable.innerHTML = '<tbody><tr><td>' + tr('No client import runs yet. Runs appear here after importing a client file.') + '</td></tr></tbody>';
+            } else {
+                var hhead = '<thead><tr><th>' + tr('Client') + '</th><th>' + tr('When') + '</th><th>' + tr('Status') + '</th><th>' + tr('Rows') + '</th><th>' + tr('Warnings') + '</th></tr></thead>';
+                var hbody = '<tbody>' + history.map(function (r) {
+                    var st = String(r.status || '').toLowerCase();
+                    var cls = st === 'success' ? 'ok' : 'warn';
+                    return '<tr><td>' + escapeHtml(String(r.client_id || '')) + '</td><td>' + escapeHtml(String(r.timestamp || '')) +
+                        '</td><td><span class="status-badge ' + cls + '">' + escapeHtml(String(r.status || '')) + '</span></td><td>' +
+                        (r.row_count != null ? r.row_count.toLocaleString() : '') + '</td><td>' + (r.warnings || 0) + '</td></tr>';
+                }).join('') + '</tbody>';
+                historyTable.innerHTML = hhead + hbody;
+            }
+            tabLoaded.health = true;
+        })
+        .catch(function (err) {
+            summaryEl.innerHTML = '<div class="health-card is-warn"><div class="health-num">!</div><div class="health-lbl">' + escapeHtml(err.message) + '</div></div>';
+            tabLoaded.health = true;
+        });
+}
+
 function loadActiveTab(force) {
     setStatus(true, tr('Querying SQLite'));
     var loader = {
@@ -1516,7 +1573,8 @@ function loadActiveTab(force) {
         scenario: loadScenario,
         trends: loadTrends,
         portfolio: loadPortfolio,
-        reports: loadReports
+        reports: loadReports,
+        health: loadHealth
     }[activeTab];
     return Promise.resolve(loader(force)).then(function () {
         setStatus(true, tr('Live SQLite'));

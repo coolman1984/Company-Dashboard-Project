@@ -742,6 +742,17 @@
             .chart-container, .chart-container.tall { height: 300px; }
             .workspace { padding: 12px 10px 24px; }
         }
+        .health-summary { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+        .health-card { flex: 1; min-width: 140px; border: 1px solid var(--border, #e3e8f0); border-radius: 10px; padding: 14px 16px; background: #fff; }
+        .health-card .health-num { font-size: 26px; font-weight: 800; line-height: 1; }
+        .health-card .health-lbl { font-size: 11px; color: #64748b; margin-top: 6px; text-transform: uppercase; letter-spacing: .04em; }
+        .health-card.is-ok { border-color: #16a34a; }
+        .health-card.is-warn { border-color: #d97706; }
+        .health-card.is-ok .health-num { color: #16a34a; }
+        .health-card.is-warn .health-num { color: #d97706; }
+        .status-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+        .status-badge.ok { background: #dcfce7; color: #166534; }
+        .status-badge.warn { background: #fef3c7; color: #92400e; }
     </style>
 </head>
 <body>
@@ -789,6 +800,10 @@
             <button class="tab" type="button" role="tab" id="tab-reports" aria-selected="false" aria-controls="panel-reports" data-tab="reports">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
                 <span data-i18n="tab.reports">Reports</span>
+            </button>
+            <button class="tab" type="button" role="tab" id="tab-health" aria-selected="false" aria-controls="panel-health" data-tab="health">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                <span data-i18n="tab.health">Source &amp; Health</span>
             </button>
         </nav>
 
@@ -989,6 +1004,19 @@
                         </div>
                     </div>
                     <div class="table-scroll" id="reportViewScroll"><table class="data-table" id="reportViewTable"></table></div>
+                </article>
+            </section>
+
+            <section class="panel" id="panel-health" role="tabpanel" aria-labelledby="tab-health" hidden>
+                <div class="section-head"><div><h2 data-i18n="health.sectionTitle">Source &amp; Data Health</h2><p data-i18n="health.sectionDesc">Where the loaded numbers come from and whether they pass integrity checks — defend any figure on screen.</p></div></div>
+                <div id="healthSummary" class="health-summary"></div>
+                <article class="table-card">
+                    <div class="table-head"><div><div class="chart-title" data-i18n="health.checksTitle">Data integrity checks</div><div class="chart-subtitle" data-i18n="health.checksSubtitle">Computed live from the current database</div></div><button class="export-btn" type="button" data-export-table="healthChecksTable" data-export-name="data-health">Export CSV</button></div>
+                    <div class="table-scroll"><table class="data-table" id="healthChecksTable"></table></div>
+                </article>
+                <article class="table-card">
+                    <div class="table-head"><div><div class="chart-title" data-i18n="health.historyTitle">Import run history</div><div class="chart-subtitle" data-i18n="health.historySubtitle">Per-client load runs (present after a real client import)</div></div></div>
+                    <div class="table-scroll"><table class="data-table" id="healthHistoryTable"></table></div>
                 </article>
             </section>
         </div>

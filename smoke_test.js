@@ -153,6 +153,14 @@ async function run() {
     assert.equal(reportJson.response.status, 200);
     assert.ok(reportJson.body.rows.some(row => row.category === 'Lineage'));
 
+    const health = await getJson('/api/import-health');
+    assert.equal(health.response.status, 200);
+    assert.ok(health.body.summary, 'import-health must include a summary');
+    assert.ok(['OK', 'WARN'].includes(health.body.summary.overall));
+    assert.ok(Array.isArray(health.body.checks) && health.body.checks.length > 0);
+    assert.ok(health.body.checks.some(c => c.category === 'Lineage'));
+    assert.ok(Array.isArray(health.body.history));
+
     const reportCsv = await fetch(baseUrl + '/api/reports/download?name=yearly_pl&format=csv');
     assert.equal(reportCsv.status, 200);
     assert.match(reportCsv.headers.get('content-disposition') || '', /yearly_pl\.csv/);

@@ -73,7 +73,13 @@ re-writing the pattern:
   (`Visible/DisplayAlerts/EnableEvents/AskToUpdateLinks/Interactive` off) and
   *guarantees* `Quit()` + ref release + `CoUninitialize()` on exit. Also sets
   **`AutomationSecurity = 3` (force-disable macros)** — client files are
-  untrusted; never let a workbook macro run on open.
+  untrusted; never let a workbook macro run on open. As a last-resort safety net
+  it captures the Excel **process id** (via `Hwnd`) before yielding and
+  **force-terminates the process** if a graceful `Quit()` doesn't take (hung
+  dialog / crashed automation server) — so an unattended run can't slowly leak
+  `EXCEL.EXE`. ⚠️ **Still TODO: a real Windows validation sweep** with live Office
+  + real client files (passwords, corrupt structures, macro prompts) to confirm
+  the orphan-kill fires under every error branch — it's only mock-tested on CI.
 - **`open_workbook(excel, path)`** — never hangs: passes a **guard `Password`**
   so a protected file raises instead of popping a modal password dialog,
   `UpdateLinks=0` / `IgnoreReadOnlyRecommended=True` / `Notify=False` to kill

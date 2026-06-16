@@ -142,6 +142,46 @@ def find_sheet(workbook, name=None, index=None):
     raise KeyError(f"sheet named {name!r} not found among {count} sheet(s)")
 
 
+def _excel_pid(excel):
+    """Best-effort OS process id for an Excel Application, via its window handle.
+
+    Returns 0 if it can't be determined (e.g. no Hwnd, win32 unavailable, or a
+    mock). Pure enough to unit-test the edge cases on any platform.
+    """
+    try:
+        import win32process
+        hwnd = int(excel.Hwnd)
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        return int(pid) if pid and int(pid) > 0 else 0
+    except Exception:  # noqa: BLE001 — any failure means "unknown pid", never fatal
+        return 0
+
+
+def _terminate_orphan(pid):
+    """Last resort: force-kill an Excel process that survived Quit().
+
+    This is the safety net for the audit's #1 risk — a hung/crashed COM session
+    leaving an orphaned EXCEL.EXE that slowly eats memory. Windows-only and
+    strictly best-effort: it never raises and returns True only if a termination
+    was actually attempted. A non-positive/unknown pid is a no-op.
+    """
+    if not pid or int(pid) <= 0:
+        return False
+    try:
+        import ctypes
+        PROCESS_TERMINATE = 0x0001
+        handle = ctypes.windll.kernel32.OpenProcess(PROCESS_TERMINATE, False, int(pid))
+        if not handle:
+            return False
+        try:
+            ctypes.windll.kernel32.TerminateProcess(handle, 1)
+            return True
+        finally:
+            ctypes.windll.kernel32.CloseHandle(handle)
+    except Exception:  # noqa: BLE001 — no windll on non-Windows, dead pid, etc.
+        return False
+
+
 @contextmanager
 def excel_session(disable_macros=True):
     """Context manager yielding a configured, dialog-free Excel application.
@@ -157,6 +197,7 @@ def excel_session(disable_macros=True):
 
     pythoncom.CoInitialize()
     excel = None
+    pid = 0
     try:
         excel = win32com.client.DispatchEx("Excel.Application")
         # Silence every interactive surface that could block an automated run.
@@ -179,6 +220,10 @@ def excel_session(disable_macros=True):
                 excel.AutomationSecurity = MSO_SEC_FORCE_DISABLE
             except Exception:  # noqa: BLE001
                 pass
+        # Remember the OS process so we can force-kill it if Quit() doesn't take
+        # (a hung dialog, a crashed automation server) — the orphaned-EXCEL.EXE
+        # safety net. Captured before yield so we still have it after a crash.
+        pid = _excel_pid(excel)
         yield excel
     finally:
         if excel is not None:
@@ -192,6 +237,9 @@ def excel_session(disable_macros=True):
             pythoncom.CoUninitialize()
         except Exception:  # noqa: BLE001
             pass
+        # If the process is still alive after a graceful Quit + GC, terminate it
+        # so an unattended run can never leak Excel processes over time.
+        _terminate_orphan(pid)
 
 
 def open_workbook(excel, path, read_only=True):

@@ -123,6 +123,22 @@ class TestPureHelpers(unittest.TestCase):
         first = next(iter(com_utils.chunk_bounds(790000, 10000, start_row=2)))
         self.assertEqual(first, (2, 10001))
 
+    def test_excel_pid_unknown_is_zero(self):
+        # No Hwnd / win32 unavailable / a mock object -> pid 0, never raises.
+        class _NoHwnd:
+            @property
+            def Hwnd(self):
+                raise AttributeError("no window")
+        self.assertEqual(com_utils._excel_pid(_NoHwnd()), 0)
+        self.assertEqual(com_utils._excel_pid(object()), 0)
+
+    def test_terminate_orphan_noop_for_bad_pid(self):
+        # Non-positive/unknown pids are a no-op and never raise (and on non-Windows
+        # the windll path simply returns False rather than terminating anything).
+        self.assertFalse(com_utils._terminate_orphan(0))
+        self.assertFalse(com_utils._terminate_orphan(-1))
+        self.assertFalse(com_utils._terminate_orphan(None))
+
     def test_find_sheet_by_name_and_index(self):
         wb = FakeWorkbook([FakeSheet("Sheet3", [[1]]), FakeSheet("Sheet1", [[2]])])
         self.assertEqual(com_utils.find_sheet(wb, name="sheet1").Name, "Sheet1")   # case-insensitive
