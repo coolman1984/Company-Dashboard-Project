@@ -1669,15 +1669,20 @@ function loadBriefing(force) {
     }
     var body = el('briefingBody');
     body.innerHTML = '<div class="loading-spinner"></div>';
-    return fetchJson(API + '/api/executive-narrative', { force: force })
-        .then(function (d) { renderBriefing(d); tabLoaded.briefing = true; })
+    return Promise.all([
+        fetchJson(API + '/api/executive-narrative', { force: force }),
+        // The guardian's findings make the briefing smarter — but the briefing
+        // must still render if anomaly detection is unavailable.
+        fetchJson(API + '/api/anomalies', { force: force }).catch(function () { return { anomalies: [], count: 0 }; })
+    ])
+        .then(function (results) { renderBriefing(results[0], results[1]); tabLoaded.briefing = true; })
         .catch(function (err) {
             body.innerHTML = '<div class="report-card"><div class="report-card-body"><div class="report-card-title">' + escapeHtml(err.message) + '</div></div></div>';
             tabLoaded.briefing = true;
         });
 }
 
-function renderBriefing(d) {
+function renderBriefing(d, guardian) {
     var h = d.headline || {};
     function kpi(label, value, delta, dir, isPct) {
         var dtxt = (delta >= 0 ? '+' : '') + (isPct ? pctVal(delta) + ' pp' : formatFull(delta));
@@ -1711,6 +1716,18 @@ function renderBriefing(d) {
     var actions = (d.risks || []).map(function (r) { return '<li>' + briefActionText(r) + '</li>'; }).join('');
     if (!actions) actions = '<li>' + tr('Maintain the current plan; monitor monthly.') + '</li>';
 
+    // What the guardian flagged — top alerts from the anomaly engine.
+    var alerts = (guardian && guardian.anomalies) || [];
+    var guardianSection = '';
+    if (alerts.length) {
+        var topAlerts = alerts.slice(0, 4).map(function (a) {
+            return '<li><span class="sev ' + a.severity + '">' + tr(a.severity === 'high' ? 'High' : 'Medium') +
+                '</span>' + guardianText(a) + '</li>';
+        }).join('');
+        guardianSection = '<div class="brief-section"><h3>' + tr('What the guardian flagged') +
+            ' (' + alerts.length + ')</h3><ul class="brief-list">' + topAlerts + '</ul></div>';
+    }
+
     var sc = d.sourceConfidence || {};
     var scBadge = '<span class="status-badge ' + (sc.overall === 'WARN' ? 'warn' : 'ok') + '">' +
         (sc.overall === 'WARN' ? tr('Review') : tr('Healthy')) + '</span>';
@@ -1719,6 +1736,7 @@ function renderBriefing(d) {
 
     el('briefingBody').innerHTML = kpis +
         '<div class="brief-section"><h3>' + tr('What changed') + '</h3><ul class="brief-list">' + changes + '</ul></div>' +
+        guardianSection +
         '<div class="brief-section"><h3>' + tr('Top risks') + '</h3><ul class="brief-list">' + risks + '</ul></div>' +
         '<div class="brief-section"><h3>' + tr('Recommended actions') + '</h3><ul class="brief-list">' + actions + '</ul></div>' +
         '<div class="brief-section"><h3>' + tr('Source confidence') + '</h3>' + conf + '</div>';

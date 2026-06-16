@@ -260,6 +260,7 @@
         "Select a note to read it here.": "اختر ملاحظة لقراءتها هنا.",
         "No notes match.": "لا توجد ملاحظات مطابقة.",
         "Alerts": "تنبيهات",
+        "What the guardian flagged": "ما رصده الحارس",
         "All clear — no anomalies detected.": "كل شيء سليم — لا يوجد شذوذ.",
         "Operating expense": "المصروفات التشغيلية",
         "operating profit turned negative for the first time after": "الربح التشغيلي أصبح سالبًا لأول مرة بعد",
