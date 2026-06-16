@@ -264,3 +264,5 @@ All endpoints are `GET` and return JSON. Common filters: `version`, `year`,
 | `/api/reports/generate?name=` | Generate a saved report as JSON (6 core P&L reports) |
 | `/api/reports/download?name=&format=` | Download a report as CSV/XLSX/PDF (clean `503` if an export library is missing) |
 | `/api/import-health` | Live data-integrity checks + per-client import-run history (powers the **Source & Health** tab) |
+| `/api/wiki/search?q=&limit=` | Full-text knowledge-base search (powers the **Knowledge** tab) |
+| `/api/wiki/note?id=` | Fetch one knowledge note (title, body, tags, links) |

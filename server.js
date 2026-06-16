@@ -1117,6 +1117,40 @@ function handleApi(pathname, query, res) {
         }
     }
 
+    if (pathname === '/api/wiki/search') {
+        // Knowledge-base search — delegates to the tested brain engine. Args are
+        // passed as argv (no shell), and note ids are dictionary keys (no path
+        // traversal), so user input can't reach the filesystem unsafely.
+        const q = String(query.q || '').trim();
+        if (!q) return jsonResponse(res, { query: '', match_count: 0, matches: [] });
+        const limit = parseLimit(query.limit, 10);
+        const result = spawnSync('python3', ['-m', 'brain.cli', '--search', q, '--limit', String(limit)],
+            { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 20000 });
+        if (result.status !== 0) {
+            return errorResponse(res, 500, `Wiki search failed: ${(result.stderr || '').trim() || result.status}`);
+        }
+        try {
+            return jsonResponse(res, JSON.parse(result.stdout));
+        } catch (error) {
+            return errorResponse(res, 500, 'Wiki search returned malformed output');
+        }
+    }
+
+    if (pathname === '/api/wiki/note') {
+        const id = String(query.id || '').trim();
+        if (!id) return errorResponse(res, 400, 'Missing note id');
+        const result = spawnSync('python3', ['-m', 'brain.cli', '--note', id],
+            { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 20000 });
+        let body;
+        try {
+            body = JSON.parse(result.stdout);
+        } catch (error) {
+            return errorResponse(res, 500, 'Wiki note returned malformed output');
+        }
+        if (body && body.error) return errorResponse(res, 404, body.error);
+        return jsonResponse(res, body);
+    }
+
     if (pathname === '/api/reports') {
         return jsonResponse(res, {
             reports: REPORT_DEFINITIONS.map(r => ({ name: r.name, title: r.title, description: r.description })),

@@ -163,6 +163,17 @@ async function run() {
 
     // Interactive what-if levers: a no-op scenario reproduces the baseline exactly,
     // and a real lever moves net income.
+    const wiki = await getJson('/api/wiki/search?q=margin&limit=5');
+    assert.equal(wiki.response.status, 200);
+    assert.ok(Array.isArray(wiki.body.matches));
+    if (wiki.body.matches.length) {
+        const note = await getJson('/api/wiki/note?id=' + encodeURIComponent(wiki.body.matches[0].note));
+        assert.equal(note.response.status, 200);
+        assert.ok(typeof note.body.body === 'string' && note.body.title);
+        const missing = await fetch(baseUrl + '/api/wiki/note?id=__no_such_note__');
+        assert.equal(missing.status, 404);
+    }
+
     const narrative = await getJson('/api/executive-narrative');
     assert.equal(narrative.response.status, 200);
     assert.ok(narrative.body.headline && typeof narrative.body.headline.net_income === 'number');

@@ -372,6 +372,31 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — main (P2 #7: knowledge-base web integration — Knowledge tab)
+**Did:** Brought the "second brain" into the dashboard (audit P2 #7).
+- **Brain CLI:** added `--note <id>` to `brain/cli.py` (prints one note as JSON:
+  title, body, tags, links) alongside the existing `--search`.
+- **Server:** new `/api/wiki/search?q=&limit=` and `/api/wiki/note?id=` endpoints
+  that delegate to the tested brain engine. Inputs go through argv (no shell) and
+  note ids are dictionary keys (no path traversal) — user input can't reach the
+  filesystem unsafely.
+- **Frontend:** new "Knowledge" tab — debounced search box → ranked result cards
+  (title, snippet, tags) → a note viewer with a small, **escape-first** Markdown
+  renderer (headings, bold, code, lists) and clickable `[[wiki-links]]` that load
+  the linked note. Bilingual.
+- **Tests:** smoke assertions for search/note/404.
+**Why:** The knowledge base (definitions, conventions, decisions, processes) was
+invisible from the product; now a user can look up "what does this term mean / why
+did we decide this" without leaving the dashboard.
+**Status:** ✅ Full gate green on EN *and* AR seeds; brain tests + link check pass;
+verified search/note/404 live; Arabic phrases resolve.
+**Next:** link knowledge notes to specific dashboard reports (deep links), or a
+graph view; P2 ingestion (merged cells, OCR).
+**Watch out:** The Markdown renderer is intentionally minimal and escapes HTML
+first (safe), but it is not a full CommonMark parser — tables/blockquotes/images
+render as plain paragraphs. Wiki endpoints spawn Python per call (debounced on the
+client).
+
 ### 2026-06-16 — Claude Code — main (P2: executive briefing one-pager — decision product)
 **Did:** Turned the dashboard from "many views" toward a decision product with a
 one-page **Executive Briefing** tab (the client-readiness review's Phase 3 #1).

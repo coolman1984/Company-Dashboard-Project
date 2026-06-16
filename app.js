@@ -28,7 +28,7 @@ var freshness = null;
 var summary = null;
 var activeTab = 'overview';
 var standardFilterState = { year: '', version: 'Actual' };
-var tabLoaded = { overview: false, briefing: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false, reports: false, health: false };
+var tabLoaded = { overview: false, briefing: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false, reports: false, health: false, knowledge: false };
 var yearlyData = [];
 var executiveData = null;
 var productData = [];
@@ -1724,6 +1724,102 @@ function renderBriefing(d) {
         '<div class="brief-section"><h3>' + tr('Source confidence') + '</h3>' + conf + '</div>';
 }
 
+var knowledgeWired = false;
+var wikiTimer = null;
+
+function renderMarkdown(md) {
+    function inline(s) {
+        s = escapeHtml(s);   // escape first; the replacements below run on safe text
+        s = s.replace(/\[\[([^\]]+)\]\]/g, function (_, t) {
+            var parts = t.split('|');
+            var id = parts[0].trim();
+            var label = (parts[1] || parts[0]).trim();
+            return '<a class="wikilink" data-note="' + id + '">' + label + '</a>';
+        });
+        s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+        return s;
+    }
+    var html = '';
+    var inList = false;
+    String(md || '').split('\n').forEach(function (raw) {
+        var line = raw.replace(/\s+$/, '');
+        var h = line.match(/^(#{1,3})\s+(.*)$/);
+        var li = line.match(/^\s*[-*]\s+(.*)$/);
+        if (h) {
+            if (inList) { html += '</ul>'; inList = false; }
+            html += '<h' + h[1].length + '>' + inline(h[2]) + '</h' + h[1].length + '>';
+        } else if (li) {
+            if (!inList) { html += '<ul>'; inList = true; }
+            html += '<li>' + inline(li[1]) + '</li>';
+        } else if (line.trim() === '') {
+            if (inList) { html += '</ul>'; inList = false; }
+        } else {
+            if (inList) { html += '</ul>'; inList = false; }
+            html += '<p>' + inline(line) + '</p>';
+        }
+    });
+    if (inList) html += '</ul>';
+    return html;
+}
+
+function loadKnowledge() {
+    if (!knowledgeWired) {
+        knowledgeWired = true;
+        el('wikiSearch').addEventListener('input', function () {
+            if (wikiTimer) window.clearTimeout(wikiTimer);
+            wikiTimer = window.setTimeout(runWikiSearch, 250);
+        });
+        el('wikiResults').innerHTML = '<div class="wiki-empty">' + tr('Type to search the knowledge base.') + '</div>';
+        el('wikiNote').innerHTML = '<div class="wiki-empty">' + tr('Select a note to read it here.') + '</div>';
+    }
+    tabLoaded.knowledge = true;
+    return Promise.resolve();
+}
+
+function runWikiSearch() {
+    var q = el('wikiSearch').value.trim();
+    var resultsEl = el('wikiResults');
+    if (!q) { resultsEl.innerHTML = '<div class="wiki-empty">' + tr('Type to search the knowledge base.') + '</div>'; return; }
+    resultsEl.innerHTML = '<div class="loading-spinner"></div>';
+    fetchJson(API + '/api/wiki/search?q=' + encodeURIComponent(q) + '&limit=15', { force: true })
+        .then(function (d) {
+            var hits = d.matches || [];
+            if (!hits.length) { resultsEl.innerHTML = '<div class="wiki-empty">' + tr('No notes match.') + '</div>'; return; }
+            resultsEl.innerHTML = hits.map(function (h) {
+                var tags = (h.tags || []).map(function (t) { return '<span class="wiki-tag">' + escapeHtml(t) + '</span>'; }).join('');
+                return '<button class="wiki-hit" type="button" data-note="' + escapeHtml(h.note) + '">' +
+                    '<div class="h-title">' + escapeHtml(h.title) + '</div>' +
+                    '<div class="h-snip">' + escapeHtml(h.snippet || '') + '</div>' +
+                    '<div class="h-tags">' + tags + '</div></button>';
+            }).join('');
+            resultsEl.querySelectorAll('.wiki-hit').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    resultsEl.querySelectorAll('.wiki-hit').forEach(function (b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+                    viewNote(btn.dataset.note);
+                });
+            });
+            viewNote(hits[0].note);
+            var first = resultsEl.querySelector('.wiki-hit');
+            if (first) first.classList.add('active');
+        })
+        .catch(function (err) { resultsEl.innerHTML = '<div class="wiki-empty">' + escapeHtml(err.message) + '</div>'; });
+}
+
+function viewNote(id) {
+    var noteEl = el('wikiNote');
+    noteEl.innerHTML = '<div class="loading-spinner"></div>';
+    fetchJson(API + '/api/wiki/note?id=' + encodeURIComponent(id), { force: true })
+        .then(function (d) {
+            noteEl.innerHTML = renderMarkdown(d.body);
+            noteEl.querySelectorAll('a.wikilink').forEach(function (a) {
+                a.addEventListener('click', function () { viewNote(a.dataset.note); });
+            });
+        })
+        .catch(function (err) { noteEl.innerHTML = '<div class="wiki-empty">' + escapeHtml(err.message) + '</div>'; });
+}
+
 function loadActiveTab(force) {
     setStatus(true, tr('Querying SQLite'));
     var loader = {
@@ -1736,7 +1832,8 @@ function loadActiveTab(force) {
         portfolio: loadPortfolio,
         reports: loadReports,
         health: loadHealth,
-        briefing: loadBriefing
+        briefing: loadBriefing,
+        knowledge: loadKnowledge
     }[activeTab];
     return Promise.resolve(loader(force)).then(function () {
         setStatus(true, tr('Live SQLite'));

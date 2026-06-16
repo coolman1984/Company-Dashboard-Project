@@ -17,6 +17,7 @@ import sys
 
 from .data_notes import generate_region_notes
 from .graph import build_graph
+from .parse import parse_tree
 from .search import search as search_notes
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -85,6 +86,23 @@ def cmd_search(root, query, limit):
     return 0
 
 
+def cmd_note(root, note_id):
+    """Print one note (by note_id) as JSON for the dashboard wiki viewer."""
+    notes = parse_tree(root)
+    note = notes.get(note_id)
+    if note is None:
+        print(json.dumps({"error": f"note not found: {note_id}"}, ensure_ascii=False))
+        return 1
+    print(json.dumps({
+        "note": note.note_id,
+        "title": note.title,
+        "tags": list(note.tags),
+        "links": list(note.links),
+        "body": note.body,
+    }, ensure_ascii=False))
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Knowledge base tools.")
     parser.add_argument("--root", default=DEFAULT_ROOT, help="Knowledge folder.")
@@ -95,6 +113,8 @@ def main(argv=None):
                         help="Generate region notes from the database.")
     parser.add_argument("--search", default=None,
                         help="Full-text search query for the knowledge base.")
+    parser.add_argument("--note", default=None,
+                        help="Print one note (by note id) as JSON and exit.")
     parser.add_argument("--limit", type=int, default=10,
                         help="Maximum search results for --search.")
     parser.add_argument("--db", default=None, help="Database for --data-notes.")
@@ -116,9 +136,11 @@ def main(argv=None):
         cmd_index(graph, args.root)
     if args.graph:
         cmd_graph(graph, DEFAULT_GRAPH)
+    if args.note is not None:
+        return cmd_note(args.root, args.note)
     if args.search:
         return cmd_search(args.root, args.search, args.limit)
-    if args.check or not (args.index or args.graph or args.data_notes or args.search):
+    if args.check or not (args.index or args.graph or args.data_notes or args.search or args.note):
         return cmd_check(graph)
     return 0
 
