@@ -28,7 +28,7 @@ var freshness = null;
 var summary = null;
 var activeTab = 'overview';
 var standardFilterState = { year: '', version: 'Actual' };
-var tabLoaded = { overview: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false, reports: false, health: false };
+var tabLoaded = { overview: false, briefing: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false, reports: false, health: false };
 var yearlyData = [];
 var executiveData = null;
 var productData = [];
@@ -1642,6 +1642,88 @@ function loadHealth(force) {
         });
 }
 
+var briefingWired = false;
+
+function briefArrow(dir) { return dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '■'); }
+function pctVal(n) { return loc(Number(n || 0).toFixed(1)) + '%'; }
+
+function briefRiskText(r) {
+    if (r.type === 'loss_making') return r.count + ' ' + tr('loss-making product groups') + ' — ' + formatFull(r.amount) + ' ' + tr('revenue at risk');
+    if (r.type === 'negative_gm') return r.count + ' ' + tr('product groups with negative gross margin') + ' — ' + formatFull(r.amount) + ' ' + tr('revenue exposed');
+    if (r.type === 'concentration') return tr('Top 5 customers concentrate') + ' ' + pctVal(r.pct) + ' ' + tr('of revenue') + (r.top1_label ? ' (' + tr('largest') + ': ' + escapeHtml(String(r.top1_label)) + ' ' + pctVal(r.top1_pct) + ')' : '');
+    if (r.type === 'margin') return tr('Gross margin compressed') + ' ' + pctVal(r.drop) + ' pp ' + tr('vs prior year');
+    return '';
+}
+function briefActionText(r) {
+    if (r.type === 'loss_making') return tr('Review pricing and direct cost for loss-making groups before committing further volume.');
+    if (r.type === 'negative_gm') return tr('Re-price or exit negative-margin product groups.');
+    if (r.type === 'concentration') return tr('Diversify the customer base to reduce dependence on the largest accounts.');
+    if (r.type === 'margin') return tr('Protect margin: audit discounts, channel mix, and COGS drivers.');
+    return '';
+}
+
+function loadBriefing(force) {
+    if (!briefingWired) {
+        briefingWired = true;
+        el('briefingPrint').addEventListener('click', function () { window.print(); });
+    }
+    var body = el('briefingBody');
+    body.innerHTML = '<div class="loading-spinner"></div>';
+    return fetchJson(API + '/api/executive-narrative', { force: force })
+        .then(function (d) { renderBriefing(d); tabLoaded.briefing = true; })
+        .catch(function (err) {
+            body.innerHTML = '<div class="report-card"><div class="report-card-body"><div class="report-card-title">' + escapeHtml(err.message) + '</div></div></div>';
+            tabLoaded.briefing = true;
+        });
+}
+
+function renderBriefing(d) {
+    var h = d.headline || {};
+    function kpi(label, value, delta, dir, isPct) {
+        var dtxt = (delta >= 0 ? '+' : '') + (isPct ? pctVal(delta) + ' pp' : formatFull(delta));
+        return '<div class="brief-kpi"><div class="k-label">' + label + '</div>' +
+            '<div class="k-value">' + (isPct ? pctVal(value) : formatFull(value)) + '</div>' +
+            '<div class="k-delta ' + dir + '">' + briefArrow(dir) + ' ' + dtxt + ' ' + tr('vs prior year') + '</div></div>';
+    }
+    var gmDir = h.gm_pct_delta > 0.05 ? 'up' : (h.gm_pct_delta < -0.05 ? 'down' : 'flat');
+    var kpis = '<div class="brief-kpis">' +
+        kpi(tr('Net income'), h.net_income, h.net_income_delta, h.net_income_dir, false) +
+        kpi(tr('Net sales'), h.net_sales, h.net_sales_delta, h.net_sales_dir, false) +
+        kpi(tr('Operating profit'), h.operating_profit, h.operating_profit_delta, h.operating_profit_dir, false) +
+        kpi(tr('Gross margin %'), h.gm_pct, h.gm_pct_delta, gmDir, true) +
+        '</div>';
+
+    var changes = (d.topChanges || []).map(function (c) {
+        var verb = c.direction === 'up' ? tr('improved by') : tr('declined by');
+        var cls = c.direction === 'up' ? 'delta-up' : 'delta-down';
+        return '<li><span class="sev ' + (c.direction === 'up' ? 'medium' : 'high') + '">' + briefArrow(c.direction) +
+            '</span><span class="' + cls + '">' + escapeHtml(tr(String(c.label))) + ' — ' + verb + ' ' +
+            formatFull(Math.abs(c.delta_operating_profit)) + ' ' + tr('operating profit') + '</span></li>';
+    }).join('');
+    if (!changes) changes = '<li>' + tr('No material changes versus prior year.') + '</li>';
+
+    var risks = (d.risks || []).map(function (r) {
+        var sevLabel = tr(r.severity === 'high' ? 'High' : 'Medium');
+        return '<li><span class="sev ' + r.severity + '">' + sevLabel + '</span>' + briefRiskText(r) + '</li>';
+    }).join('');
+    if (!risks) risks = '<li>' + tr('No material risks flagged.') + '</li>';
+
+    var actions = (d.risks || []).map(function (r) { return '<li>' + briefActionText(r) + '</li>'; }).join('');
+    if (!actions) actions = '<li>' + tr('Maintain the current plan; monitor monthly.') + '</li>';
+
+    var sc = d.sourceConfidence || {};
+    var scBadge = '<span class="status-badge ' + (sc.overall === 'WARN' ? 'warn' : 'ok') + '">' +
+        (sc.overall === 'WARN' ? tr('Review') : tr('Healthy')) + '</span>';
+    var conf = '<div class="brief-confidence">' + scBadge + ' ' + tr('Lineage coverage') + ': ' + pctVal(sc.lineage_coverage_pct) +
+        ' · ' + (sc.warnings || 0) + ' ' + tr('Warnings') + ' · ' + loc(Number(sc.total_rows || 0).toLocaleString('en-US')) + ' ' + tr('rows') + '</div>';
+
+    el('briefingBody').innerHTML = kpis +
+        '<div class="brief-section"><h3>' + tr('What changed') + '</h3><ul class="brief-list">' + changes + '</ul></div>' +
+        '<div class="brief-section"><h3>' + tr('Top risks') + '</h3><ul class="brief-list">' + risks + '</ul></div>' +
+        '<div class="brief-section"><h3>' + tr('Recommended actions') + '</h3><ul class="brief-list">' + actions + '</ul></div>' +
+        '<div class="brief-section"><h3>' + tr('Source confidence') + '</h3>' + conf + '</div>';
+}
+
 function loadActiveTab(force) {
     setStatus(true, tr('Querying SQLite'));
     var loader = {
@@ -1653,7 +1735,8 @@ function loadActiveTab(force) {
         trends: loadTrends,
         portfolio: loadPortfolio,
         reports: loadReports,
-        health: loadHealth
+        health: loadHealth,
+        briefing: loadBriefing
     }[activeTab];
     return Promise.resolve(loader(force)).then(function () {
         setStatus(true, tr('Live SQLite'));

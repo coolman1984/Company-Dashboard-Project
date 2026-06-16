@@ -783,6 +783,90 @@ function getExecutiveOutlook(query) {
     };
 }
 
+// Executive briefing — a one-page decision view composed from the outlook:
+// what changed, what's at risk, what to do, and how trustworthy the numbers are.
+// It only re-shapes data the outlook already computes; no new P&L logic.
+function getExecutiveNarrative(query) {
+    const eo = getExecutiveOutlook(query);
+    const num = v => (typeof v === 'number' && isFinite(v)) ? v : (Number(v) || 0);
+    const dir = d => d > 0.5 ? 'up' : (d < -0.5 ? 'down' : 'flat');
+    const outlook = eo.outlook || {};
+    const prior = eo.priorYear || {};
+    const risk = eo.productRisk || {};
+
+    const nsNow = num(outlook.net_sales), nsPrior = num(prior.net_sales);
+    const niNow = num(outlook.net_income), niPrior = num(prior.net_income);
+    const opNow = num(outlook.operating_profit), opPrior = num(prior.operating_profit);
+    const gmPctNow = nsNow ? num(outlook.gross_margin) / nsNow * 100 : 0;
+    const gmPctPrior = nsPrior ? num(prior.gross_margin) / nsPrior * 100 : 0;
+
+    const movers = (eo.profitability || []).map(p => {
+        const dop = num(p.operating_profit) - num(p.prior_operating_profit);
+        return { label: p.label, delta_operating_profit: dop,
+                 delta_net_sales: num(p.net_sales) - num(p.prior_net_sales), direction: dir(dop) };
+    }).filter(m => m.label && m.delta_operating_profit !== 0);
+    movers.sort((a, b) => Math.abs(b.delta_operating_profit) - Math.abs(a.delta_operating_profit));
+
+    const custs = (eo.concentration && eo.concentration.customers) || [];
+    const top1 = custs.length ? num(custs[0].net_sales) : 0;
+    const top5 = custs.slice(0, 5).reduce((s, c) => s + num(c.net_sales), 0);
+    const top1Share = nsNow ? top1 / nsNow * 100 : 0;
+    const top5Share = nsNow ? top5 / nsNow * 100 : 0;
+
+    const risks = [];
+    if (num(risk.loss_making_products) > 0) {
+        risks.push({ type: 'loss_making', severity: 'high',
+            count: num(risk.loss_making_products), amount: num(risk.loss_making_revenue) });
+    }
+    if (num(risk.negative_gm_products) > 0) {
+        risks.push({ type: 'negative_gm', severity: 'high',
+            count: num(risk.negative_gm_products), amount: num(risk.negative_gm_revenue) });
+    }
+    if (top5Share >= 40) {
+        risks.push({ type: 'concentration', severity: top5Share >= 60 ? 'high' : 'medium',
+            pct: top5Share, top1_pct: top1Share, top1_label: custs.length ? custs[0].label : null });
+    }
+    if (gmPctNow + 0.3 < gmPctPrior) {
+        risks.push({ type: 'margin', severity: (gmPctPrior - gmPctNow) >= 2 ? 'high' : 'medium',
+            pct: gmPctNow, prior_pct: gmPctPrior, drop: gmPctPrior - gmPctNow });
+    }
+
+    let warnings = 0, coverage = 100, totalRows = 0;
+    try {
+        const def = REPORT_DEFINITIONS.find(r => r.name === 'import_validation');
+        if (def) {
+            const checks = reportEnvelope(def).rows;
+            warnings = checks.filter(c => String(c.status).toUpperCase() === 'WARN').length;
+            const lin = checks.find(c => /lineage/i.test(String(c.category)) && /%/.test(String(c.value)));
+            const m = lin && String(lin.value).match(/([\d.]+)%/);
+            if (m) coverage = Number(m[1]);
+            const rowsCheck = checks.find(c => /total rows/i.test(String(c.item)));
+            if (rowsCheck) totalRows = Number(rowsCheck.value) || 0;
+        }
+    } catch (error) {
+        // leave defaults — the briefing still renders without source confidence
+    }
+
+    return {
+        coverage: eo.coverage,
+        headline: {
+            net_income: niNow, prior_net_income: niPrior,
+            net_income_delta: niNow - niPrior, net_income_dir: dir(niNow - niPrior),
+            net_sales: nsNow, prior_net_sales: nsPrior,
+            net_sales_delta: nsNow - nsPrior, net_sales_dir: dir(nsNow - nsPrior),
+            operating_profit: opNow, operating_profit_delta: opNow - opPrior,
+            operating_profit_dir: dir(opNow - opPrior),
+            gm_pct: gmPctNow, prior_gm_pct: gmPctPrior, gm_pct_delta: gmPctNow - gmPctPrior
+        },
+        topChanges: movers.slice(0, 5),
+        risks,
+        sourceConfidence: {
+            lineage_coverage_pct: coverage, warnings, total_rows: totalRows,
+            overall: warnings > 0 ? 'WARN' : 'OK'
+        }
+    };
+}
+
 function getPortfolio(query) {
     const yearNum = parseInteger(query.year, latestYear());
     const priorYearNum = parseInteger(query.priorYear, priorYear(yearNum));
@@ -984,6 +1068,7 @@ function handleApi(pathname, query, res) {
 
     if (pathname === '/api/scenario-pl') return jsonResponse(res, getScenario(query));
     if (pathname === '/api/executive-outlook') return jsonResponse(res, getExecutiveOutlook(query));
+    if (pathname === '/api/executive-narrative') return jsonResponse(res, getExecutiveNarrative(query));
     if (pathname === '/api/drilldown') return jsonResponse(res, getDrilldown(query));
     if (pathname === '/api/top-products') return jsonResponse(res, getTopProducts(query));
     if (pathname === '/api/portfolio') return jsonResponse(res, getPortfolio(query));

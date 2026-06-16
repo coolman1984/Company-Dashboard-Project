@@ -372,6 +372,37 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — main (P2: executive briefing one-pager — decision product)
+**Did:** Turned the dashboard from "many views" toward a decision product with a
+one-page **Executive Briefing** tab (the client-readiness review's Phase 3 #1).
+- **Backend:** new `/api/executive-narrative` composes a briefing from the data
+  the outlook already computes (no new P&L logic): a headline (net income / net
+  sales / operating profit / gross-margin% vs prior year with direction), the top
+  5 product-group movers by Δ operating profit, rule-derived **risks**
+  (loss-making groups + revenue at risk, negative-GM groups, customer
+  concentration ≥40%, margin compression) with severities, and a **source
+  confidence** block (lineage coverage %, validation warnings, row count) reused
+  from the import-validation checks.
+- **Frontend:** new "Briefing" tab (second, after Overview) — KPI cards, What
+  changed / Top risks / Recommended actions / Source confidence sections, all
+  composed from structured data via i18n templates (fully Arabic + English,
+  verified through `translateText`). A **Print / Save PDF** button with a print
+  stylesheet that isolates the briefing → a genuine one-page export with no new
+  dependency.
+- **Tests:** smoke assertions for `/api/executive-narrative` (headline shape,
+  direction enum, arrays, source-confidence overall).
+**Why:** Clients prepare recurring management meetings; they want answers (what
+changed / what's at risk / what to do / can I trust it), not a tab of charts.
+**Status:** ✅ Full gate green on EN *and* AR seeds; verified the endpoint live
+(net income +885K, 2 loss-making groups 11.4M at risk, 54% top-5 concentration,
+100% lineage). Arabic resolution of every new phrase confirmed.
+**Next:** P2 ingestion items (merged-cell/multi-row headers, OCR), or wire the
+briefing into a server-rendered PDF board-pack section.
+**Watch out:** The briefing is company-wide (ignores the global filters) by design
+for v1; risk thresholds (40% concentration, 0.3pp margin) are heuristics in
+`getExecutiveNarrative` — tune with a real client. Print export relies on the
+`@media print` rules in index.html; re-check if the layout changes.
+
 ### 2026-06-16 — Claude Code — main (P1 #4: interactive what-if scenario levers in the dashboard)
 **Did:** Made the what-if engine interactive from the browser (audit P1 #4).
 - **Backend:** new `/api/scenario-whatif?ns=&cogs=&opex=&tax=&scales=` endpoint

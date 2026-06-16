@@ -257,6 +257,7 @@ All endpoints are `GET` and return JSON. Common filters: `version`, `year`,
 | `/api/scenario-pl` | Actual vs T06/T07 by year |
 | `/api/scenario-whatif?ns=&cogs=&opex=&tax=&scales=` | Interactive what-if: baseline vs scenario P&L for live lever changes |
 | `/api/executive-outlook` | Reconciled CFO outlook cockpit |
+| `/api/executive-narrative` | One-page executive briefing: top changes, risks, actions, source confidence |
 | `/api/drilldown` | Variance contributors between two years |
 | `/api/top-products`, `/api/portfolio` | Product economics |
 | `/api/reports` | List available saved reports (+ `exportFormats` capability flags) |

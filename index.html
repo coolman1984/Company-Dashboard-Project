@@ -764,6 +764,26 @@
         .whatif-headline.down { color: #991b1b; background: #fef2f2; }
         .data-table td.delta-up { color: #166534; }
         .data-table td.delta-down { color: #991b1b; }
+        .briefing-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+        .brief-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 4px 0 18px; }
+        .brief-kpi { border: 1px solid var(--border, #e3e8f0); border-radius: 10px; padding: 14px 16px; background: #fff; }
+        .brief-kpi .k-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #64748b; }
+        .brief-kpi .k-value { font-size: 22px; font-weight: 800; margin: 4px 0 2px; }
+        .brief-kpi .k-delta { font-size: 12px; font-weight: 700; }
+        .k-delta.up { color: #166534; } .k-delta.down { color: #991b1b; } .k-delta.flat { color: #64748b; }
+        .brief-section { margin: 0 0 18px; }
+        .brief-section h3 { font-size: 14px; margin: 0 0 8px; color: #1e293b; }
+        .brief-list { list-style: none; margin: 0; padding: 0; }
+        .brief-list li { padding: 8px 12px; border-radius: 8px; background: #f8fafc; margin-bottom: 6px; font-size: 13px; display: flex; gap: 8px; align-items: baseline; }
+        .brief-list li .sev { font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 999px; flex: none; }
+        .sev.high { background: #fee2e2; color: #991b1b; } .sev.medium { background: #fef3c7; color: #92400e; }
+        .brief-confidence { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+        @media print {
+            .app-sidebar, .topbar, .global-filters, #briefingPrint, .tab, .app-shell > aside { display: none !important; }
+            .panel:not(#panel-briefing) { display: none !important; }
+            #panel-briefing { display: block !important; }
+            body, .main-shell, .workspace { background: #fff !important; margin: 0; padding: 0; }
+        }
     </style>
 </head>
 <body>
@@ -783,6 +803,10 @@
             <button class="tab active" type="button" role="tab" id="tab-overview" aria-selected="true" aria-controls="panel-overview" data-tab="overview">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
                 <span data-i18n="tab.overview">Overview</span>
+            </button>
+            <button class="tab" type="button" role="tab" id="tab-briefing" aria-selected="false" aria-controls="panel-briefing" data-tab="briefing">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>
+                <span data-i18n="tab.briefing">Briefing</span>
             </button>
             <button class="tab" type="button" role="tab" id="tab-regional" aria-selected="false" aria-controls="panel-regional" data-tab="regional">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.6 3 14.4 0 18M12 3c-3 3.6-3 14.4 0 18"/></svg>
@@ -920,6 +944,14 @@
                     </div>
                     <div class="table-scroll"><table class="data-table" id="profitabilityTable"></table></div>
                 </article>
+            </section>
+
+            <section class="panel" id="panel-briefing" role="tabpanel" aria-labelledby="tab-briefing" hidden>
+                <div class="section-head briefing-head">
+                    <div><h2 data-i18n="briefing.title">Executive briefing</h2><p data-i18n="briefing.subtitle">One page: what changed, what's at risk, what to do — and how trustworthy the numbers are.</p></div>
+                    <button class="primary-btn" type="button" id="briefingPrint" data-i18n="briefing.print">Print / Save PDF</button>
+                </div>
+                <div id="briefingBody"><div class="loading-spinner"></div></div>
             </section>
 
             <section class="panel" id="panel-regional" role="tabpanel" aria-labelledby="tab-regional" hidden>

@@ -163,6 +163,14 @@ async function run() {
 
     // Interactive what-if levers: a no-op scenario reproduces the baseline exactly,
     // and a real lever moves net income.
+    const narrative = await getJson('/api/executive-narrative');
+    assert.equal(narrative.response.status, 200);
+    assert.ok(narrative.body.headline && typeof narrative.body.headline.net_income === 'number');
+    assert.ok(['up', 'down', 'flat'].includes(narrative.body.headline.net_income_dir));
+    assert.ok(Array.isArray(narrative.body.topChanges));
+    assert.ok(Array.isArray(narrative.body.risks));
+    assert.ok(narrative.body.sourceConfidence && ['OK', 'WARN'].includes(narrative.body.sourceConfidence.overall));
+
     const whatifFlat = await getJson('/api/scenario-whatif?ns=0&cogs=0&opex=0&tax=22');
     assert.equal(whatifFlat.response.status, 200);
     assert.ok(Array.isArray(whatifFlat.body.rows) && whatifFlat.body.rows.length > 0);
