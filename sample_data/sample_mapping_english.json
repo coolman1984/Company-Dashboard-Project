@@ -1,0 +1,34 @@
+{
+  "source_glob": "*sample_pl_english*.raw.json",
+  "sheet": "pl_detail",
+  "columns": {
+    "region": "region_desc",
+    "country": "country_name",
+    "customer": "customer_name",
+    "product_group": "m_group_desc",
+    "year": "year",
+    "version": "version",
+    "period": "period",
+    "currency": "currency",
+    "gross_sales": "s_gross_sales",
+    "returns": "s_return_amt",
+    "net_sales": "net_sales",
+    "cogs": "cost_of_goods_sold",
+    "gross_margin": "gross_margin",
+    "opex": "operating_expense",
+    "operating_profit": "operating_profit",
+    "profit_before_tax": "profit_before_tax",
+    "corporate_tax": "corporate_tax",
+    "net_income": "net_income"
+  },
+  "constants": {
+    "class": "Standard",
+    "class_code": "C1",
+    "product_number": "SAMPLE-001",
+    "sender_ba": "BA10",
+    "customer_code": "CUST001",
+    "country_code": "XX",
+    "profit_center": "PC01",
+    "valuation_class": 7920
+  }
+}

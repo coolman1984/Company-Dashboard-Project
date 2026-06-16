@@ -398,6 +398,17 @@ acceptable for 6 reports but worth caching in `requestCache` if reports are
 re-visited often. `i18n.js` added two new keys (`reports.sectionTitle`,
 `reports.sectionDesc`) — both already have Arabic equivalents.
 
+### 2026-06-16 — Hermes — `hermes/priorities-execution` (sample data + unified reports + MCP tools)
+**Did:** Executed the three launch priorities from the audit report.
+**Priority Zero (Source Lineage):** Verified that `schema.sql` already has `import_run`, `source_file`, and `row_lineage` tables. `seed_db.py` populates them via `write_synthetic_lineage()`. `map_raw_to_db.py` uses `_register_import_run`, `_source_file_id`, and `_insert_batch_with_lineage` to track every row's origin. **Status: Already implemented.**
+**Priority One (Unified Reports):** Added `outlook_pl` and `outlook_monthly` SQL queries to `server.js`, bringing it to 9 reports matching `reports/definitions.py`. Verified via API: `outlook_pl` returns 8 P&L lines with outlook vs prior year variance; `outlook_monthly` returns 12 months (P01-P05 actual, P06-P12 outlook). **Status: Done.**
+**Priority Two (MCP Action Tools):** Added 4 new MCP tools: `project_status` (git status, task board, DB presence), `run_test` (allow-listed test commands), `brain_check` (wiki validation), `task_board_read` (read TASK_BOARD.md). All tools are safe, read-only or self-contained. Tests pass (19 tests). **Status: Done.**
+**Sample Data:** Created `sample_data/` with Arabic and English CSV samples plus mapping file for testing import workflows.
+**Why:** The audit identified three gaps: source lineage (already present but needed verification), report parity between server and Python engine (fixed), and MCP action tools for agent control (added).
+**Status:** ✅ All tests pass: `npm test`, `test_db_schema.py`, `test_project_structure.py`, `test_mcp.py` (19 tests), `reports.test_reports`, `brain.test_brain`, `extractor.test_extractor`. API verified via curl.
+**Next:** Full-text search for knowledge base (R5), Excel/PDF download from web UI, OCR for scanned PDFs (R8).
+**Watch out:** `sample_data/` is tracked in Git as example data. MCP tools are read-only or self-contained; no write access to DB/filesystem. `run_test` uses allow-list only.
+
 ### 2026-06-16 — Claude Code — `claude/team-plan-ci` (agent plan + complete the CI gate)
 **Did:** Two things for the team. (1) **Closed the CI gate gap** — the Phase 2
 `test_import_workspace.py` and `test_phase2_integration.py` existed but weren't

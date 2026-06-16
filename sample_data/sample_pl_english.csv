@@ -1,0 +1,13 @@
+region,country,customer,product_group,year,version,period,currency,gross_sales,returns,net_sales,cogs,gross_margin,opex,operating_profit,profit_before_tax,corporate_tax,net_income
+Africa,South Africa,Africa Customer 1,Industrial Drives,2026,Actual,2026.001,USD,1200000,48000,1152000,748800,403200,207360,195840,180000,39600,140400
+Africa,South Africa,Africa Customer 1,Industrial Drives,2026,Actual,2026.002,USD,1180000,47200,1132800,736320,396480,203904,192576,177000,38940,138060
+Africa,Nigeria,Africa Customer 2,Smart Sensors,2026,Actual,2026.001,USD,950000,38000,912000,547200,364800,182400,182400,168000,36960,131040
+Africa,Kenya,Africa Customer 3,Power Systems,2026,Actual,2026.001,USD,820000,32800,787200,551040,236160,133824,102336,94000,20680,73320
+Americas,United States,Americas Customer 1,Industrial Drives,2026,Actual,2026.001,USD,2500000,100000,2400000,1560000,840000,432000,408000,375000,82500,292500
+Americas,Brazil,Americas Customer 2,Connectivity,2026,Actual,2026.001,USD,1800000,72000,1728000,933120,794880,380160,414720,381000,83820,297180
+Asia Pacific,China,Asia Customer 1,Automation Software,2026,Actual,2026.001,USD,3200000,128000,3072000,1290240,1781760,921600,860160,790000,173800,616200
+Asia Pacific,Japan,Asia Customer 2,Robotics,2026,Actual,2026.001,USD,1500000,60000,1440000,1080000,360000,345600,14400,13200,2904,10296
+Europe,Germany,Europe Customer 1,Industrial Drives,2026,Actual,2026.001,USD,1900000,76000,1824000,1185600,638400,328320,310080,285000,62700,222300
+Europe,France,Europe Customer 2,Spare Parts,2026,Actual,2026.001,USD,650000,26000,624000,386880,237120,74880,162240,149000,32780,116220
+Middle East,UAE,Middle East Customer 1,Industrial Drives,2026,Actual,2026.001,USD,1100000,44000,1056000,686400,369600,190080,179520,165000,36300,128700
+Middle East,Saudi Arabia,Middle East Customer 2,Legacy Controllers,2026,Actual,2026.001,USD,450000,18000,432000,380160,51840,69120,-17280,-15900,-3498,-12402

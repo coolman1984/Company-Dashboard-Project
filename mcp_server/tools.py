@@ -20,6 +20,9 @@ import re
 import sqlite3
 import sys
 
+from reports.definitions import REPORTS_BY_NAME
+from reports.generate import compute_envelopes
+
 # This package lives one level below the repo root; make the root importable so
 # we can reuse the canonical modules (no duplicated schema/extractor logic).
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -121,8 +124,135 @@ def pl_summary(_args=None):
     return {"columns": columns, "years": rows}
 
 
+def generate_report(args):
+    """Run one named report and return its JSON envelope without writing files."""
+    name = (args or {}).get("name", "").strip()
+    if not name:
+        raise ToolError("name is required")
+    if name not in REPORTS_BY_NAME:
+        raise ToolError(f"unknown report: {name}. Available: {sorted(REPORTS_BY_NAME)}")
+    try:
+        envelopes = compute_envelopes(DB_PATH, names=[name])
+    except Exception as exc:  # noqa: BLE001 - report errors are surfaced to agent
+        raise ToolError(f"report failed: {exc}")
+    return envelopes[0]
+
+
+def project_status(_args=None):
+    """Current project state: git status, task board, database presence, test hints."""
+    import subprocess
+    status = {
+        "db_exists": os.path.exists(DB_PATH),
+        "db_path": DB_PATH,
+        "knowledge_dir": KNOWLEDGE_DIR,
+        "knowledge_exists": os.path.isdir(KNOWLEDGE_DIR),
+    }
+    # Git status (safe, read-only)
+    try:
+        result = subprocess.run(
+            ["git", "status", "--short", "--branch"],
+            cwd=ROOT, capture_output=True, text=True, timeout=5,
+        )
+        status["git_status"] = result.stdout.strip() if result.returncode == 0 else None
+    except Exception:
+        status["git_status"] = None
+    # Task board
+    task_board_path = os.path.join(ROOT, "TASK_BOARD.md")
+    if os.path.exists(task_board_path):
+        with open(task_board_path, encoding="utf-8") as f:
+            status["task_board"] = f.read()[:2000]  # First 2000 chars
+    else:
+        status["task_board"] = None
+    # Test hints
+    status["test_commands"] = [
+        "npm test",
+        "python3 test_db_schema.py",
+        "python3 test_project_structure.py",
+        "python3 -m mcp_server.test_mcp",
+        "python3 -m brain.test_brain",
+        "python3 -m reports.test_reports",
+    ]
+    return status
+
+
+# Allow-listed test commands (safe, read-only or self-contained)
+_ALLOWED_TESTS = {
+    "npm_test": ["npm", "test"],
+    "test_db_schema": ["python3", "test_db_schema.py"],
+    "test_project_structure": ["python3", "test_project_structure.py"],
+    "test_mcp": ["python3", "-m", "mcp_server.test_mcp"],
+    "test_brain": ["python3", "-m", "brain.test_brain"],
+    "test_reports": ["python3", "-m", "reports.test_reports"],
+    "test_render": ["python3", "-m", "reports.test_render"],
+    "test_scenario": ["python3", "-m", "reports.test_scenario"],
+    "brain_check": ["python3", "-m", "brain.cli", "--check"],
+}
+
+
+def run_test(args):
+    """Run one allow-listed test command. Args: {name}."""
+    import subprocess
+    name = (args or {}).get("name", "").strip()
+    if not name:
+        raise ToolError(f"name is required. Available: {sorted(_ALLOWED_TESTS)}")
+    if name not in _ALLOWED_TESTS:
+        raise ToolError(f"unknown test: {name}. Available: {sorted(_ALLOWED_TESTS)}")
+    cmd = _ALLOWED_TESTS[name]
+    try:
+        result = subprocess.run(
+            cmd, cwd=ROOT, capture_output=True, text=True, timeout=60,
+        )
+        return {
+            "name": name,
+            "command": " ".join(cmd),
+            "exit_code": result.returncode,
+            "stdout": result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout,
+            "stderr": result.stderr[-1000:] if len(result.stderr) > 1000 else result.stderr,
+            "passed": result.returncode == 0,
+        }
+    except subprocess.TimeoutExpired:
+        raise ToolError(f"test {name} timed out (60s)")
+    except Exception as exc:
+        raise ToolError(f"test {name} failed: {exc}")
+
+
+def brain_check(_args=None):
+    """Validate the knowledge wiki: link integrity, orphans, tag index."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["python3", "-m", "brain.cli", "--check"],
+            cwd=ROOT, capture_output=True, text=True, timeout=30,
+        )
+        output = result.stdout.strip()
+        # Parse the output: "Notes: X | links: Y | tags: Z | orphans: W | broken links: V"
+        stats = {}
+        for part in output.split("|"):
+            part = part.strip()
+            if ":" in part:
+                key, value = part.split(":", 1)
+                stats[key.strip()] = value.strip()
+        return {
+            "passed": result.returncode == 0,
+            "stats": stats,
+            "output": output,
+        }
+    except Exception as exc:
+        raise ToolError(f"brain check failed: {exc}")
+
+
+def task_board_read(_args=None):
+    """Read the current task board (TASK_BOARD.md) content."""
+    task_board_path = os.path.join(ROOT, "TASK_BOARD.md")
+    if not os.path.exists(task_board_path):
+        return {"exists": False, "content": None}
+    with open(task_board_path, encoding="utf-8") as f:
+        content = f.read()
+    return {"exists": True, "content": content}
+
 # --------------------------------------------------------------------------- #
 # EXTRACTION layer
+# --------------------------------------------------------------------------- #
 # --------------------------------------------------------------------------- #
 def extractor_availability(_args=None):
     """Which file-type extractors can run right now (COM on Windows, etc.)."""
@@ -226,6 +356,18 @@ TOOLS = [
         "handler": pl_summary,
     },
     {
+        "name": "generate_report",
+        "description": "Run one named dashboard/report-engine report and return its JSON envelope without writing files. Useful for agents that need import_validation or a P&L report through MCP.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Report name, e.g. import_validation, yearly_pl, outlook_pl."},
+            },
+            "required": ["name"],
+        },
+        "handler": generate_report,
+    },
+    {
         "name": "extractor_availability",
         "description": "List the file-type extractors and whether each can run "
                        "in the current environment (e.g. Excel COM on Windows).",
@@ -256,6 +398,36 @@ TOOLS = [
             "required": ["note"],
         },
         "handler": wiki_get,
+    },
+    {
+        "name": "project_status",
+        "description": "Current project state: git status, task board, database presence, test hints. Useful for agents to understand the project context.",
+        "inputSchema": {"type": "object", "properties": {}},
+        "handler": project_status,
+    },
+    {
+        "name": "run_test",
+        "description": "Run one allow-listed test command (safe, read-only or self-contained). Returns exit code, stdout, stderr, and pass/fail status.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Test name, e.g. npm_test, test_db_schema, test_brain, brain_check."},
+            },
+            "required": ["name"],
+        },
+        "handler": run_test,
+    },
+    {
+        "name": "brain_check",
+        "description": "Validate the knowledge wiki: link integrity, orphans, tag index. Returns stats and pass/fail status.",
+        "inputSchema": {"type": "object", "properties": {}},
+        "handler": brain_check,
+    },
+    {
+        "name": "task_board_read",
+        "description": "Read the current task board (TASK_BOARD.md) content. Returns the full Markdown content.",
+        "inputSchema": {"type": "object", "properties": {}},
+        "handler": task_board_read,
     },
 ]
 

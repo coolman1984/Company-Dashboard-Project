@@ -44,6 +44,98 @@ const reportDefs = [
       sql: 'SELECT * FROM v_customer_pl ORDER BY year, net_sales DESC' },
     { name: 'yoy_variance', title: 'Year-over-Year Variance', description: 'YoY change in key P&L lines (Actual).',
       sql: 'SELECT * FROM v_yoy_variance ORDER BY year' },
+    { name: 'import_validation', title: 'Import Validation Report', description: 'Row counts, duplicate grain, and source-lineage coverage.',
+      sql: `
+        SELECT 'Summary' AS category, 'Total rows in ledger' AS item, CAST(COUNT(*) AS TEXT) AS value, 'OK' AS status FROM pl_detail
+        UNION ALL
+        SELECT 'Lineage', 'Rows with source lineage', CAST((SELECT COUNT(*) FROM row_lineage) AS TEXT) || ' / ' || CAST((SELECT COUNT(*) FROM pl_detail) AS TEXT),
+               CASE WHEN (SELECT COUNT(*) FROM row_lineage) = (SELECT COUNT(*) FROM pl_detail) THEN 'OK' ELSE 'WARN' END
+        UNION ALL
+        SELECT 'Lineage', 'Source files', CAST(COUNT(*) AS TEXT), CASE WHEN COUNT(*) > 0 THEN 'OK' ELSE 'WARN' END FROM source_file
+        UNION ALL
+        SELECT 'Lineage', 'Import runs', CAST(COUNT(*) AS TEXT), CASE WHEN COUNT(*) > 0 THEN 'OK' ELSE 'WARN' END FROM import_run
+        UNION ALL
+        SELECT 'Quality', 'Duplicate grain combinations', CAST(COUNT(*) AS TEXT), CASE WHEN COUNT(*) = 0 THEN 'OK' ELSE 'WARN' END FROM (
+            SELECT year, version, period, region_desc, m_group_desc, country_name, customer_name
+            FROM pl_detail
+            GROUP BY year, version, period, region_desc, m_group_desc, country_name, customer_name
+            HAVING COUNT(*) > 1
+        )
+        UNION ALL
+        SELECT 'Quality', 'Null critical fields', CAST(COUNT(*) AS TEXT), CASE WHEN COUNT(*) = 0 THEN 'OK' ELSE 'WARN' END
+        FROM pl_detail
+        WHERE year IS NULL OR version IS NULL OR period IS NULL OR region_desc IS NULL OR m_group_desc IS NULL OR net_sales IS NULL
+      ` },
+    { name: 'outlook_pl', title: 'Full-Year Outlook vs Prior Year', description: 'Forecast full-year P&L (Actual P01-P05 + T06 P06 + T07 P07-P12) versus prior-year actual.',
+      sql: `
+        WITH outlook AS (
+            SELECT 
+                SUM(net_sales) AS net_sales,
+                SUM(cost_of_goods_sold) AS cogs,
+                SUM(gross_margin) AS gross_margin,
+                SUM(operating_expense) AS opex,
+                SUM(operating_profit) AS operating_profit,
+                SUM(profit_before_tax) AS profit_before_tax,
+                SUM(corporate_tax) AS corporate_tax,
+                SUM(net_income) AS net_income
+            FROM pl_detail
+            WHERE year = (SELECT MAX(year) FROM pl_detail WHERE year IS NOT NULL)
+              AND (
+                (version = 'Actual' AND CAST(ROUND((period - CAST(period AS INTEGER)) * 1000) AS INTEGER) BETWEEN 1 AND 5)
+                OR (version = 'T06' AND CAST(ROUND((period - CAST(period AS INTEGER)) * 1000) AS INTEGER) = 6)
+                OR (version = 'T07' AND CAST(ROUND((period - CAST(period AS INTEGER)) * 1000) AS INTEGER) BETWEEN 7 AND 12)
+              )
+        ),
+        prior AS (
+            SELECT 
+                SUM(net_sales) AS net_sales,
+                SUM(cost_of_goods_sold) AS cogs,
+                SUM(gross_margin) AS gross_margin,
+                SUM(operating_expense) AS opex,
+                SUM(operating_profit) AS operating_profit,
+                SUM(profit_before_tax) AS profit_before_tax,
+                SUM(corporate_tax) AS corporate_tax,
+                SUM(net_income) AS net_income
+            FROM pl_detail
+            WHERE year = (SELECT MAX(year) - 1 FROM pl_detail WHERE year IS NOT NULL)
+              AND version = 'Actual'
+        )
+        SELECT 'Net Sales' AS line_item, o.net_sales AS outlook, p.net_sales AS prior_year, o.net_sales - p.net_sales AS variance,
+               CASE WHEN p.net_sales != 0 THEN ROUND((o.net_sales - p.net_sales) * 100.0 / ABS(p.net_sales), 2) ELSE NULL END AS variance_pct
+        FROM outlook o, prior p
+        UNION ALL
+        SELECT 'COGS', o.cogs, p.cogs, o.cogs - p.cogs, CASE WHEN p.cogs != 0 THEN ROUND((o.cogs - p.cogs) * 100.0 / ABS(p.cogs), 2) ELSE NULL END FROM outlook o, prior p
+        UNION ALL
+        SELECT 'Gross Margin', o.gross_margin, p.gross_margin, o.gross_margin - p.gross_margin, CASE WHEN p.gross_margin != 0 THEN ROUND((o.gross_margin - p.gross_margin) * 100.0 / ABS(p.gross_margin), 2) ELSE NULL END FROM outlook o, prior p
+        UNION ALL
+        SELECT 'Operating Expense', o.opex, p.opex, o.opex - p.opex, CASE WHEN p.opex != 0 THEN ROUND((o.opex - p.opex) * 100.0 / ABS(p.opex), 2) ELSE NULL END FROM outlook o, prior p
+        UNION ALL
+        SELECT 'Operating Profit', o.operating_profit, p.operating_profit, o.operating_profit - p.operating_profit, CASE WHEN p.operating_profit != 0 THEN ROUND((o.operating_profit - p.operating_profit) * 100.0 / ABS(p.operating_profit), 2) ELSE NULL END FROM outlook o, prior p
+        UNION ALL
+        SELECT 'Profit Before Tax', o.profit_before_tax, p.profit_before_tax, o.profit_before_tax - p.profit_before_tax, CASE WHEN p.profit_before_tax != 0 THEN ROUND((o.profit_before_tax - p.profit_before_tax) * 100.0 / ABS(p.profit_before_tax), 2) ELSE NULL END FROM outlook o, prior p
+        UNION ALL
+        SELECT 'Corporate Tax', o.corporate_tax, p.corporate_tax, o.corporate_tax - p.corporate_tax, CASE WHEN p.corporate_tax != 0 THEN ROUND((o.corporate_tax - p.corporate_tax) * 100.0 / ABS(p.corporate_tax), 2) ELSE NULL END FROM outlook o, prior p
+        UNION ALL
+        SELECT 'Net Income', o.net_income, p.net_income, o.net_income - p.net_income, CASE WHEN p.net_income != 0 THEN ROUND((o.net_income - p.net_income) * 100.0 / ABS(p.net_income), 2) ELSE NULL END FROM outlook o, prior p
+      ` },
+    { name: 'outlook_monthly', title: 'Monthly Outlook Progression', description: 'Net sales and gross margin by month, flagged actual vs outlook.',
+      sql: `
+        SELECT 
+            CAST(ROUND((period - CAST(period AS INTEGER)) * 1000) AS INTEGER) AS period_number,
+            'P' || PRINTF('%02d', CAST(ROUND((period - CAST(period AS INTEGER)) * 1000) AS INTEGER)) AS period_label,
+            CASE WHEN version = 'Actual' THEN 'actual' ELSE 'outlook' END AS status,
+            SUM(net_sales) AS net_sales,
+            SUM(gross_margin) AS gross_margin
+        FROM pl_detail
+        WHERE year = (SELECT MAX(year) FROM pl_detail WHERE year IS NOT NULL)
+          AND (
+            (version = 'Actual' AND CAST(ROUND((period - CAST(period AS INTEGER)) * 1000) AS INTEGER) BETWEEN 1 AND 5)
+            OR (version = 'T06' AND CAST(ROUND((period - CAST(period AS INTEGER)) * 1000) AS INTEGER) = 6)
+            OR (version = 'T07' AND CAST(ROUND((period - CAST(period AS INTEGER)) * 1000) AS INTEGER) BETWEEN 7 AND 12)
+          )
+        GROUP BY period_number, version
+        ORDER BY period_number
+      ` },
 ];
 const REPORT_DEFINITIONS = reportDefs;
 const HARDCODED_YEARS = [2022, 2023, 2024, 2025, 2026];

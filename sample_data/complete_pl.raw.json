@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "source": {
+    "filename": "complete-pl-sample.xlsx",
+    "relpath": "sample_data/complete-pl-sample.xlsx",
+    "sha256": "synthetic-demo-no-private-source"
+  },
+  "extractor": "sample-spreadsheet",
+  "document_type": "spreadsheet",
+  "content": {
+    "sheets": [
+      {
+        "name": "Ledger",
+        "n_rows": 5,
+        "n_cols": 14,
+        "cells": [
+          ["Year", "Version", "Period", "Region", "Country", "Customer", "Product Group", "Class", "Product Number", "Net Sales", "COGS", "Gross Margin", "Operating Expense", "Net Income"],
+          [2026, "Actual", 1, "Middle East", "UAE", "Demo Customer 1", "Smart Sensors", "Premium", "AE-SS-001", 125000, 75000, 50000, 21000, 22620],
+          [2026, "Actual", 2, "Middle East", "Saudi Arabia", "Demo Customer 2", "Industrial Drives", "Standard", "SA-ID-002", 210000, 136500, 73500, 34000, 30420],
+          [2026, "T06", 6, "Europe", "Germany", "Demo Customer 3", "Automation Software", "Premium", "DE-AS-003", 98000, 39200, 58800, 28000, 24024],
+          [2026, "T07", 7, "Africa", "Kenya", "Demo Customer 4", "Field Services", "Value", "KE-FS-004", 67000, 62000, 5000, 9300, -4300]
+        ]
+      }
+    ]
+  },
+  "warnings": []
+}
