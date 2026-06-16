@@ -372,6 +372,32 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Hermes — `hermes/reports-dashboard-ui` (reports download UI)
+**Did:** Added the **Reports tab** to the dashboard — the most-repeated "next" from
+every recent journal entry. The sidebar now has a "Reports" tab (with document
+icon) and a full panel that lists all 6 reports (`yearly_pl`, `regional_pl`,
+`product_group_pl`, `country_pl`, `customer_pl`, `yoy_variance`) from the existing
+`/api/reports` API with **View** (renders as live table with Export CSV) and
+**direct CSV download** buttons per report. Filters auto-disable on the Reports
+tab (reports are full-database, not filter-scoped) and re-enable when switching away.
+**Why:** The reports engine and API have existed since June 14 but there was
+no UI to access them — users had to curl the API or run Python CLI. This closes
+the gap and makes every report one click away inside the dashboard.
+**Status:** ✅ `npm test` passes. Verified via browser: tab loads, 6 reports
+render as cards, "View" fetches and displays a live data table (tested Yearly
+P&L: 5 rows × 15 columns), CSV export works, "Back to list" returns, i18n
+covers both Arabic and English headings and section text. Filters disable/re-enable
+correctly when entering/leaving the tab.
+**Next:** A "Report Actions" or "Scenarios" tab that surfaces the what-if
+scenario engine in the dashboard; client-specific report templates; OCR stage.
+**Watch out:** The reports tab uses `fetchJson` to call `/api/reports/generate`
+— report data can be large (Customer P&L has hundreds of rows). Consider adding
+a max-row limit or pagination if a single report exceeds ~500 rows. The CSV
+download re-fetches from the API rather than using the already-loaded data;
+acceptable for 6 reports but worth caching in `requestCache` if reports are
+re-visited often. `i18n.js` added two new keys (`reports.sectionTitle`,
+`reports.sectionDesc`) — both already have Arabic equivalents.
+
 ### 2026-06-16 — Claude Code — `claude/team-plan-ci` (agent plan + complete the CI gate)
 **Did:** Two things for the team. (1) **Closed the CI gate gap** — the Phase 2
 `test_import_workspace.py` and `test_phase2_integration.py` existed but weren't

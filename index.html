@@ -564,6 +564,30 @@
             line-height: 1.45;
         }
 
+        .report-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .report-card {
+            background: var(--surface);
+            border-radius: 10px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            transition: box-shadow 0.15s;
+        }
+        .report-card:hover {
+            box-shadow: 0 0 0 1px var(--cyan);
+        }
+        .report-card-body { flex: 1; min-width: 0; }
+        .report-card-title { font-size: 14px; font-weight: 600; color: #fff; }
+        .report-card-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+        .report-card-actions { display: flex; gap: 8px; flex: none; }
+        .report-card-actions .primary-btn { font-size: 11px; padding: 6px 12px; }
+
         .insights-card { display: flex; flex-direction: column; }
         #insightsContent { margin-top: 10px; }
         .insight-item {
@@ -762,6 +786,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="8" cy="14" r="3"/><circle cx="16" cy="9" r="4"/><circle cx="13" cy="18" r="2"/></svg>
                 <span data-i18n="tab.portfolio">Portfolio</span>
             </button>
+            <button class="tab" type="button" role="tab" id="tab-reports" aria-selected="false" aria-controls="panel-reports" data-tab="reports">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+                <span data-i18n="tab.reports">Reports</span>
+            </button>
         </nav>
 
         <div class="sidebar-meta">
@@ -944,6 +972,23 @@
                 <article class="table-card">
                     <div class="table-head"><div><div class="chart-title">Portfolio detail</div><div class="chart-subtitle">Products ranked by revenue with quadrant classification and recommended action</div></div><button class="export-btn" type="button" data-export-table="portfolioTable" data-export-name="portfolio-matrix">Export CSV</button></div>
                     <div class="table-scroll"><table class="data-table" id="portfolioTable"></table></div>
+                </article>
+            </section>
+
+            <section class="panel" id="panel-reports" role="tabpanel" aria-labelledby="tab-reports" hidden>
+                <div class="section-head"><div><h2 data-i18n="reports.sectionTitle">Company Reports</h2><p data-i18n="reports.sectionDesc">Generate and download financial reports directly from the database</p></div></div>
+                <div class="report-list" id="reportList">
+                    <div class="loading-spinner"></div>
+                </div>
+                <article class="table-card" id="reportViewCard" style="display:none">
+                    <div class="table-head">
+                        <div><div class="chart-title" id="reportViewTitle"></div><div class="chart-subtitle" id="reportViewSubtitle"></div></div>
+                        <div>
+                            <button class="export-btn" type="button" data-export-table="reportViewTable" data-export-name="report-view" style="display:none" id="reportExportBtn">Export CSV</button>
+                            <button class="secondary-btn" type="button" id="reportCloseBtn">Back to list</button>
+                        </div>
+                    </div>
+                    <div class="table-scroll" id="reportViewScroll"><table class="data-table" id="reportViewTable"></table></div>
                 </article>
             </section>
         </div>

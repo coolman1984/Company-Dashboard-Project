@@ -28,7 +28,7 @@ var freshness = null;
 var summary = null;
 var activeTab = 'overview';
 var standardFilterState = { year: '', version: 'Actual' };
-var tabLoaded = { overview: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false };
+var tabLoaded = { overview: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false, reports: false };
 var yearlyData = [];
 var executiveData = null;
 var productData = [];
@@ -41,7 +41,8 @@ var pageMeta = {
     drilldown: ['Variance Contributors', 'The dimensions driving financial movement between periods'],
     scenario: ['2026 Operating Outlook', 'Actual P01-P05 plus T06 P06 plus T07 P07-P12'],
     trends: ['5-Year Trends', 'Structural P&L performance and efficiency ratios FY2022–FY2026'],
-    portfolio: ['Strategic Portfolio Matrix', 'Product group growth vs margin positioning for capital allocation decisions']
+    portfolio: ['Strategic Portfolio Matrix', 'Product group growth vs margin positioning for capital allocation decisions'],
+    reports: ['Company Reports', 'Generate and download financial reports directly from the database']
 };
 
 var metricLabels = {
@@ -1350,6 +1351,142 @@ function handleLoadError(error) {
     throw error;
 }
 
+function loadReports(force) {
+    var listEl = el('reportList');
+    var viewCard = el('reportViewCard');
+    viewCard.style.display = 'none';
+    listEl.innerHTML = '<div class="loading-spinner"></div>';
+
+    return fetchJson(API + '/api/reports', { force: force })
+        .then(function (data) {
+            var reports = data.reports || [];
+            if (!reports.length) {
+                listEl.innerHTML = '<div class="report-card"><div class="report-card-body"><div class="report-card-title">No reports available</div></div></div>';
+                tabLoaded.reports = true;
+                return;
+            }
+            listEl.innerHTML = reports.map(function (r) {
+                return '<div class="report-card">' +
+                    '<div class="report-card-body">' +
+                        '<div class="report-card-title">' + escapeHtml(r.title) + '</div>' +
+                        '<div class="report-card-desc">' + escapeHtml(r.description) + '</div>' +
+                    '</div>' +
+                    '<div class="report-card-actions">' +
+                        '<button class="primary-btn" type="button" data-report-name="' + escapeHtml(r.name) + '">' + tr('View') + '</button>' +
+                        '<button class="secondary-btn" type="button" data-report-name="' + escapeHtml(r.name) + '" data-report-title="' + escapeHtml(r.title) + '">CSV</button>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+
+            listEl.querySelectorAll('.primary-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    viewReport(btn.dataset.reportName);
+                });
+            });
+            listEl.querySelectorAll('.secondary-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    downloadReportCSV(btn.dataset.reportName, btn.dataset.reportTitle);
+                });
+            });
+
+            tabLoaded.reports = true;
+        })
+        .catch(function (err) {
+            listEl.innerHTML = '<div class="report-card"><div class="report-card-body"><div class="report-card-title">Failed to load reports</div><div class="report-card-desc">' + escapeHtml(err.message) + '</div></div></div>';
+            tabLoaded.reports = true;
+        });
+}
+
+function viewReport(name) {
+    var viewCard = el('reportViewCard');
+    var viewTitle = el('reportViewTitle');
+    var viewSubtitle = el('reportViewSubtitle');
+    var viewTable = el('reportViewTable');
+    var exportBtn = el('reportExportBtn');
+    var listEl = el('reportList');
+
+    viewTitle.textContent = 'Loading...';
+    viewSubtitle.textContent = '';
+    viewTable.innerHTML = '<tr><td colspan="20"><div class="loading-spinner"></div></td></tr>';
+    viewCard.style.display = '';
+    listEl.style.display = 'none';
+    exportBtn.style.display = 'none';
+
+    fetchJson(API + '/api/reports/generate?name=' + encodeURIComponent(name))
+        .then(function (data) {
+            viewTitle.textContent = data.title || name;
+            viewSubtitle.textContent = data.description || '';
+            if (data.row_count != null) {
+                viewSubtitle.textContent += ' — ' + data.row_count + ' rows';
+            }
+
+            if (!data.columns || !data.rows || !data.rows.length) {
+                viewTable.innerHTML = '<tr><td colspan="20">No data returned for this report.</td></tr>';
+                return;
+            }
+
+            var headerHtml = '<thead><tr>' + data.columns.map(function (c) {
+                return '<th>' + escapeHtml(c) + '</th>';
+            }).join('') + '</tr></thead>';
+
+            var bodyHtml = '<tbody>' + data.rows.map(function (row) {
+                return '<tr>' + data.columns.map(function (c) {
+                    var val = row[c];
+                    if (val == null) return '<td></td>';
+                    if (typeof val === 'number') {
+                        if (Number.isInteger(val)) return '<td>' + val.toLocaleString() + '</td>';
+                        return '<td>' + val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>';
+                    }
+                    return '<td>' + escapeHtml(String(val)) + '</td>';
+                }).join('') + '</tr>';
+            }).join('') + '</tbody>';
+
+            viewTable.innerHTML = headerHtml + bodyHtml;
+            exportBtn.style.display = '';
+            exportBtn.dataset.exportTable = 'reportViewTable';
+            exportBtn.dataset.exportName = name;
+        })
+        .catch(function (err) {
+            viewTitle.textContent = 'Error';
+            viewSubtitle.textContent = err.message;
+            viewTable.innerHTML = '<tr><td colspan="20">Failed to generate report: ' + escapeHtml(err.message) + '</td></tr>';
+        });
+}
+
+function closeReportView() {
+    el('reportViewCard').style.display = 'none';
+    el('reportList').style.display = '';
+}
+
+function downloadReportCSV(name, title) {
+    fetchJson(API + '/api/reports/generate?name=' + encodeURIComponent(name))
+        .then(function (data) {
+            if (!data.columns || !data.rows) return;
+            var lines = [];
+            lines.push(data.columns.map(function (c) { return '\"' + c.replace(/\"/g, '\"\"') + '\"'; }).join(','));
+            data.rows.forEach(function (row) {
+                lines.push(data.columns.map(function (c) {
+                    var val = row[c];
+                    if (val == null) return '';
+                    return '\"' + String(val).replace(/\"/g, '\"\"') + '\"';
+                }).join(','));
+            });
+            var blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+            var objectUrl = URL.createObjectURL(blob);
+            var anchor = document.createElement('a');
+            anchor.href = objectUrl;
+            anchor.download = (name || 'report') + '.csv';
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(objectUrl);
+            showToast(tr('CSV exported'));
+        })
+        .catch(function (err) {
+            showToast('Download failed: ' + err.message);
+        });
+}
+
 function loadActiveTab(force) {
     setStatus(true, tr('Querying SQLite'));
     var loader = {
@@ -1359,7 +1496,8 @@ function loadActiveTab(force) {
         drilldown: loadDrilldown,
         scenario: loadScenario,
         trends: loadTrends,
-        portfolio: loadPortfolio
+        portfolio: loadPortfolio,
+        reports: loadReports
     }[activeTab];
     return Promise.resolve(loader(force)).then(function () {
         setStatus(true, tr('Live SQLite'));
@@ -1415,9 +1553,23 @@ function configureGlobalFiltersForTab(tabName) {
         return;
     }
 
+    if (tabName === 'reports') {
+        yearSelect.disabled = true;
+        versionSelect.disabled = true;
+        el('globalRegion').disabled = true;
+        el('globalCountry').disabled = true;
+        el('applyFiltersBtn').style.display = 'none';
+        el('resetFiltersBtn').style.display = 'none';
+        return;
+    }
+
     var returningFromExecutive = yearSelect.disabled;
     yearSelect.disabled = false;
     versionSelect.disabled = false;
+    el('globalRegion').disabled = false;
+    el('globalCountry').disabled = false;
+    el('applyFiltersBtn').style.display = '';
+    el('resetFiltersBtn').style.display = '';
     if (executiveOption) executiveOption.remove();
     if (returningFromExecutive) {
         yearSelect.value = standardFilterState.year;
@@ -1510,6 +1662,7 @@ function bindEvents() {
             exportCSV(button.dataset.exportTable, button.dataset.exportName);
         });
     });
+    el('reportCloseBtn').addEventListener('click', closeReportView);
 }
 
 function configureCharts() {
