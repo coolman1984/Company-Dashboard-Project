@@ -13,6 +13,7 @@ from typing import Callable, Optional
 
 from .outlook import build_outlook_monthly, build_outlook_pl
 from .validation import build_import_validation
+from .decomposition import decompose as _run_decomposition, auto_years as _decomp_years
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,12 @@ REPORTS = [
         title="Import Validation Report",
         description="Row counts, null checks, duplicate grain, and source-coverage summary.",
         builder=build_import_validation,
+    ),
+    Report(
+        name="decomposition",
+        title="Volume/Price Decomposition",
+        description="Revenue change broken into price effect and volume effect by dimension.",
+        builder=lambda conn: _run_decomposition(conn, *_decomp_years(conn)),
     ),
 ]
 

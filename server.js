@@ -1273,6 +1273,27 @@ else:
         return jsonResponse(res, { ok: true, client: slug, labels: {}, client_reports: [] });
     }
 
+    if (pathname === '/api/decomposition') {
+        // Volume/price revenue decomposition.
+        const by = String(query.by || 'group');
+        const baseYear = query['base-year'] ? parseInt(query['base-year'], 10) : undefined;
+        const compareYear = query['compare-year'] ? parseInt(query['compare-year'], 10) : undefined;
+        try {
+            const args = ['-m', 'reports.decomposition', '--db', activeDbPath(), '--by', by, '--json'];
+            if (baseYear) args.push('--base-year', String(baseYear));
+            if (compareYear) args.push('--compare-year', String(compareYear));
+            const result = spawnSync('python3', args,
+                { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 30000 });
+            if (result.status === 0 && result.stdout) {
+                return jsonResponse(res, JSON.parse(result.stdout.trim()));
+            }
+            const details = (result.stderr || result.stdout || '').trim();
+            return errorResponse(res, 500, `Decomposition failed: ${details || result.status}`);
+        } catch (error) {
+            return errorResponse(res, 500, `Decomposition failed: ${error.message}`);
+        }
+    }
+
     if (pathname === '/api/pricing') {
         // Price helper: deterministic, source-traceable pricing intelligence.
         try {
