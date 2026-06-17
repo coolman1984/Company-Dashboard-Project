@@ -374,6 +374,26 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — main (Phone-friendly / responsive layout)
+**Did:** Made the dashboard genuinely usable on a phone (audit P0 #2, mobile half).
+Reworked the `index.html` media queries: on small screens the left sidebar nav
+becomes a **swipeable top strip** (scrollbar hidden, 40px tap targets, badge
+inline), the topbar + section headers **wrap** instead of colliding, the filter
+bar is a tidy 2-column grid, and the new feature controls stack full-width
+(what-if levers, brief KPIs, ask bar, board-pack buttons, tornado rows). Added a
+`≤380px` fine-tune pass. Made nav text direction-agnostic (`text-align: start`)
+so Arabic RTL and English LTR both reflow.
+**Why:** managers check numbers on their phones; the analyst-grade desktop layout
+was cramped on small screens.
+**Status:** ✅ Verified with Playwright at 390px in **both** Arabic (RTL) and
+English (LTR) — swipe nav, 2-col filters, and stacked cards all render cleanly
+(screenshots shared with the user). Smoke + i18n + structure green; CSS braces
+balanced. No automated viewport test exists — real-phone QA still recommended
+after big layout changes.
+**Next:** multi-client switcher; OCR for scanned files.
+**Watch out:** keep new controls RTL-safe (`start`/`margin-inline-*`); the topbar
+page-heading isn't wired for every new tab (pre-existing) — cosmetic only.
+
 ### 2026-06-16 — Claude Code — main (Price helper — pricing intelligence)
 **Did:** Built Hermes idea #7. New `reports/pricing.py` scans every product group
 and customer and recommends an action vs the company-average gross margin:

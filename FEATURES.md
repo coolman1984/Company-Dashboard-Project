@@ -282,3 +282,9 @@ Each entry: **what it does · tech · when to use · edge cases · files/endpoin
   process per call — fine locally, debounce on the client for sliders/search.
 - **Root stays minimal.** New code goes in a layer package; `test_project_structure.py`
   guards the root. New canonical root docs must be added to its allow-list.
+- **Mobile/responsive lives in `index.html`** `<style>` media queries
+  (`≤1180 / ≤820 / ≤520 / ≤380px`). On phones the sidebar nav becomes a swipeable
+  top strip, the filter bar a 2-column grid, and feature cards stack full-width.
+  Keep new controls direction-agnostic (`text-align: start`, `margin-inline-*`)
+  so Arabic RTL and English LTR both reflow. There is no automated viewport test —
+  re-check on a real phone (or Playwright at 390px) after big layout changes.
