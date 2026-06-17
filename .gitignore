@@ -5,6 +5,7 @@ api_data/
 
 # Phase 2 import-run workspaces and database backups
 workspaces/
+!workspaces/*/templates.json
 *.db.bak
 
 # Python

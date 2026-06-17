@@ -1,0 +1,16 @@
+{
+    "client_name": "Global Industries (Synthetic)",
+    "labels": {
+        "net_sales": "صافي المبيعات",
+        "cogs": "تكلفة البضاعة المباعة",
+        "gross_margin": "هامش الربح الإجمالي",
+        "operating_expense": "المصروفات التشغيلية",
+        "operating_profit": "الربح التشغيلي",
+        "net_income": "صافي الدخل",
+        "region_desc": "المنطقة",
+        "country_name": "الدولة",
+        "m_group_desc": "مجموعة المنتج",
+        "customer_name": "العميل"
+    },
+    "reports": []
+}

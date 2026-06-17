@@ -86,29 +86,71 @@ def _check_formats(formats):
         raise RuntimeError("PDF output needs reportlab (pip install reportlab).")
 
 
-def compute_envelopes(db_path, names=None):
-    """Run the selected reports and return their envelopes (no files written)."""
+def _run_sql(conn, sql, title=None):
+    """Execute a raw SQL string, returning (columns, rows, extra)."""
+    cursor = conn.execute(sql)
+    columns = [c[0] for c in cursor.description]
+    rows = [dict(zip(columns, values)) for values in cursor.fetchall()]
+    extra = {}
+    if title:
+        extra["title"] = title
+    return columns, rows, extra
+
+
+def _run_builder(conn, report):
+    """Execute a report that has a builder callable."""
+    result = report.builder(conn)
+    columns, rows = result[0], result[1]
+    extra = result[2] if len(result) > 2 else {}
+    return columns, rows, extra
+
+
+def compute_envelopes(db_path, names=None, client_slug=None):
+    """Run the selected reports and return their envelopes (no files written).
+
+    When client_slug is provided, client-specific report SQL from
+    workspaces/<slug>/templates.json overrides or extends the catalogue.
+    """
     if not os.path.exists(db_path):
         raise FileNotFoundError(
             f"Database not found: {db_path}. Seed it (python3 seed_db.py) or load "
             "client data (python3 map_raw_to_db.py) first.")
     selected = REPORTS if not names else [REPORTS_BY_NAME[n] for n in names]
+
+    # Gather client-specific SQL overrides
+    client_sql: dict[str, str] = {}
+    if client_slug:
+        from .client_templates import get_client_sql as _get_client_sql
+        for report in selected:
+            sql = _get_client_sql(client_slug, report.name)
+            if sql:
+                client_sql[report.name] = sql
+
     conn = sqlite3.connect(db_path)
     try:
         ledger_rows = conn.execute("SELECT COUNT(*) FROM pl_detail").fetchone()[0]
         envelopes = []
         for report in selected:
-            columns, rows, extra = run_report(conn, report)
-            envelopes.append(build_envelope(report, columns, rows, db_path, ledger_rows, extra))
+            if report.name in client_sql:
+                # Client-specific report: use the template SQL directly
+                columns, rows, extra = _run_sql(conn, client_sql[report.name],
+                                                report.title)
+            elif report.builder is not None:
+                columns, rows, extra = _run_builder(conn, report)
+            else:
+                columns, rows, extra = _run_sql(conn, report.sql, report.title)
+            envelopes.append(build_envelope(report, columns, rows, db_path,
+                                            ledger_rows, extra))
         return envelopes
     finally:
         conn.close()
 
 
-def generate(db_path, out_dir, names=None, formats=("json",), verbose=True):
+def generate(db_path, out_dir, names=None, formats=("json",), verbose=True,
+             client_slug=None):
     """Generate the requested reports, one file per report. Returns result dicts."""
     _check_formats(formats)
-    envelopes = compute_envelopes(db_path, names)
+    envelopes = compute_envelopes(db_path, names, client_slug=client_slug)
     results = []
     for envelope in envelopes:
         name = envelope["report"]
@@ -129,10 +171,10 @@ def generate(db_path, out_dir, names=None, formats=("json",), verbose=True):
 
 
 def generate_board_pack(db_path, out_dir, names=None, formats=("xlsx", "pdf"),
-                        title="Board Pack", verbose=True):
+                        title="Board Pack", verbose=True, client_slug=None):
     """Bundle all selected reports into single combined file(s)."""
     _check_formats(formats)
-    envelopes = compute_envelopes(db_path, names)
+    envelopes = compute_envelopes(db_path, names, client_slug=client_slug)
     os.makedirs(out_dir, exist_ok=True)
     written = []
     if "xlsx" in formats:

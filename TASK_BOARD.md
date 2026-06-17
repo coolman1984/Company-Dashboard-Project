@@ -10,26 +10,19 @@
 
 | # | المهمة | الوصف | الوكيل المقترح |
 |---|--------|-------|----------------|
-| R1 | Client-specific report templates | قوالب تقارير مخصصة لكل عميل | claude |
-| R2 | Multi-scenario comparison | مقارنة عدة سيناريوهات مع بعض (`reports/scenario.py`) | claude |
-| R3 | Scenarios in live dashboard | عرض السيناريوهات مباشرة في لوحة التحكم | claude/hermes |
-| R4 | Volume/price decomposition | تحليل حجم/سعر في السيناريوهات | claude |
-| R5 | ~~Full-text search for knowledge base~~ | ✅ Done — `brain/search.py` | ✅ done |
-| R6 | HTML/graph viewer for brain | عارض رسومي للجراف في المتصفح | claude/hermes |
+| R1 | Client-specific report templates | قوالب تقارير مخصصة لكل عميل | hermes/claude |
+| R4 | Volume/price decomposition | تحليل حجم/سعر مدمج في الداشبورد | claude |
 | R7 | Note→report deep links | روابط من ملاحظات المعرفة إلى تقارير محددة | claude |
-| R8 | OCR for scanned PDFs | مسار OCR للمستندات الممسوحة ضوئيًا | claude |
 | R9 | Live Outlook COM extraction | استخراج مباشر من Outlook على Windows | codex/claude |
-| R10 | Merged-cell & multi-row headers | دعم الخلايا المدمجة والرؤوس متعددة الصفوف | claude |
-| R11 | ~~English RTL dashboard QA~~ | ✅ Done — Reports tab + download buttons verified | ✅ done |
 | R12 | Client-specific wording polish | تدقيق الصياغة عند توفر ملفات عميل حقيقية | — |
 
 ---
 
 ## 🟡 In Progress (شغّال عليه)
 
-| # | المهمة | الوكيل | الفرع | منذ |
-|---|--------|--------|-------|-----|
-| — | — | — | — | — |
+| # | المهمة | الوكيل | منذ |
+|---|--------|--------|-----|
+| R1 | Client-specific report templates | hermes | 2026-06-17 |
 
 ---
 
@@ -37,12 +30,19 @@
 
 | # | المهمة | الوكيل | commit/PR | التاريخ |
 |---|--------|--------|-----------|---------|
+| R10 | Merged-cell & multi-row headers | claude | `10514af` → main | 2026-06-17 |
+| R8 | OCR for scanned PDFs | claude | `10514af` → main | 2026-06-17 |
+| R6 | HTML/graph viewer for brain | claude | `e33a3f2` → main | 2026-06-17 |
+| R3 | Scenarios in live dashboard | claude | `d80d167` → main | 2026-06-17 |
+| R2 | Multi-scenario comparison | claude | `5e065ba` → main | 2026-06-17 |
+| R5 | Full-text search for knowledge base | hermes | `5b47c76` → main | 2026-06-16 |
 | D17 | Full-text search for knowledge base | hermes | `5b47c76` → main | 2026-06-16 |
 | D18 | Excel/PDF download from web UI | hermes | `5b47c76` → main | 2026-06-16 |
 | D19 | Source lineage tables + mapper integration | hermes | `5b47c76` → main | 2026-06-16 |
-| D20 | MCP harness tools (project_status, run_test, brain_check, task_board_read) | hermes | `5b47c76` → main | 2026-06-16 |
+| D20 | MCP harness tools | hermes | `5b47c76` → main | 2026-06-16 |
 | D0 | Sample data + unified reports + MCP tools | hermes | `27e1bcf` → main | 2026-06-16 |
 | D1 | Mapping review tool | hermes | `74ce462` → main | 2026-06-15 |
+| R11 | English RTL dashboard QA | claude | PR #15 | 2026-06-16 |
 | D2 | CI gate + agent plan + DoD | claude | PR #15 | 2026-06-16 |
 | D3 | Arabic PDF: vendored font | claude | PR #14 | 2026-06-16 |
 | D4 | Arabic deep-content translation | claude | PR #13 | 2026-06-16 |
@@ -71,4 +71,4 @@
 
 ---
 
-*آخر تحديث: 2026-06-16 — hermes (D17-D20 committed)*
+*آخر تحديث: 2026-06-17 — hermes (لوحة محدثة + R1 قيد التطوير)*

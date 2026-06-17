@@ -407,8 +407,11 @@ function reportOfficeBuffer(name, format) {
     // Windows uses 'python', Linux/macOS use 'python3'
     const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
     try {
+        const clientArgs = (activeClient && activeClient !== 'default')
+            ? ['--client', activeClient] : [];
         const result = spawnSync(pythonCmd, [
             '-m', 'reports.cli', '--db', activeDbPath(), '--out', tmpDir,
+            ...clientArgs,
             '--report', name, '--format', format
         ], { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 120000 });
         if (result.status !== 0) {
@@ -1243,6 +1246,31 @@ function handleApi(pathname, query, res) {
         const result = switchClient(id);
         if (!result.ok) return errorResponse(res, 400, result.error || 'Switch failed');
         return jsonResponse(res, { ok: true, active: result.active, clients: listClients() });
+    }
+
+    if (pathname === '/api/clients/template') {
+        // Client-specific report templates and labels.
+        const slug = query.client || activeClient || 'default';
+        try {
+            const result = spawnSync('python3', [
+                '-c', `
+from reports.client_templates import load_template, get_client_labels, list_client_report_names
+import json, sys
+tpl = load_template(sys.argv[1])
+labels = get_client_labels(sys.argv[1])
+if tpl:
+    print(json.dumps({"ok": True, "client": tpl.client_name, "labels": labels, "client_reports": tpl.client_report_defs}))
+else:
+    print(json.dumps({"ok": True, "client": sys.argv[1], "labels": labels, "client_reports": []}))
+`, slug
+            ], { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 15000 });
+            if (result.status === 0 && result.stdout) {
+                return jsonResponse(res, JSON.parse(result.stdout.trim()));
+            }
+        } catch (error) {
+            // Fall through to graceful degradation
+        }
+        return jsonResponse(res, { ok: true, client: slug, labels: {}, client_reports: [] });
     }
 
     if (pathname === '/api/pricing') {

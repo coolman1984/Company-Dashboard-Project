@@ -16,6 +16,7 @@ import sys
 
 from .definitions import REPORTS, REPORTS_BY_NAME
 from .generate import generate, generate_board_pack
+from .client_templates import load_template, list_client_report_names, get_client_sql
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_DB = os.path.join(BASE_DIR, "pl_detail.db")
@@ -31,6 +32,8 @@ def main(argv=None):
     parser.add_argument("--format", nargs="+", default=["json"],
                         choices=["json", "csv", "xlsx", "pdf"],
                         help="Output format(s): json, csv, xlsx, pdf.")
+    parser.add_argument("--client", default=None,
+                        help="Client slug for custom templates (workspaces/<slug>/templates.json).")
     parser.add_argument("--list", action="store_true", help="List reports and exit.")
     parser.add_argument("--capabilities", action="store_true",
                         help="Print available export formats as JSON and exit.")
@@ -53,11 +56,29 @@ def main(argv=None):
 
     if args.list:
         print("Available reports:")
+        if args.client:
+            tpl = load_template(args.client)
+            if tpl and tpl.client_report_defs:
+                print(f"\n  Client: {tpl.client_name}")
+                print(f"  Template: {tpl.source_path}\n")
         for report in REPORTS:
-            print(f"  {report.name:<18} {report.title} - {report.description}")
+            print(f"  {report.name:<24} {report.title} - {report.description}")
+        if args.client:
+            tpl = load_template(args.client)
+            if tpl and tpl.client_report_defs:
+                print(f"\n  --- Client-specific reports ---")
+                for cr in tpl.client_report_defs:
+                    print(f"  {cr['name']:<24} {cr['title']} - {cr.get('description', '')}")
         return 0
 
-    unknown = [n for n in (args.reports or []) if n not in REPORTS_BY_NAME]
+    # Validate report names: built-in + client-specific
+    valid_names = set(REPORTS_BY_NAME.keys())
+    if args.client:
+        tpl = load_template(args.client)
+        if tpl:
+            for cr in tpl.client_report_defs:
+                valid_names.add(cr["name"])
+    unknown = [n for n in (args.reports or []) if n not in valid_names]
     if unknown:
         print(f"ERROR: unknown report(s): {', '.join(unknown)}. "
               f"Use --list to see options.", file=sys.stderr)
@@ -69,9 +90,11 @@ def main(argv=None):
             # Default a pack to both office formats unless the user narrowed it.
             formats = tuple(args.format) if args.format != ["json"] else ("xlsx", "pdf")
             generate_board_pack(args.db, args.out, names=args.reports,
-                                formats=formats, title=args.title)
+                                formats=formats, title=args.title,
+                                client_slug=args.client)
         else:
-            generate(args.db, args.out, names=args.reports, formats=tuple(args.format))
+            generate(args.db, args.out, names=args.reports,
+                     formats=tuple(args.format), client_slug=args.client)
     except (FileNotFoundError, RuntimeError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
