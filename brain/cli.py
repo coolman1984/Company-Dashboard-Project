@@ -87,19 +87,37 @@ def cmd_search(root, query, limit):
 
 
 def cmd_note(root, note_id):
-    """Print one note (by note_id) as JSON for the dashboard wiki viewer."""
-    notes = parse_tree(root)
-    note = notes.get(note_id)
+    """Print one note (by note_id) as JSON for the dashboard wiki viewer, with
+    Obsidian-style backlinks and the dashboard objects it references."""
+    graph = build_graph(root)
+    note = graph.notes.get(note_id)
     if note is None:
         print(json.dumps({"error": f"note not found: {note_id}"}, ensure_ascii=False))
         return 1
+    back = graph.backlinks().get(note_id, [])
     print(json.dumps({
         "note": note.note_id,
         "title": note.title,
         "tags": list(note.tags),
-        "links": list(note.links),
+        "links": list(graph.edges.get(note_id, [])),
+        "object_refs": list(graph.object_edges.get(note_id, [])),
+        "backlinks": [{"note": b, "title": graph.notes[b].title} for b in sorted(back)],
         "body": note.body,
     }, ensure_ascii=False))
+    return 0
+
+
+def cmd_related(root, ref):
+    """Print the notes that reference a dashboard object (e.g. report:regional_pl)."""
+    graph = build_graph(root)
+    notes = [{"note": nid, "title": graph.notes[nid].title}
+             for nid in graph.notes_for_object(ref)]
+    print(json.dumps({"ref": ref, "count": len(notes), "notes": notes}, ensure_ascii=False))
+    return 0
+
+
+def cmd_graph_json(root):
+    print(json.dumps(build_graph(root).to_dict(), ensure_ascii=False))
     return 0
 
 
@@ -115,6 +133,10 @@ def main(argv=None):
                         help="Full-text search query for the knowledge base.")
     parser.add_argument("--note", default=None,
                         help="Print one note (by note id) as JSON and exit.")
+    parser.add_argument("--related", default=None,
+                        help="Print notes referencing a dashboard object (e.g. report:regional_pl).")
+    parser.add_argument("--graph-json", action="store_true",
+                        help="Print the full knowledge graph as JSON and exit.")
     parser.add_argument("--limit", type=int, default=10,
                         help="Maximum search results for --search.")
     parser.add_argument("--db", default=None, help="Database for --data-notes.")
@@ -138,9 +160,14 @@ def main(argv=None):
         cmd_graph(graph, DEFAULT_GRAPH)
     if args.note is not None:
         return cmd_note(args.root, args.note)
+    if args.related is not None:
+        return cmd_related(args.root, args.related)
+    if args.graph_json:
+        return cmd_graph_json(args.root)
     if args.search:
         return cmd_search(args.root, args.search, args.limit)
-    if args.check or not (args.index or args.graph or args.data_notes or args.search or args.note):
+    if args.check or not (args.index or args.graph or args.data_notes or args.search
+                          or args.note or args.related or args.graph_json):
         return cmd_check(graph)
     return 0
 

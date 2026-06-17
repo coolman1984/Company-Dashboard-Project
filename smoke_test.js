@@ -218,6 +218,14 @@ async function run() {
         assert.ok(a.type && a.severity && a.source && a.source.metric);
     });
 
+    const related = await getJson('/api/wiki/related?ref=report:regional_pl');
+    assert.equal(related.response.status, 200);
+    assert.ok(Array.isArray(related.body.notes));
+
+    const graph = await getJson('/api/wiki/graph');
+    assert.equal(graph.response.status, 200);
+    assert.ok(Array.isArray(graph.body.notes) && graph.body.notes.length > 0);
+
     const wiki = await getJson('/api/wiki/search?q=margin&limit=5');
     assert.equal(wiki.response.status, 200);
     assert.ok(Array.isArray(wiki.body.matches));

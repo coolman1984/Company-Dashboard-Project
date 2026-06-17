@@ -223,17 +223,28 @@ Each entry: **what it does · tech · when to use · edge cases · files/endpoin
 - **Where:** `getExecutive... readImportHistory` in `server.js` ·
   `GET /api/import-health` · **Source & Health** tab.
 
-### 4.8 Knowledge base  (the "second brain")
-- **What:** search the company's definitions/conventions/decisions/processes and
-  read notes with clickable `[[wiki-links]]`.
-- **Tech:** `brain/` (parse + search). The server delegates via argv (no shell;
-  note ids are dictionary keys → no path traversal). UI uses an escape-first
-  minimal Markdown renderer.
-- **When:** "what does this term mean / why did we decide this?"
-- **Edge cases:** the Markdown renderer handles headings/bold/code/lists/links
-  only (no tables/images); broken links surface a 404 in the viewer.
-- **Where:** `brain/` (+ `brain/cli.py --note`) · `GET /api/wiki/search`,
-  `/api/wiki/note` · **Knowledge** tab.
+### 4.8 Knowledge base + project links  (the "second brain" — Obsidian/Notion logic)
+- **What:** search the company's definitions/conventions/decisions/processes,
+  read notes with clickable `[[wiki-links]]`, **and link notes to the live
+  dashboard**. Notes use **typed links** `[[type:id]]` where type ∈ `report, tab,
+  region, country, product, customer, metric` — e.g. `[[report:regional_pl]]`,
+  `[[tab:guardian]]`. These render as **chips that deep-link** into the dashboard.
+  The note viewer shows **Linked references** (Obsidian backlinks) and "Opens in
+  dashboard"; each report view shows a **Related notes** strip (Notion-style
+  linked references) — notes that reference `report:<name>`.
+- **Tech:** `brain/` (parse + search + graph). `graph.py` extracts typed object
+  refs (`OBJECT_REF_RE`) and **excludes them from broken-link checks** so the CI
+  link gate stays green. The server delegates via argv (note ids are dict keys →
+  no path traversal). UI uses an escape-first minimal Markdown renderer; deep-link
+  navigation is `openObjectRef(type, id)` in `app.js`.
+- **When:** "what does this term mean / why did we decide this?" and jumping from a
+  note straight to the report/region it's about (and back).
+- **Edge cases:** Markdown renderer handles headings/bold/code/lists/links only
+  (no tables/images); a typed link to an unknown report just navigates to the
+  Reports tab; backlinks/related require running the brain (graceful if absent).
+- **Where:** `brain/` (+ `brain/cli.py --note/--related/--graph-json`) ·
+  `GET /api/wiki/search`, `/api/wiki/note`, `/api/wiki/related`, `/api/wiki/graph`
+  · **Knowledge** tab + **Related notes** on the Reports view.
 
 ### 4.9 Foundational layers (not "tabs", but the ground everything stands on)
 - **Data:** `schema.sql` + `db_schema.py` + `seed_db.py` (synthetic dev/CI data;
@@ -261,7 +272,7 @@ Each entry: **what it does · tech · when to use · edge cases · files/endpoin
 | `/api/pricing` | `reports/pricing.py` | Price helper |
 | `/api/reports*` | `reports/` (definitions/generate/render) | Reports |
 | `/api/import-health` | `server.js` + `import_validation` | Source & Health |
-| `/api/wiki/*` | `brain/` | Knowledge |
+| `/api/wiki/search`, `/wiki/note`, `/wiki/related`, `/wiki/graph` | `brain/` | Knowledge (+ Related notes on Reports) |
 | `/api/executive-outlook`, `/api/*-pl`, … | `server.js` (live SQL) | Overview/Regional/… |
 
 ---

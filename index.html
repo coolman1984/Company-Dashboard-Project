@@ -823,6 +823,12 @@
         .wiki-note p { margin: 0 0 10px; } .wiki-note ul { margin: 0 0 10px; padding-inline-start: 22px; } .wiki-note li { margin: 2px 0; }
         .wiki-note code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
         .wiki-note a.wikilink { color: var(--primary, #2563eb); cursor: pointer; text-decoration: underline; }
+        .wiki-note a.objlink, a.objlink { color: #0369a1; cursor: pointer; background: #e0f2fe; border-radius: 6px; padding: 1px 6px; text-decoration: none; white-space: nowrap; }
+        .wiki-note a.objlink:hover, a.objlink:hover { background: #bae6fd; }
+        .note-section { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--border, #e3e8f0); }
+        .note-section-h { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: #64748b; margin-bottom: 8px; }
+        .note-chip { display: inline-block; margin: 0 6px 6px 0; font-size: 12px; padding: 4px 10px; border: 1px solid var(--border, #e3e8f0); border-radius: 999px; cursor: pointer; color: #334155; text-decoration: none; background: #fff; }
+        .note-chip:hover { border-color: var(--primary, #2563eb); background: var(--primary-soft, #eff6ff); }
         .wiki-empty { color: #64748b; font-size: 13px; padding: 12px; }
         .nav-badge { display: inline-block; min-width: 18px; text-align: center; font-size: 10px; font-weight: 800; color: #fff; background: #dc2626; border-radius: 999px; padding: 1px 6px; margin-inline-start: auto; }
         .guardian-list { display: flex; flex-direction: column; gap: 10px; }
@@ -1206,6 +1212,7 @@
                             <button class="secondary-btn" type="button" id="reportCloseBtn">Back to list</button>
                         </div>
                     </div>
+                    <div id="reportRelated" class="note-section" style="display:none"></div>
                     <div class="table-scroll" id="reportViewScroll"><table class="data-table" id="reportViewTable"></table></div>
                 </article>
             </section>

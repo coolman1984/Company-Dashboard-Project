@@ -79,6 +79,23 @@ def test_data_notes_link_into_wiki():
         assert not graph.broken_links(), graph.broken_links()
 
 
+def test_typed_object_links():
+    with tempfile.TemporaryDirectory() as tmp:
+        _write(tmp, "reports.md",
+               "# Reports\n\nOpen [[report:regional_pl]] and [[tab:guardian]]; see [[glossary]].\n")
+        _write(tmp, "glossary.md", "# Glossary\n\nlinks back to [[reports]].\n")
+        graph = build_graph(tmp)
+        # Typed links are object refs, NOT broken links.
+        assert not graph.broken_links(), graph.broken_links()
+        assert graph.object_edges["reports"] == ["report:regional_pl", "tab:guardian"]
+        # Notes referencing a dashboard object resolve (case-insensitive).
+        assert graph.notes_for_object("report:regional_pl") == ["reports"]
+        assert graph.notes_for_object("REPORT:REGIONAL_PL") == ["reports"]
+        assert graph.notes_for_object("report:nope") == []
+        # Real note links still resolve to backlinks.
+        assert graph.backlinks()["reports"] == ["glossary"]
+
+
 def test_search_ranks_title_and_returns_snippet():
     with tempfile.TemporaryDirectory() as tmp:
         _write(tmp, "reports.md", "---\ntags: [finance]\n---\n# Reports\n\nGross margin report definitions.\n")
@@ -93,6 +110,7 @@ def main():
     test_parse()
     test_graph()
     test_data_notes_link_into_wiki()
+    test_typed_object_links()
     test_search_ranks_title_and_returns_snippet()
     print("brain tests passed.")
     return 0

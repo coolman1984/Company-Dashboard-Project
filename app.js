@@ -42,7 +42,13 @@ var pageMeta = {
     scenario: ['2026 Operating Outlook', 'Actual P01-P05 plus T06 P06 plus T07 P07-P12'],
     trends: ['5-Year Trends', 'Structural P&L performance and efficiency ratios FY2022–FY2026'],
     portfolio: ['Strategic Portfolio Matrix', 'Product group growth vs margin positioning for capital allocation decisions'],
-    reports: ['Company Reports', 'Generate and download financial reports directly from the database']
+    reports: ['Company Reports', 'Generate and download financial reports directly from the database'],
+    ask: ['Ask the data', 'Type a question in Arabic or English — answered locally'],
+    briefing: ['Executive Briefing', 'One page: what changed, what is at risk, what to do'],
+    guardian: ['Guardian', 'Anomaly watch — what looks unusual, traced to its source'],
+    pricing: ['Price helper', 'Reprice, over-discounted, and raise-price suggestions'],
+    health: ['Source & Health', 'Where the numbers come from and whether they are clean'],
+    knowledge: ['Knowledge base', 'Search the company notes, decisions and definitions']
 };
 
 var metricLabels = {
@@ -1571,6 +1577,26 @@ function loadReports(force) {
         });
 }
 
+function loadRelatedNotes(ref) {
+    var host = el('reportRelated');
+    if (!host) return;
+    host.style.display = 'none';
+    host.innerHTML = '';
+    fetchJson(API + '/api/wiki/related?ref=' + encodeURIComponent(ref), { force: false })
+        .then(function (d) {
+            if (!d.notes || !d.notes.length) return;
+            host.innerHTML = '<div class="note-section-h">' + tr('Related notes') + '</div>' +
+                d.notes.map(function (n) {
+                    return '<a class="wikilink note-chip" data-note="' + escapeHtml(n.note) + '">📝 ' + escapeHtml(n.title) + '</a>';
+                }).join(' ');
+            host.querySelectorAll('a.wikilink').forEach(function (a) {
+                a.addEventListener('click', function () { openNote(a.dataset.note); });
+            });
+            host.style.display = '';
+        })
+        .catch(function () { /* no related notes panel if the brain is unavailable */ });
+}
+
 function viewReport(name) {
     var viewCard = el('reportViewCard');
     var viewTitle = el('reportViewTitle');
@@ -1585,6 +1611,7 @@ function viewReport(name) {
     viewCard.style.display = '';
     listEl.style.display = 'none';
     exportBtn.style.display = 'none';
+    loadRelatedNotes('report:' + name);
 
     fetchJson(API + '/api/reports/generate?name=' + encodeURIComponent(name))
         .then(function (data) {
@@ -1874,6 +1901,11 @@ function renderMarkdown(md) {
             var parts = t.split('|');
             var id = parts[0].trim();
             var label = (parts[1] || parts[0]).trim();
+            var m = /^(report|tab|region|country|product|customer|metric):(.+)$/i.exec(id);
+            if (m) {
+                // Typed link to a live dashboard object (Obsidian-style external link).
+                return '<a class="objlink" data-objtype="' + m[1].toLowerCase() + '" data-objid="' + m[2].trim() + '">' + label + '</a>';
+            }
             return '<a class="wikilink" data-note="' + id + '">' + label + '</a>';
         });
         s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
@@ -1947,15 +1979,57 @@ function runWikiSearch() {
         .catch(function (err) { resultsEl.innerHTML = '<div class="wiki-empty">' + escapeHtml(err.message) + '</div>'; });
 }
 
+var OBJ_ICON = { report: '📊', tab: '🧭', region: '🌍', country: '🏳️', product: '📦', customer: '👤', metric: '📈' };
+
+function openObjectRef(type, id) {
+    var tabFor = { region: 'regional', country: 'regional', product: 'product', customer: 'portfolio', metric: 'overview' };
+    if (type === 'tab') { activateTab(id); return; }
+    if (type === 'report') {
+        activateTab('reports');
+        window.setTimeout(function () { viewReport(id); }, 60);
+        return;
+    }
+    activateTab(tabFor[type] || 'overview');
+}
+
+function openNote(id) {
+    activateTab('knowledge');
+    window.setTimeout(function () { viewNote(id); }, 30);
+}
+
+function bindNoteLinks(root) {
+    root.querySelectorAll('a.wikilink').forEach(function (a) {
+        a.addEventListener('click', function () { viewNote(a.dataset.note); });
+    });
+    root.querySelectorAll('a.objlink').forEach(function (a) {
+        a.addEventListener('click', function () { openObjectRef(a.dataset.objtype, a.dataset.objid); });
+    });
+}
+
 function viewNote(id) {
     var noteEl = el('wikiNote');
     noteEl.innerHTML = '<div class="loading-spinner"></div>';
     fetchJson(API + '/api/wiki/note?id=' + encodeURIComponent(id), { force: true })
         .then(function (d) {
-            noteEl.innerHTML = renderMarkdown(d.body);
-            noteEl.querySelectorAll('a.wikilink').forEach(function (a) {
-                a.addEventListener('click', function () { viewNote(a.dataset.note); });
-            });
+            var html = renderMarkdown(d.body);
+            // Opens-in-dashboard chips (typed object references).
+            if (d.object_refs && d.object_refs.length) {
+                html += '<div class="note-section"><div class="note-section-h">' + tr('Opens in dashboard') + '</div>' +
+                    d.object_refs.map(function (r) {
+                        var p = r.split(':'); var type = p.shift(); var oid = p.join(':');
+                        return '<a class="objlink note-chip" data-objtype="' + escapeHtml(type) + '" data-objid="' + escapeHtml(oid) + '">' +
+                            (OBJ_ICON[type] || '🔗') + ' ' + escapeHtml(r) + '</a>';
+                    }).join(' ') + '</div>';
+            }
+            // Linked references (backlinks) — Obsidian style.
+            if (d.backlinks && d.backlinks.length) {
+                html += '<div class="note-section"><div class="note-section-h">' + tr('Linked references') + '</div>' +
+                    d.backlinks.map(function (b) {
+                        return '<a class="wikilink note-chip" data-note="' + escapeHtml(b.note) + '">' + escapeHtml(b.title) + '</a>';
+                    }).join(' ') + '</div>';
+            }
+            noteEl.innerHTML = html;
+            bindNoteLinks(noteEl);
         })
         .catch(function (err) { noteEl.innerHTML = '<div class="wiki-empty">' + escapeHtml(err.message) + '</div>'; });
 }
@@ -2220,8 +2294,9 @@ function loadActiveTab(force) {
 }
 
 function updatePageHeading(tabName) {
-    el('pageTitle').textContent = (window.I18N && window.I18N.t('page.' + tabName + '.title')) || tr(pageMeta[tabName][0]);
-    el('pageSubtitle').textContent = (window.I18N && window.I18N.t('page.' + tabName + '.sub')) || tr(pageMeta[tabName][1]);
+    var meta = pageMeta[tabName] || ['', ''];
+    el('pageTitle').textContent = (window.I18N && window.I18N.t('page.' + tabName + '.title')) || tr(meta[0]);
+    el('pageSubtitle').textContent = (window.I18N && window.I18N.t('page.' + tabName + '.sub')) || tr(meta[1]);
 }
 
 function activateTab(tabName) {

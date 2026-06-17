@@ -1328,6 +1328,31 @@ function handleApi(pathname, query, res) {
         return jsonResponse(res, body);
     }
 
+    if (pathname === '/api/wiki/related') {
+        // Notes that reference a dashboard object, e.g. ?ref=report:regional_pl.
+        const ref = String(query.ref || '').trim();
+        if (!ref) return jsonResponse(res, { ref: '', count: 0, notes: [] });
+        const result = spawnSync('python3', ['-m', 'brain.cli', '--related', ref],
+            { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 20000 });
+        if (result.status !== 0) return jsonResponse(res, { ref: ref, count: 0, notes: [] });
+        try {
+            return jsonResponse(res, JSON.parse(result.stdout));
+        } catch (error) {
+            return jsonResponse(res, { ref: ref, count: 0, notes: [] });
+        }
+    }
+
+    if (pathname === '/api/wiki/graph') {
+        const result = spawnSync('python3', ['-m', 'brain.cli', '--graph-json'],
+            { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 20000 });
+        if (result.status !== 0) return errorResponse(res, 500, 'Knowledge graph unavailable');
+        try {
+            return jsonResponse(res, JSON.parse(result.stdout));
+        } catch (error) {
+            return errorResponse(res, 500, 'Knowledge graph returned malformed output');
+        }
+    }
+
     if (pathname === '/api/reports') {
         return jsonResponse(res, {
             reports: REPORT_DEFINITIONS.map(r => ({ name: r.name, title: r.title, description: r.description })),

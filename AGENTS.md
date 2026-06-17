@@ -374,6 +374,37 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — main (Second-brain integration: typed links + backlinks + related notes; fixed tab-nav bug)
+**Did:** Wired the whole project into the knowledge base, Obsidian + Notion style
+(idea #3 + the "link everything" request).
+- **Typed links:** notes can write `[[report:regional_pl]]`, `[[tab:guardian]]`,
+  `[[region:Africa]]`, etc. `brain/graph.py` parses these as **object refs**
+  (`OBJECT_REF_RE`) and — importantly — **excludes them from broken-link checks**
+  so `brain.cli --check` (CI gate) stays green. New `notes_for_object()`.
+- **Backlinks + related:** `--note` now returns Obsidian **backlinks** +
+  `object_refs`; new `--related <ref>` and `--graph-json`. New endpoints
+  `/api/wiki/related`, `/api/wiki/graph`.
+- **UI:** the note viewer renders typed links as **deep-link chips** (navigate via
+  `openObjectRef`), plus "Opens in dashboard" + "Linked references" sections. Each
+  **report view shows a Related-notes strip** (jump note↔report both ways).
+  Added live typed links to `knowledge/reports.md` + `glossary.md`.
+- **Bug fix (important):** newly-added tabs (ask/briefing/guardian/pricing/health/
+  knowledge) were **throwing in `updatePageHeading`** because `pageMeta` lacked
+  them — their loaders never ran on click. Added `pageMeta` entries + a guard +
+  `page.<tab>.title/sub` i18n for both languages. All tabs now load + show a
+  correct bilingual heading.
+**Why:** the user asked to connect every part to the second brain "in a very
+professional way"; this makes notes first-class links to live data and back.
+**Status:** ✅ Full gate green on EN *and* AR seeds; brain tests +5 (typed
+links/backlinks/related); link-check 0 broken; new smoke for related/graph;
+verified visually (Knowledge note shows chips + backlinks; heading fixed).
+**Next (this batch, still to do):** smarter Ask + chart (#2); multi-client
+switcher (#1); OCR + merged-cell import (#7).
+**Watch out:** typed-link object types are fixed in `OBJECT_TYPES` (brain/graph.py)
++ the `app.js` regex + `openObjectRef` map — extend all three together. Deep-links
+for region/country/product/customer/metric navigate to the closest tab (no filter
+preset yet).
+
 ### 2026-06-16 — Claude Code — main (Phone-friendly / responsive layout)
 **Did:** Made the dashboard genuinely usable on a phone (audit P0 #2, mobile half).
 Reworked the `index.html` media queries: on small screens the left sidebar nav

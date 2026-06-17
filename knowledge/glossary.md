@@ -15,4 +15,7 @@ Definitions used across the dashboard and reports. #reference
 - **Net Income** — profit after tax.
 - **Outlook** — the forecast full-year figure; see [[conventions]].
 
+See it live: [[tab:briefing]] · [[metric:net_sales]] · [[metric:gross_margin]] ·
+[[report:customer_pl]].
+
 Related: [[conventions]], [[reports]], [[data-pipeline]].
