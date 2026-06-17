@@ -372,6 +372,34 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — main (Ask: offline natural-language querying — Arabic/English)
+**Did:** Built Hermes idea #2 (natural-language query) — but **offline and
+deterministic** (chosen with the user) so the product keeps its core promise:
+sensitive financial data never leaves the machine.
+- **Engine:** new `reports/nlquery.py` — a transparent rule-based parser that maps
+  an Arabic or English question to the existing query vocabulary (metric +
+  optional group-by + entity filters + year + quarter) and runs parameterised
+  SQL. It always returns *what it understood* (bilingual interpretation echo) so
+  the answer is trustworthy. Entity names are matched against the database's own
+  values, so it works in whichever language the data is in. No LLM, no network.
+- **Tests:** `reports/test_nlquery.py` — metric/dimension/year/quarter detection,
+  comparison vs single-entity filtering, and an end-to-end run. Wired into CI.
+- **Server:** `/api/nl-query?q=` reuses the engine (400 on empty query).
+- **Frontend:** new **Ask** tab (2nd) — a question box, example chips, the
+  understood-as interpretation line (shown in the active language), and an answer
+  table with CSV export. Fully bilingual.
+**Why:** "اعرضلي مبيعات أفريقيا مقارنة بآسيا" should just work — erasing the line
+between managers who can write a query and those who only want the answer, without
+sending a single number off the box.
+**Status:** ✅ Full gate green on EN *and* AR seeds; 6 nlquery unit tests pass;
+verified live (EN + AR questions, comparison + filter intents); Arabic verified.
+**Next:** broaden the grammar (top-N, growth %, "trend"), add a chart for grouped
+answers, and let an answer deep-link into the matching dashboard tab.
+**Watch out:** Deliberately deterministic — it understands the documented intents,
+not arbitrary free text (it falls back to net_sales + current year). Cross-language
+entity matching is limited to the data's own language. Synonyms live in
+`METRIC_SYNONYMS`/`DIM_SYNONYMS`/`QUARTERS` — extend there.
+
 ### 2026-06-16 — Claude Code — main (Guardian: deterministic anomaly detection — "passive guardian")
 **Did:** Built the highest-impact idea from Hermes's product brief — turn the
 product from passive (you open it and ask) to active (it watches and warns).

@@ -28,7 +28,7 @@ var freshness = null;
 var summary = null;
 var activeTab = 'overview';
 var standardFilterState = { year: '', version: 'Actual' };
-var tabLoaded = { overview: false, briefing: false, guardian: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false, reports: false, health: false, knowledge: false };
+var tabLoaded = { overview: false, ask: false, briefing: false, guardian: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false, reports: false, health: false, knowledge: false };
 var yearlyData = [];
 var executiveData = null;
 var productData = [];
@@ -1925,6 +1925,66 @@ function renderGuardian(d) {
     }).join('') + '</div>';
 }
 
+var askWired = false;
+var ASK_EXAMPLES = [
+    'net sales by region',
+    'compare Africa vs Asia Pacific net sales',
+    'gross margin first quarter',
+    'operating expense last year',
+    'net income by product'
+];
+
+function loadAsk() {
+    if (!askWired) {
+        askWired = true;
+        el('askBtn').addEventListener('click', runAsk);
+        el('askInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') runAsk(); });
+        el('askExamples').innerHTML = ASK_EXAMPLES.map(function (q) {
+            return '<button class="ask-chip" type="button" data-q="' + escapeHtml(q) + '">' + escapeHtml(q) + '</button>';
+        }).join('');
+        el('askExamples').querySelectorAll('.ask-chip').forEach(function (chip) {
+            chip.addEventListener('click', function () { el('askInput').value = chip.dataset.q; runAsk(); });
+        });
+    }
+    tabLoaded.ask = true;
+    return Promise.resolve();
+}
+
+function runAsk() {
+    var q = el('askInput').value.trim();
+    if (!q) return;
+    var interp = el('askInterpretation');
+    var card = el('askResultCard');
+    interp.hidden = false;
+    interp.innerHTML = '<div class="loading-spinner"></div>';
+    card.style.display = 'none';
+    fetchJson(API + '/api/nl-query?q=' + encodeURIComponent(q), { force: true })
+        .then(function (d) { renderAsk(d); })
+        .catch(function (err) {
+            interp.hidden = false;
+            interp.innerHTML = '<span class="ai-label">' + tr('Could not answer') + '</span>' + escapeHtml(err.message);
+        });
+}
+
+function renderAsk(d) {
+    var isAr = window.I18N && window.I18N.lang && window.I18N.lang() === 'ar';
+    var interpretation = isAr ? (d.interpretation_ar || d.interpretation) : d.interpretation;
+    el('askInterpretation').hidden = false;
+    el('askInterpretation').innerHTML = '<span class="ai-label">' + tr('Understood as') + ':</span>' + escapeHtml(interpretation || '');
+
+    var rows = d.rows || [];
+    var card = el('askResultCard');
+    el('askResultSub').textContent = (d.row_count || rows.length) + ' ' + tr('rows');
+    var metricLabel = guardianMetricLabel(d.metric) || d.metric;
+    var head = '<thead><tr><th>' + tr('Item') + '</th><th>' + escapeHtml(metricLabel) + '</th></tr></thead>';
+    var body = '<tbody>' + rows.map(function (r) {
+        var label = r.label === 'Total' ? tr('Total') : escapeHtml(tr(String(r.label)));
+        return '<tr><td>' + label + '</td><td>' + formatFull(r.value) + '</td></tr>';
+    }).join('') + '</tbody>';
+    el('askTable').innerHTML = head + body;
+    card.style.display = '';
+}
+
 function loadActiveTab(force) {
     setStatus(true, tr('Querying SQLite'));
     var loader = {
@@ -1939,7 +1999,8 @@ function loadActiveTab(force) {
         health: loadHealth,
         briefing: loadBriefing,
         knowledge: loadKnowledge,
-        guardian: loadGuardian
+        guardian: loadGuardian,
+        ask: loadAsk
     }[activeTab];
     return Promise.resolve(loader(force)).then(function () {
         setStatus(true, tr('Live SQLite'));

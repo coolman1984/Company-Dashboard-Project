@@ -805,6 +805,13 @@
         .alert-card .a-sev { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; flex: none; }
         .a-sev.high { background: #fee2e2; color: #991b1b; } .a-sev.medium { background: #fef3c7; color: #92400e; }
         .guardian-clear { text-align: center; padding: 32px; color: #166534; font-weight: 700; font-size: 15px; }
+        .ask-bar { display: flex; gap: 10px; margin: 6px 0 12px; }
+        .ask-bar input { flex: 1; padding: 12px 14px; font: inherit; border: 1px solid var(--border, #e3e8f0); border-radius: 10px; }
+        .ask-examples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+        .ask-chip { font: inherit; font-size: 12px; border: 1px solid var(--border, #e3e8f0); background: #fff; border-radius: 999px; padding: 5px 12px; cursor: pointer; color: #334155; }
+        .ask-chip:hover { border-color: var(--primary, #2563eb); background: var(--primary-soft, #eff6ff); }
+        .ask-interpretation { font-size: 13px; font-weight: 600; color: #1e293b; background: var(--primary-soft, #eff6ff); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; }
+        .ask-interpretation .ai-label { color: #64748b; font-weight: 700; margin-inline-end: 6px; }
         @media print {
             .app-sidebar, .topbar, .global-filters, #briefingPrint, .tab, .app-shell > aside { display: none !important; }
             .panel:not(#panel-briefing) { display: none !important; }
@@ -830,6 +837,10 @@
             <button class="tab active" type="button" role="tab" id="tab-overview" aria-selected="true" aria-controls="panel-overview" data-tab="overview">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
                 <span data-i18n="tab.overview">Overview</span>
+            </button>
+            <button class="tab" type="button" role="tab" id="tab-ask" aria-selected="false" aria-controls="panel-ask" data-tab="ask">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <span data-i18n="tab.ask">Ask</span>
             </button>
             <button class="tab" type="button" role="tab" id="tab-briefing" aria-selected="false" aria-controls="panel-briefing" data-tab="briefing">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>
@@ -979,6 +990,20 @@
                         <button class="export-btn" type="button" data-export-table="profitabilityTable" data-export-name="product-profitability-actions">Export CSV</button>
                     </div>
                     <div class="table-scroll"><table class="data-table" id="profitabilityTable"></table></div>
+                </article>
+            </section>
+
+            <section class="panel" id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden>
+                <div class="section-head"><div><h2 data-i18n="ask.title">Ask the data</h2><p data-i18n="ask.subtitle">Type a question in Arabic or English — answered locally, no data leaves the machine.</p></div></div>
+                <div class="ask-bar">
+                    <input type="search" id="askInput" autocomplete="off" placeholder="net sales by region · compare Africa vs Asia · gross margin Q1">
+                    <button class="primary-btn" type="button" id="askBtn" data-i18n="ask.run">Ask</button>
+                </div>
+                <div class="ask-examples" id="askExamples"></div>
+                <div id="askInterpretation" class="ask-interpretation" hidden></div>
+                <article class="table-card" id="askResultCard" style="display:none">
+                    <div class="table-head"><div><div class="chart-title" data-i18n="ask.resultTitle">Answer</div><div class="chart-subtitle" id="askResultSub"></div></div><button class="export-btn" type="button" data-export-table="askTable" data-export-name="ask-result">Export CSV</button></div>
+                    <div class="table-scroll"><table class="data-table" id="askTable"></table></div>
                 </article>
             </section>
 

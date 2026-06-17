@@ -1117,6 +1117,23 @@ function handleApi(pathname, query, res) {
         }
     }
 
+    if (pathname === '/api/nl-query') {
+        // Offline natural-language query — deterministic parser, no network/LLM.
+        const q = String(query.q || '').trim();
+        if (!q) return errorResponse(res, 400, 'Missing query (q).');
+        try {
+            const result = spawnSync('python3', ['-m', 'reports.nlquery', '--eval-stdin', '--db', DB_PATH],
+                { cwd: PROJECT_ROOT, encoding: 'utf8', input: q, timeout: 30000 });
+            if (result.status !== 0) {
+                const details = (result.stderr || result.stdout || '').trim();
+                return errorResponse(res, 500, `Query failed: ${details || result.status}`);
+            }
+            return jsonResponse(res, JSON.parse(result.stdout));
+        } catch (error) {
+            return errorResponse(res, 500, `Query failed: ${error.message}`);
+        }
+    }
+
     if (pathname === '/api/anomalies') {
         // The "passive guardian": deterministic, source-traceable anomaly
         // detection. Reuses the tested Python engine (reports/anomaly.py).

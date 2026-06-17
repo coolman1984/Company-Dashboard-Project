@@ -163,6 +163,15 @@ async function run() {
 
     // Interactive what-if levers: a no-op scenario reproduces the baseline exactly,
     // and a real lever moves net income.
+    const nl = await getJson('/api/nl-query?q=' + encodeURIComponent('net sales by region'));
+    assert.equal(nl.response.status, 200);
+    assert.equal(nl.body.metric, 'net_sales');
+    assert.equal(nl.body.query.group_by, 'region_desc');
+    assert.ok(Array.isArray(nl.body.rows) && nl.body.rows.length > 0);
+    assert.ok(typeof nl.body.interpretation === 'string' && nl.body.interpretation.length > 0);
+    const nlBad = await fetch(baseUrl + '/api/nl-query');
+    assert.equal(nlBad.status, 400);
+
     const anomalies = await getJson('/api/anomalies');
     assert.equal(anomalies.response.status, 200);
     assert.ok(typeof anomalies.body.count === 'number');

@@ -259,6 +259,7 @@ All endpoints are `GET` and return JSON. Common filters: `version`, `year`,
 | `/api/executive-outlook` | Reconciled CFO outlook cockpit |
 | `/api/executive-narrative` | One-page executive briefing: top changes, risks, actions, source confidence |
 | `/api/anomalies` | Guardian: deterministic, source-traceable anomaly detection over the ledger |
+| `/api/nl-query?q=` | Offline natural-language query (Arabic/English) — deterministic, no network/LLM |
 | `/api/drilldown` | Variance contributors between two years |
 | `/api/top-products`, `/api/portfolio` | Product economics |
 | `/api/reports` | List available saved reports (+ `exportFormats` capability flags) |
