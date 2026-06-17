@@ -10,7 +10,6 @@
 
 | # | المهمة | الوصف | الوكيل المقترح |
 |---|--------|-------|----------------|
-| R1 | Client-specific report templates | قوالب تقارير مخصصة لكل عميل | hermes/claude |
 | R4 | Volume/price decomposition | تحليل حجم/سعر مدمج في الداشبورد | claude |
 | R7 | Note→report deep links | روابط من ملاحظات المعرفة إلى تقارير محددة | claude |
 | R9 | Live Outlook COM extraction | استخراج مباشر من Outlook على Windows | codex/claude |
@@ -22,7 +21,7 @@
 
 | # | المهمة | الوكيل | منذ |
 |---|--------|--------|-----|
-| R1 | Client-specific report templates | hermes | 2026-06-17 |
+| — | — | — | — |
 
 ---
 
@@ -30,7 +29,7 @@
 
 | # | المهمة | الوكيل | commit/PR | التاريخ |
 |---|--------|--------|-----------|---------|
-| R10 | Merged-cell & multi-row headers | claude | `10514af` → main | 2026-06-17 |
+| R1 | Client-specific report templates | hermes | `80a8ba6` → main | 2026-06-17 |
 | R8 | OCR for scanned PDFs | claude | `10514af` → main | 2026-06-17 |
 | R6 | HTML/graph viewer for brain | claude | `e33a3f2` → main | 2026-06-17 |
 | R3 | Scenarios in live dashboard | claude | `d80d167` → main | 2026-06-17 |
