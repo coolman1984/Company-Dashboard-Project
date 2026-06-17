@@ -15,7 +15,7 @@ import json
 import os
 import sys
 
-from .data_notes import generate_region_notes
+from .data_notes import generate_region_notes, generate_report_notes, generate_product_notes
 from .graph import build_graph
 from .parse import parse_tree
 from .search import search as search_notes
@@ -127,8 +127,8 @@ def main(argv=None):
     parser.add_argument("--check", action="store_true", help="Validate links.")
     parser.add_argument("--index", action="store_true", help="Rewrite index.md.")
     parser.add_argument("--graph", action="store_true", help="Write graph JSON.")
-    parser.add_argument("--data-notes", action="store_true",
-                        help="Generate region notes from the database.")
+    parser.add_argument("--data-notes", nargs="?", const="regions", default=None,
+                        help="Generate data notes: 'regions' (default), 'reports', 'products', or 'all'.")
     parser.add_argument("--search", default=None,
                         help="Full-text search query for the knowledge base.")
     parser.add_argument("--note", default=None,
@@ -142,9 +142,19 @@ def main(argv=None):
     parser.add_argument("--db", default=None, help="Database for --data-notes.")
     args = parser.parse_args(argv)
 
-    if args.data_notes:
+    if args.data_notes is not None:
+        kind = args.data_notes.strip().lower()
         try:
-            generate_region_notes(db_path=args.db) if args.db else generate_region_notes()
+            if kind == "reports":
+                generate_report_notes(db_path=args.db)
+            elif kind == "products":
+                generate_product_notes(db_path=args.db)
+            elif kind == "all":
+                generate_region_notes(db_path=args.db) if args.db else generate_region_notes()
+                generate_report_notes(db_path=args.db)
+                generate_product_notes(db_path=args.db)
+            else:  # 'regions' or any other value
+                generate_region_notes(db_path=args.db) if args.db else generate_region_notes()
         except FileNotFoundError as error:
             print(f"ERROR: {error}", file=sys.stderr)
             return 1
