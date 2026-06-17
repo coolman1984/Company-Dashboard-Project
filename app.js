@@ -2291,6 +2291,53 @@ function renderPricing(d) {
     }).join('') + '</div>';
 }
 
+function loadClientPicker() {
+    var picker = el('clientPicker');
+    if (!picker) return;
+    fetchJson(API + '/api/clients', { force: true })
+        .then(function (d) {
+            var clients = d.clients || [];
+            // Only show the picker when there's more than one client to choose from.
+            if (clients.length < 2) { picker.style.display = 'none'; return; }
+            picker.innerHTML = clients.map(function (c) {
+                var label = c.id === 'default' ? tr('Default') : c.label;
+                return '<option value="' + escapeHtml(c.id) + '"' + (c.active ? ' selected' : '') + '>' +
+                    escapeHtml(label) + '</option>';
+            }).join('');
+            picker.style.display = '';
+            if (!picker.dataset.wired) {
+                picker.dataset.wired = '1';
+                picker.addEventListener('change', function () { switchClient(picker.value); });
+            }
+        })
+        .catch(function () { picker.style.display = 'none'; });
+}
+
+function switchClient(id) {
+    setStatus(true, tr('Switching client'));
+    fetchJson(API + '/api/clients/switch?id=' + encodeURIComponent(id), { force: true })
+        .then(function () {
+            // New client = fresh data: clear caches, reset tabs, reload everything.
+            requestCache.clear();
+            Object.keys(tabLoaded).forEach(function (k) { tabLoaded[k] = false; });
+            showToast(tr('Client changed'));
+            return Promise.all([
+                fetchJson(API + '/api/summary', { force: true }),
+                fetchJson(API + '/api/filters', { force: true }),
+                fetchJson(API + '/api/data-freshness', { force: true })
+            ]);
+        })
+        .then(function (results) {
+            summary = results[0]; filters = results[1]; freshness = results[2];
+            populateControls();
+            renderSummaryMeta();
+            renderFreshness();
+            primeGuardianBadge();
+            loadActiveTab(true);
+        })
+        .catch(function (err) { showToast(tr('Download failed') + ': ' + err.message, true); });
+}
+
 function loadActiveTab(force) {
     setStatus(true, tr('Querying SQLite'));
     var loader = {
@@ -2511,6 +2558,7 @@ function bootstrap() {
         }
         setStatus(status.database === 'connected', status.backend === 'sqlite-live' ? tr('Live SQLite') : tr('Fallback cache'));
         primeGuardianBadge();
+        loadClientPicker();
         return loadOverview(false);
     }).catch(function () {
         setStatus(false, tr('Connection failed'));

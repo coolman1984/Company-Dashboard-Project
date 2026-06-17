@@ -252,6 +252,7 @@ All endpoints are `GET` and return JSON. Common filters: `version`, `year`,
 | Endpoint | Description |
 |----------|-------------|
 | `/api/status` | Server + backend health |
+| `/api/clients`, `/api/clients/switch?id=` | List / switch the active client database (multi-client) |
 | `/api/summary` | Row counts and dimensions |
 | `/api/filters` | Distinct filter values |
 | `/api/data-freshness` | Period coverage per year/version |

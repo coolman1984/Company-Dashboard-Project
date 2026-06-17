@@ -855,6 +855,7 @@
         .tornado-fill { position: absolute; top: 0; height: 18px; background: var(--primary, #2563eb); border-radius: 6px; }
         .tornado-row .t-val { text-align: end; color: #475569; font-variant-numeric: tabular-nums; }
         .boardpack-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .client-picker { padding: 8px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); color: var(--ink, #1e293b); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
         @media print {
             .app-sidebar, .topbar, .global-filters, #briefingPrint, .tab, .app-shell > aside { display: none !important; }
             .panel:not(#panel-briefing) { display: none !important; }
@@ -950,6 +951,7 @@
                 <p id="pageSubtitle">Live profit and loss performance from the SQLite detail ledger</p>
             </div>
             <div class="topbar-actions">
+                <select id="clientPicker" class="client-picker" title="Client" style="display:none"></select>
                 <div class="connection"><span class="status-dot" id="statusDot"></span><span id="statusLabel" data-i18n="status.connecting">Connecting...</span></div>
                 <button class="secondary-btn" type="button" id="langToggle">العربية</button>
                 <button class="secondary-btn" type="button" id="digitToggle">١٢٣</button>

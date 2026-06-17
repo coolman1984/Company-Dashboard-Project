@@ -218,6 +218,14 @@ async function run() {
         assert.ok(a.type && a.severity && a.source && a.source.metric);
     });
 
+    const clients = await getJson('/api/clients');
+    assert.equal(clients.response.status, 200);
+    assert.ok(Array.isArray(clients.body.clients) && clients.body.clients.length >= 1);
+    assert.equal(clients.body.active, 'default');
+    assert.ok(clients.body.clients.some(c => c.id === 'default'));
+    const badSwitch = await fetch(baseUrl + '/api/clients/switch?id=__nope__');
+    assert.equal(badSwitch.status, 400);
+
     const related = await getJson('/api/wiki/related?ref=report:regional_pl');
     assert.equal(related.response.status, 200);
     assert.ok(Array.isArray(related.body.notes));

@@ -249,6 +249,21 @@ Each entry: **what it does · tech · when to use · edge cases · files/endpoin
   `GET /api/wiki/search`, `/api/wiki/note`, `/api/wiki/related`, `/api/wiki/graph`
   · **Knowledge** tab + **Related notes** on the Reports view.
 
+### 4.8c Many clients in one place  (multi-client switcher)
+- **What:** a client picker in the topbar to switch which client's data the whole
+  dashboard shows. Appears only when more than one client exists.
+- **Tech:** each client is a database at `clients/<id>/pl_detail.db` (git-ignored);
+  `'default'` is the root `pl_detail.db`. The server reopens the read-only
+  connection and **re-detects metadata** (years/versions/outlook) on switch;
+  every live query and Python-spawning feature uses `activeDbPath()`.
+- **When:** an advisor/office serving several clients from one install.
+- **Edge cases:** switching clears client-side caches and reloads all tabs;
+  unknown client → `400`; a missing/corrupt client db fails the switch without
+  dropping the current one; the active client is in-memory (resets to default on
+  server restart). Client data is **never committed** (`clients/` is git-ignored).
+- **Where:** `clients/<id>/pl_detail.db` · `GET /api/clients`,
+  `/api/clients/switch?id=` · topbar **client picker**.
+
 ### 4.9 Foundational layers (not "tabs", but the ground everything stands on)
 - **Data:** `schema.sql` + `db_schema.py` + `seed_db.py` (synthetic dev/CI data;
   `--locale ar` for Arabic). The MCP server (`mcp_server/`) exposes read-only

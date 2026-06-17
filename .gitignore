@@ -52,3 +52,6 @@ import_history*.json
 
 # Guardian "seen alerts" memory (local only)
 output/guardian_state.json
+
+# Multi-client databases (client financial data — keep local, never commit)
+clients/

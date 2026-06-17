@@ -374,6 +374,27 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — main (Multi-client switcher + smarter Ask top-N/chart)
+**Did:** Two of the requested features.
+- **Many clients in one place (idea #1):** refactored the DB bootstrap into
+  `connectDatabase(dbPath)` so the server can **reopen** a different client's
+  database at runtime and re-detect metadata (years/versions/outlook). Each client
+  is `clients/<id>/pl_detail.db` (git-ignored); `default` = root db. New
+  `/api/clients` + `/api/clients/switch?id=`, and a **topbar client picker** that
+  clears caches and reloads everything. All Python-spawning endpoints now use
+  `activeDbPath()`. Verified live: switching default↔acme flips English↔Arabic data.
+- **Smarter Ask (idea #2):** `nlquery.py` parses **top-N** ("top 5 customers",
+  "أكبر 5"); the Ask tab draws a **bar chart** for grouped answers. Test added.
+**Why:** an office serving several clients needs one install; and Ask is more
+useful with ranking + a visual.
+**Status:** ✅ Full gate green on EN *and* AR seeds; new smoke for /api/clients
+(+400 on unknown); nlquery test +1; verified the picker + chart with Playwright.
+**Next (last of this batch):** OCR + merged-cell import (#7) — OCR is optional/
+graceful (needs system tesseract, can't be fully tested in this sandbox).
+**Watch out:** active client is in-memory (resets on restart); a client switch
+re-detects metadata so VALID_YEARS/OUTLOOK_* change with the data; `clients/` is
+git-ignored — never commit client data.
+
 ### 2026-06-16 — Claude Code — main (Second-brain integration: typed links + backlinks + related notes; fixed tab-nav bug)
 **Did:** Wired the whole project into the knowledge base, Obsidian + Notion style
 (idea #3 + the "link everything" request).

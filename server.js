@@ -186,58 +186,90 @@ const MIME_TYPES = {
 let db = null;
 let dbAvailable = false;
 
-try {
-    const Database = require('better-sqlite3');
-    db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
-    db.pragma('query_only = ON');
-    db.pragma('temp_store = MEMORY');
-    db.pragma('cache_size = -64000');
-    dbAvailable = true;
-    console.log(`SQLite connected in read-only mode: ${DB_PATH}`);
-
-    const dbYears = db.prepare(
-        'SELECT DISTINCT year FROM pl_detail ORDER BY year'
-    ).all().map(r => r.year);
-    if (dbYears.length > 0) VALID_YEARS = dbYears;
-
-    const dbVersions = db.prepare(
-        'SELECT DISTINCT version FROM pl_detail ORDER BY version'
-    ).all().map(r => r.version);
-    if (dbVersions.length > 0) VALID_VERSIONS = dbVersions;
-
-    const outlookCandidate = db.prepare(`
-        SELECT year FROM pl_detail
-        WHERE version IN ('T06', 'T07')
-        GROUP BY year
-        ORDER BY year DESC
-        LIMIT 1
-    `).all();
-    if (outlookCandidate.length > 0) {
-        OUTLOOK_YEAR = outlookCandidate[0].year;
-    } else {
-        const latestActual = db.prepare(
-            'SELECT MAX(year) AS year FROM pl_detail'
-        ).all();
-        OUTLOOK_YEAR = latestActual[0] && latestActual[0].year
-            ? latestActual[0].year
-            : HARDCODED_YEARS[HARDCODED_YEARS.length - 1];
-    }
-
-    const actualCount = db.prepare(`
-        SELECT COUNT(DISTINCT ${PERIOD_NUMBER_SQL}) AS cnt
-        FROM pl_detail
-        WHERE year = ? AND version = 'Actual'
-    `).get(OUTLOOK_YEAR);
-    OUTLOOK_ACTUAL_PERIODS = actualCount && actualCount.cnt ? actualCount.cnt : 5;
-
-    console.log(
-        `Years: ${VALID_YEARS.map(String).join(',')}  |  ` +
-        `Versions: ${VALID_VERSIONS.join(',')}  |  ` +
-        `Outlook year: ${OUTLOOK_YEAR} (Actual P01-P${String(OUTLOOK_ACTUAL_PERIODS).padStart(2, '0')})`
-    );
-} catch (error) {
-    console.warn(`WARN: SQLite unavailable: ${error.message}`);
+// Multi-client: the active client's database. 'default' is the root pl_detail.db;
+// other clients live in clients/<id>/pl_detail.db (git-ignored, local data).
+const CLIENTS_DIR = path.join(PROJECT_ROOT, 'clients');
+let activeClient = 'default';
+function clientDbPath(id) {
+    return (!id || id === 'default') ? DB_PATH : path.join(CLIENTS_DIR, id, 'pl_detail.db');
 }
+function activeDbPath() {
+    return clientDbPath(activeClient);
+}
+
+function connectDatabase(dbPath) {
+    try {
+        const Database = require('better-sqlite3');
+        const next = new Database(dbPath, { readonly: true, fileMustExist: true });
+        next.pragma('query_only = ON');
+        next.pragma('temp_store = MEMORY');
+        next.pragma('cache_size = -64000');
+        if (db) { try { db.close(); } catch (e) { /* ignore */ } }
+        db = next;
+        dbAvailable = true;
+        console.log(`SQLite connected in read-only mode: ${dbPath}`);
+
+        const dbYears = db.prepare('SELECT DISTINCT year FROM pl_detail ORDER BY year').all().map(r => r.year);
+        VALID_YEARS = dbYears.length > 0 ? dbYears : HARDCODED_YEARS;
+
+        const dbVersions = db.prepare('SELECT DISTINCT version FROM pl_detail ORDER BY version').all().map(r => r.version);
+        if (dbVersions.length > 0) VALID_VERSIONS = dbVersions;
+
+        const outlookCandidate = db.prepare(`
+            SELECT year FROM pl_detail WHERE version IN ('T06', 'T07')
+            GROUP BY year ORDER BY year DESC LIMIT 1
+        `).all();
+        if (outlookCandidate.length > 0) {
+            OUTLOOK_YEAR = outlookCandidate[0].year;
+        } else {
+            const latestActual = db.prepare('SELECT MAX(year) AS year FROM pl_detail').all();
+            OUTLOOK_YEAR = latestActual[0] && latestActual[0].year
+                ? latestActual[0].year : HARDCODED_YEARS[HARDCODED_YEARS.length - 1];
+        }
+
+        const actualCount = db.prepare(`
+            SELECT COUNT(DISTINCT ${PERIOD_NUMBER_SQL}) AS cnt
+            FROM pl_detail WHERE year = ? AND version = 'Actual'
+        `).get(OUTLOOK_YEAR);
+        OUTLOOK_ACTUAL_PERIODS = actualCount && actualCount.cnt ? actualCount.cnt : 5;
+
+        console.log(
+            `Years: ${VALID_YEARS.map(String).join(',')}  |  ` +
+            `Versions: ${VALID_VERSIONS.join(',')}  |  ` +
+            `Outlook year: ${OUTLOOK_YEAR} (Actual P01-P${String(OUTLOOK_ACTUAL_PERIODS).padStart(2, '0')})`
+        );
+        return true;
+    } catch (error) {
+        console.warn(`WARN: SQLite unavailable (${dbPath}): ${error.message}`);
+        dbAvailable = false;
+        return false;
+    }
+}
+
+function listClients() {
+    const clients = [{ id: 'default', label: 'Default', active: activeClient === 'default' }];
+    try {
+        if (fs.existsSync(CLIENTS_DIR)) {
+            for (const id of fs.readdirSync(CLIENTS_DIR).sort()) {
+                if (fs.existsSync(path.join(CLIENTS_DIR, id, 'pl_detail.db'))) {
+                    clients.push({ id, label: id, active: activeClient === id });
+                }
+            }
+        }
+    } catch (error) { /* no clients dir */ }
+    return clients;
+}
+
+function switchClient(id) {
+    if (id === activeClient) return { ok: true, active: activeClient };
+    const valid = listClients().some(c => c.id === id);
+    if (!valid) return { ok: false, error: `Unknown client: ${id}` };
+    if (!connectDatabase(clientDbPath(id))) return { ok: false, error: `Could not load client: ${id}` };
+    activeClient = id;
+    return { ok: true, active: activeClient };
+}
+
+connectDatabase(DB_PATH);
 
 const fallbackCache = {};
 
@@ -331,7 +363,7 @@ function reportEnvelope(def) {
         title: def.title,
         description: def.description,
         generated_at: new Date().toISOString(),
-        source: { database: path.basename(DB_PATH), rows_in_ledger: getSummary().totalRows },
+        source: { database: path.basename(activeDbPath()), rows_in_ledger: getSummary().totalRows },
         columns: columns,
         row_count: rows.length,
         rows: rows
@@ -374,7 +406,7 @@ function reportOfficeBuffer(name, format) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdash-report-'));
     try {
         const result = spawnSync('python3', [
-            '-m', 'reports.cli', '--db', DB_PATH, '--out', tmpDir,
+            '-m', 'reports.cli', '--db', activeDbPath(), '--out', tmpDir,
             '--report', name, '--format', format
         ], { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 120000 });
         if (result.status !== 0) {
@@ -414,7 +446,7 @@ function writeGuardianSeen(ids) {
     }
 }
 function runAnomalyReport() {
-    const result = spawnSync('python3', ['-m', 'reports.anomaly', '--db', DB_PATH, '--json'],
+    const result = spawnSync('python3', ['-m', 'reports.anomaly', '--db', activeDbPath(), '--json'],
         { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 30000 });
     if (result.status !== 0) {
         throw new Error((result.stderr || result.stdout || '').trim() || `exit ${result.status}`);
@@ -962,7 +994,7 @@ function getSummary() {
     `).get();
     return {
         ...row,
-        databaseSizeBytes: fs.statSync(DB_PATH).size,
+        databaseSizeBytes: fs.statSync(activeDbPath()).size,
         backend: 'sqlite-live'
     };
 }
@@ -1134,7 +1166,7 @@ function handleApi(pathname, query, res) {
             cogs_scales_with_revenue: scales
         };
         try {
-            const result = spawnSync('python3', ['-m', 'reports.scenario', '--eval-stdin', '--db', DB_PATH],
+            const result = spawnSync('python3', ['-m', 'reports.scenario', '--eval-stdin', '--db', activeDbPath()],
                 { cwd: PROJECT_ROOT, encoding: 'utf8', input: JSON.stringify(config), timeout: 30000 });
             if (result.status !== 0) {
                 const details = (result.stderr || result.stdout || '').trim();
@@ -1151,7 +1183,7 @@ function handleApi(pathname, query, res) {
         const q = String(query.q || '').trim();
         if (!q) return errorResponse(res, 400, 'Missing query (q).');
         try {
-            const result = spawnSync('python3', ['-m', 'reports.nlquery', '--eval-stdin', '--db', DB_PATH],
+            const result = spawnSync('python3', ['-m', 'reports.nlquery', '--eval-stdin', '--db', activeDbPath()],
                 { cwd: PROJECT_ROOT, encoding: 'utf8', input: q, timeout: 30000 });
             if (result.status !== 0) {
                 const details = (result.stderr || result.stdout || '').trim();
@@ -1180,7 +1212,7 @@ function handleApi(pathname, query, res) {
         const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdash-pack-'));
         try {
             const result = spawnSync('python3', [
-                '-m', 'reports.cli', '--pack', '--db', DB_PATH, '--out', tmpDir,
+                '-m', 'reports.cli', '--pack', '--db', activeDbPath(), '--out', tmpDir,
                 '--format', format, '--title', 'Board Pack'
             ], { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 180000 });
             if (result.status !== 0) {
@@ -1200,10 +1232,21 @@ function handleApi(pathname, query, res) {
         }
     }
 
+    if (pathname === '/api/clients') {
+        return jsonResponse(res, { clients: listClients(), active: activeClient });
+    }
+
+    if (pathname === '/api/clients/switch') {
+        const id = String(query.id || '').trim();
+        const result = switchClient(id);
+        if (!result.ok) return errorResponse(res, 400, result.error || 'Switch failed');
+        return jsonResponse(res, { ok: true, active: result.active, clients: listClients() });
+    }
+
     if (pathname === '/api/pricing') {
         // Price helper: deterministic, source-traceable pricing intelligence.
         try {
-            const result = spawnSync('python3', ['-m', 'reports.pricing', '--db', DB_PATH, '--json'],
+            const result = spawnSync('python3', ['-m', 'reports.pricing', '--db', activeDbPath(), '--json'],
                 { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 30000 });
             if (result.status !== 0) {
                 const details = (result.stderr || result.stdout || '').trim();
@@ -1231,7 +1274,7 @@ function handleApi(pathname, query, res) {
             ]
         };
         try {
-            const result = spawnSync('python3', ['-m', 'reports.scenario', '--compare-stdin', '--db', DB_PATH],
+            const result = spawnSync('python3', ['-m', 'reports.scenario', '--compare-stdin', '--db', activeDbPath()],
                 { cwd: PROJECT_ROOT, encoding: 'utf8', input: JSON.stringify(presets), timeout: 30000 });
             if (result.status !== 0) {
                 const details = (result.stderr || result.stdout || '').trim();
@@ -1249,7 +1292,7 @@ function handleApi(pathname, query, res) {
         if (!Number.isFinite(delta)) delta = 5;
         delta = Math.max(1, Math.min(50, delta));
         try {
-            const result = spawnSync('python3', ['-m', 'reports.sensitivity', '--db', DB_PATH, '--delta', String(delta), '--json'],
+            const result = spawnSync('python3', ['-m', 'reports.sensitivity', '--db', activeDbPath(), '--delta', String(delta), '--json'],
                 { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 30000 });
             if (result.status !== 0) {
                 const details = (result.stderr || result.stdout || '').trim();
