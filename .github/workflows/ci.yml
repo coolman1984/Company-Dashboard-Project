@@ -88,6 +88,9 @@ jobs:
       - name: Run profit-sensitivity tests
         run: python3 -m reports.test_sensitivity
 
+      - name: Run pricing-intelligence tests
+        run: python3 -m reports.test_pricing
+
       - name: Run knowledge base tests
         run: python3 -m brain.test_brain
 

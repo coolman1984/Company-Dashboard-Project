@@ -1200,6 +1200,21 @@ function handleApi(pathname, query, res) {
         }
     }
 
+    if (pathname === '/api/pricing') {
+        // Price helper: deterministic, source-traceable pricing intelligence.
+        try {
+            const result = spawnSync('python3', ['-m', 'reports.pricing', '--db', DB_PATH, '--json'],
+                { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 30000 });
+            if (result.status !== 0) {
+                const details = (result.stderr || result.stdout || '').trim();
+                return errorResponse(res, 500, `Pricing analysis failed: ${details || result.status}`);
+            }
+            return jsonResponse(res, JSON.parse(result.stdout));
+        } catch (error) {
+            return errorResponse(res, 500, `Pricing analysis failed: ${error.message}`);
+        }
+    }
+
     if (pathname === '/api/scenario-compare') {
         // Three plans side by side (Conservative / Base / Aggressive). Reuses the
         // scenario engine; presets are intentionally simple and tunable.

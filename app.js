@@ -28,7 +28,7 @@ var freshness = null;
 var summary = null;
 var activeTab = 'overview';
 var standardFilterState = { year: '', version: 'Actual' };
-var tabLoaded = { overview: false, ask: false, briefing: false, guardian: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false, reports: false, health: false, knowledge: false };
+var tabLoaded = { overview: false, ask: false, briefing: false, guardian: false, pricing: false, regional: false, product: false, drilldown: false, scenario: false, trends: false, portfolio: false, reports: false, health: false, knowledge: false };
 var yearlyData = [];
 var executiveData = null;
 var productData = [];
@@ -2138,6 +2138,62 @@ function renderAsk(d) {
     card.style.display = '';
 }
 
+function pricingText(s) {
+    var label = escapeHtml(tr(String(s.label)));
+    if (s.type === 'lose_money') {
+        return label + ' — ' + tr('loses money (operating profit is negative)') + '. ' +
+            tr('margin') + ' ' + pctVal(s.gross_margin_pct) + ' ' + tr('vs company average') + ' ' +
+            pctVal(s.company_avg_pct) + '. ' + tr('Reprice or exit.');
+    }
+    if (s.type === 'over_discounted') {
+        return label + ' — ' + tr('margin') + ' ' + pctVal(s.gross_margin_pct) + ' — ' +
+            pctVal(s.gap_pp) + ' pp ' + tr('below the company average') + '. ' +
+            tr('Review discounts and pricing.');
+    }
+    if (s.type === 'raise_price') {
+        return label + ' — ' + tr('demand growing') + ' ' + pctVal(s.growth_pct) + ' ' +
+            tr('but margin is thin') + ' (' + pctVal(s.gross_margin_pct) + '). ' + tr('Room to raise price.');
+    }
+    return label;
+}
+
+function pricingTrace(s) {
+    return 'FY' + (s.source && s.source.year) + ' · ' + s.dimension + '=' + s.label + ' · net_sales=' + Math.round(s.net_sales);
+}
+
+function loadPricing(force) {
+    var list = el('pricingList');
+    el('pricingSummary').innerHTML = '';
+    list.innerHTML = '<div class="loading-spinner"></div>';
+    return fetchJson(API + '/api/pricing', { force: force })
+        .then(function (d) { renderPricing(d); tabLoaded.pricing = true; })
+        .catch(function (err) {
+            list.innerHTML = '<div class="wiki-empty">' + escapeHtml(err.message) + '</div>';
+            tabLoaded.pricing = true;
+        });
+}
+
+function renderPricing(d) {
+    var s = d.suggestions || [];
+    var by = d.by_action || {};
+    el('pricingSummary').innerHTML =
+        '<div class="health-card ' + (by.lose_money ? 'is-warn' : 'is-ok') + '"><div class="health-num">' + (by.lose_money || 0) + '</div><div class="health-lbl">' + tr('Losing money') + '</div></div>' +
+        '<div class="health-card ' + (by.over_discounted ? 'is-warn' : 'is-ok') + '"><div class="health-num">' + (by.over_discounted || 0) + '</div><div class="health-lbl">' + tr('Over-discounted') + '</div></div>' +
+        '<div class="health-card"><div class="health-num">' + (by.raise_price || 0) + '</div><div class="health-lbl">' + tr('Raise price') + '</div></div>';
+    if (!s.length) {
+        el('pricingList').innerHTML = '<div class="guardian-clear">✓ ' + tr('Pricing looks healthy — no actions needed.') + '</div>';
+        return;
+    }
+    var sevClass = { high: 'high', medium: 'medium', opportunity: 'medium' };
+    var sevLabel = { high: tr('Fix'), medium: tr('Review'), opportunity: tr('Opportunity') };
+    el('pricingList').innerHTML = '<div class="guardian-list">' + s.map(function (x) {
+        return '<div class="alert-card sev-' + (x.severity === 'high' ? 'high' : 'medium') + '">' +
+            '<span class="a-sev ' + (sevClass[x.severity] || 'medium') + '">' + (sevLabel[x.severity] || '') + '</span>' +
+            '<div class="a-body"><div class="a-text">' + pricingText(x) + '</div>' +
+            '<div class="a-trace">' + escapeHtml(pricingTrace(x)) + '</div></div></div>';
+    }).join('') + '</div>';
+}
+
 function loadActiveTab(force) {
     setStatus(true, tr('Querying SQLite'));
     var loader = {
@@ -2153,7 +2209,8 @@ function loadActiveTab(force) {
         briefing: loadBriefing,
         knowledge: loadKnowledge,
         guardian: loadGuardian,
-        ask: loadAsk
+        ask: loadAsk,
+        pricing: loadPricing
     }[activeTab];
     return Promise.resolve(loader(force)).then(function () {
         setStatus(true, tr('Live SQLite'));

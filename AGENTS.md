@@ -374,6 +374,24 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — main (Price helper — pricing intelligence)
+**Did:** Built Hermes idea #7. New `reports/pricing.py` scans every product group
+and customer and recommends an action vs the company-average gross margin:
+**lose_money** (negative operating profit → reprice/exit), **over_discounted**
+(margin ≥10pp below average → review discounts), **raise_price** (revenue growing
+≥10% but margin thin → room to charge more). Deterministic, offline, every
+suggestion source-traced. `GET /api/pricing` + a new **Price helper** tab
+(summary cards + action list with source trace), bilingual.
+**Why:** turns the dashboard from "here are the numbers" into "here's what to do
+about your prices" — direct decision support.
+**Status:** ✅ Full gate green on EN *and* AR seeds; 4 pricing unit tests (clean
+data → no suggestions; lose/over-discount/raise each triggered); on the synthetic
+seed it flags 2 money-losers + 1 over-discounted group. FEATURES.md catalogue +
+endpoint map + README updated. Arabic verified.
+**Next:** phone-friendly layout; multi-client switcher; OCR for scanned files.
+**Watch out:** thresholds in `pricing.py` are heuristics — tune per client;
+"raise_price" needs prior-year data to detect growth.
+
 ### 2026-06-16 — Claude Code — main (Three features: multi-scenario + one-click board pack + guardian memory/alerts)
 **Did:** Built the three user-requested features, each as a small module that
 works alone and connects (per FEATURES.md §2).

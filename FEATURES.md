@@ -186,6 +186,20 @@ Each entry: **what it does · tech · when to use · edge cases · files/endpoin
 - **Where:** `reports/nlquery.py` (+ `test_nlquery.py`) · `GET /api/nl-query?q=`
   · **Ask** tab.
 
+### 4.5b Price helper — pricing intelligence
+- **What:** scans every product group and customer and recommends an action:
+  **lose_money** (operating profit negative → reprice/exit), **over_discounted**
+  (margin far below the company average → review discounts), **raise_price**
+  (revenue growing but margin thin → room to charge more).
+- **Tech:** `reports/pricing.py` — explicit, auditable rules vs the company
+  average gross-margin %; reuses the outlook coverage. Source-traceable.
+- **When:** "where am I leaving money on the table?" before a pricing review.
+- **Edge cases:** thresholds (`OVER_DISCOUNT_GAP_PP=10`, `GROWTH_PCT=10`,
+  `MIN_REVENUE_FRACTION=1%`) are heuristics — tune per client; uniform/clean data
+  yields no suggestions; "raise_price" needs prior-year data to see growth.
+- **Where:** `reports/pricing.py` (+ `test_pricing.py`) · `GET /api/pricing`
+  · **Price helper** tab.
+
 ### 4.6 Reports + exports
 - **What:** 9 saved P&L reports as JSON/CSV/XLSX/PDF, plus an Arabic board pack.
 - **Tech:** `reports/definitions.py` + `generate.py` + `render.py`. XLSX needs
@@ -244,6 +258,7 @@ Each entry: **what it does · tech · when to use · edge cases · files/endpoin
 | `/api/reports/board-pack` | `reports/cli.py --pack` | Reports |
 | `/api/guardian/ack` | guardian seen-state (`output/guardian_state.json`) | Guardian |
 | `/api/nl-query` | `reports/nlquery.py` | Ask |
+| `/api/pricing` | `reports/pricing.py` | Price helper |
 | `/api/reports*` | `reports/` (definitions/generate/render) | Reports |
 | `/api/import-health` | `server.js` + `import_validation` | Source & Health |
 | `/api/wiki/*` | `brain/` | Knowledge |

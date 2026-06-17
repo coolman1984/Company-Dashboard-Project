@@ -858,6 +858,10 @@
                 <span data-i18n="tab.guardian">Guardian</span>
                 <span id="guardianBadge" class="nav-badge" hidden></span>
             </button>
+            <button class="tab" type="button" role="tab" id="tab-pricing" aria-selected="false" aria-controls="panel-pricing" data-tab="pricing">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2a2 2 0 0 1-.6-1.4V4a1 1 0 0 1 1-1h7.6a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+                <span data-i18n="tab.pricing">Price helper</span>
+            </button>
             <button class="tab" type="button" role="tab" id="tab-regional" aria-selected="false" aria-controls="panel-regional" data-tab="regional">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.6 3 14.4 0 18M12 3c-3 3.6-3 14.4 0 18"/></svg>
                 <span data-i18n="tab.regional">Regional</span>
@@ -1031,6 +1035,12 @@
                 </div>
                 <div id="guardianSummary" class="health-summary"></div>
                 <div id="guardianList"><div class="loading-spinner"></div></div>
+            </section>
+
+            <section class="panel" id="panel-pricing" role="tabpanel" aria-labelledby="tab-pricing" hidden>
+                <div class="section-head"><div><h2 data-i18n="pricing.title">Price helper</h2><p data-i18n="pricing.subtitle">Where you lose money, discount too much, or could charge more — with the source behind each one.</p></div></div>
+                <div id="pricingSummary" class="health-summary"></div>
+                <div id="pricingList"><div class="loading-spinner"></div></div>
             </section>
 
             <section class="panel" id="panel-regional" role="tabpanel" aria-labelledby="tab-regional" hidden>

@@ -264,6 +264,7 @@ All endpoints are `GET` and return JSON. Common filters: `version`, `year`,
 | `/api/sensitivity?delta=` | Which lever moves net income the most (tornado) |
 | `/api/reports/board-pack?format=` | One-click full board pack (PDF/XLSX) |
 | `/api/anomalies`, `/api/guardian/ack` | Guardian alerts (with NEW/seen memory) |
+| `/api/pricing` | Price helper: reprice / over-discounted / raise-price suggestions |
 | `/api/executive-outlook` | Reconciled CFO outlook cockpit |
 | `/api/executive-narrative` | One-page executive briefing: top changes, risks, actions, source confidence |
 | `/api/anomalies` | Guardian: deterministic, source-traceable anomaly detection over the ledger |

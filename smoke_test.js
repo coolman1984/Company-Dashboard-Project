@@ -192,6 +192,14 @@ async function run() {
     assert.equal(ack.response.status, 200);
     assert.equal(ack.body.ok, true);
 
+    const pricing = await getJson('/api/pricing');
+    assert.equal(pricing.response.status, 200);
+    assert.ok(typeof pricing.body.count === 'number');
+    assert.ok(Array.isArray(pricing.body.suggestions));
+    pricing.body.suggestions.forEach(s => {
+        assert.ok(s.type && s.severity && s.source && s.label);
+    });
+
     const sensitivity = await getJson('/api/sensitivity?delta=5');
     assert.equal(sensitivity.response.status, 200);
     assert.ok(Array.isArray(sensitivity.body.rows) && sensitivity.body.rows.length === 3);
