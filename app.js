@@ -1267,6 +1267,7 @@ function loadDrilldown(force) {
 function loadScenario(force) {
     setLoading('scenarioTable');
     initWhatif();
+    loadSensitivity(force);
     return fetchJson(API + '/api/scenario-pl' + queryString({}, { ignoreYear: true, ignoreVersion: true }), { force: force })
         .then(function (data) {
             scenarioData = data;
@@ -1324,6 +1325,46 @@ function runWhatif() {
             el('whatifTable').innerHTML = '<tbody><tr><td>' + escapeHtml(err.message) + '</td></tr></tbody>';
             el('whatifHeadline').textContent = '';
         });
+}
+
+function loadSensitivity(force) {
+    var bars = el('sensitivityBars');
+    if (!bars) return;
+    bars.innerHTML = '<div class="loading-spinner"></div>';
+    el('sensitivityTable').innerHTML = '';
+    el('sensitivityHeadline').textContent = '';
+    fetchJson(API + '/api/sensitivity?delta=5', { force: force })
+        .then(renderSensitivity)
+        .catch(function (err) { bars.innerHTML = '<div class="wiki-empty">' + escapeHtml(err.message) + '</div>'; });
+}
+
+function renderSensitivity(d) {
+    var rows = d.rows || [];
+    var maxSwing = rows.reduce(function (m, r) { return Math.max(m, Math.abs(r.swing)); }, 0) || 1;
+
+    var headline = el('sensitivityHeadline');
+    var top = rows[0];
+    if (top) {
+        headline.className = 'whatif-headline';
+        headline.textContent = tr('Net income is most sensitive to') + ' ' + tr(top.label) +
+            ' — ±5% ' + tr('swings it by') + ' ' + formatFull(Math.abs(top.swing)) +
+            (top.swing_pct != null ? ' (' + pctVal(Math.abs(top.swing_pct)) + ')' : '');
+    }
+
+    el('sensitivityBars').innerHTML = rows.map(function (r) {
+        var w = Math.round(Math.abs(r.swing) / maxSwing * 100);
+        return '<div class="tornado-row"><div class="t-label">' + escapeHtml(tr(r.label)) + '</div>' +
+            '<div class="tornado-track"><div class="tornado-fill" style="width:' + w + '%"></div></div>' +
+            '<div class="t-val">' + formatFull(Math.abs(r.swing)) + '</div></div>';
+    }).join('');
+
+    var head = '<thead><tr><th>' + tr('Lever') + '</th><th>−5%</th><th>+5%</th><th>' + tr('Swing') + '</th><th>%</th></tr></thead>';
+    var body = '<tbody>' + rows.map(function (r) {
+        var pct = r.swing_pct != null ? ((r.swing_pct > 0 ? '+' : '') + r.swing_pct + '%') : '';
+        return '<tr><td>' + escapeHtml(tr(r.label)) + '</td><td>' + formatFull(r.ni_low) + '</td><td>' +
+            formatFull(r.ni_high) + '</td><td>' + formatFull(Math.abs(r.swing)) + '</td><td>' + escapeHtml(pct) + '</td></tr>';
+    }).join('') + '</tbody>';
+    el('sensitivityTable').innerHTML = head + body;
 }
 
 function renderWhatif(data) {

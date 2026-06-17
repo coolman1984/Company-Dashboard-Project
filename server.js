@@ -1134,6 +1134,24 @@ function handleApi(pathname, query, res) {
         }
     }
 
+    if (pathname === '/api/sensitivity') {
+        // "Which lever moves profit most?" — reuses the scenario engine.
+        let delta = Number(query.delta);
+        if (!Number.isFinite(delta)) delta = 5;
+        delta = Math.max(1, Math.min(50, delta));
+        try {
+            const result = spawnSync('python3', ['-m', 'reports.sensitivity', '--db', DB_PATH, '--delta', String(delta), '--json'],
+                { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 30000 });
+            if (result.status !== 0) {
+                const details = (result.stderr || result.stdout || '').trim();
+                return errorResponse(res, 500, `Sensitivity analysis failed: ${details || result.status}`);
+            }
+            return jsonResponse(res, JSON.parse(result.stdout));
+        } catch (error) {
+            return errorResponse(res, 500, `Sensitivity analysis failed: ${error.message}`);
+        }
+    }
+
     if (pathname === '/api/anomalies') {
         // The "passive guardian": deterministic, source-traceable anomaly
         // detection. Reuses the tested Python engine (reports/anomaly.py).

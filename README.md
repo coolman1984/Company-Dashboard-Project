@@ -1,10 +1,12 @@
 # Company Dashboard
 
-> 🤝 **Multiple AI agents work on this project.** Any agent (Claude, Codex,
-> DeepSeek, …) MUST read [`AGENTS.md`](AGENTS.md) first and log its work there.
+> ## 📚 To understand this project, read **three** files — not a hundred
+> 1. [`ARCHITECTURE.md`](ARCHITECTURE.md) — the 5-layer map + dependency rules (the diagram).
+> 2. [`FEATURES.md`](FEATURES.md) — **every feature**: what it does, the tech, when to use it, edge cases, and the **module pattern** for adding more.
+> 3. [`AGENTS.md`](AGENTS.md) — the multi-agent rules, task board, and work journal (read first, log when done).
 >
-> 🗺️ **New here?** [`ARCHITECTURE.md`](ARCHITECTURE.md) is the map — the five
-> layers, how data flows, where code goes. [`docs/`](docs/README.md) has the rest.
+> Everything else (`ROADMAP.md`, `Agent.md`, `docs/`, per-package READMEs) is
+> optional reference. The three above are enough to understand the whole system.
 
 A profit-and-loss analytics dashboard. A dependency-light Node.js server runs
 live, parameterized SQLite queries over a P&L detail ledger and serves a
@@ -224,6 +226,8 @@ For a blunt end-client readiness critique and development plan, see
 | `index.html`, `app.js` | Dashboard UI |
 | `chart.umd.min.js` | Vendored Chart.js v4.4.7 (self-contained, no CDN needed) |
 | `ARCHITECTURE.md` | **The layer/workflow map + where new code goes — read before adding code** |
+| `FEATURES.md` | **Every feature + the module pattern — read before adding a feature** |
+| `reports/anomaly.py`, `scenario.py`, `sensitivity.py`, `nlquery.py` | Feature engines (pure, unit-tested; reused by the dashboard endpoints) |
 | `schema.sql` | Canonical DB schema (table, indexes, views) — single source of truth |
 | `db_schema.py` | Applies `schema.sql` for ALL build paths (seed, mapper, COM ingest) |
 | `seed_db.py` | Synthetic database generator (dev/test/CI) |

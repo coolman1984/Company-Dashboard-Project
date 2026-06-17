@@ -172,6 +172,14 @@ async function run() {
     const nlBad = await fetch(baseUrl + '/api/nl-query');
     assert.equal(nlBad.status, 400);
 
+    const sensitivity = await getJson('/api/sensitivity?delta=5');
+    assert.equal(sensitivity.response.status, 200);
+    assert.ok(Array.isArray(sensitivity.body.rows) && sensitivity.body.rows.length === 3);
+    assert.ok(sensitivity.body.most_sensitive);
+    // ranked by absolute swing
+    const sw = sensitivity.body.rows.map(r => Math.abs(r.swing));
+    for (let i = 1; i < sw.length; i++) assert.ok(sw[i - 1] >= sw[i]);
+
     const anomalies = await getJson('/api/anomalies');
     assert.equal(anomalies.response.status, 200);
     assert.ok(typeof anomalies.body.count === 'number');

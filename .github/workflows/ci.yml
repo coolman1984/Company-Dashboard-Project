@@ -85,6 +85,9 @@ jobs:
       - name: Run natural-language query tests
         run: python3 -m reports.test_nlquery
 
+      - name: Run profit-sensitivity tests
+        run: python3 -m reports.test_sensitivity
+
       - name: Run knowledge base tests
         run: python3 -m brain.test_brain
 

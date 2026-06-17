@@ -2,8 +2,9 @@
 
 > **Read this before adding code.** It defines the layers, how data flows, who
 > may depend on whom, where new files go, and the guardrails that protect the
-> structure. It is the structural source of truth; `AGENTS.md` is the
-> coordination protocol; `ROADMAP.md` is the product vision.
+> structure. It is the structural source of truth; [`FEATURES.md`](FEATURES.md)
+> documents every feature + the module pattern; `AGENTS.md` is the coordination
+> protocol; `ROADMAP.md` is the product vision.
 
 ---
 

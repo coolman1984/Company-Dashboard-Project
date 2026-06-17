@@ -812,6 +812,12 @@
         .ask-chip:hover { border-color: var(--primary, #2563eb); background: var(--primary-soft, #eff6ff); }
         .ask-interpretation { font-size: 13px; font-weight: 600; color: #1e293b; background: var(--primary-soft, #eff6ff); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; }
         .ask-interpretation .ai-label { color: #64748b; font-weight: 700; margin-inline-end: 6px; }
+        .tornado { margin: 6px 0 14px; display: flex; flex-direction: column; gap: 8px; }
+        .tornado-row { display: grid; grid-template-columns: 130px 1fr 130px; align-items: center; gap: 10px; font-size: 12px; }
+        .tornado-row .t-label { font-weight: 700; color: #334155; }
+        .tornado-track { background: #f1f5f9; border-radius: 6px; height: 18px; position: relative; }
+        .tornado-fill { position: absolute; top: 0; height: 18px; background: var(--primary, #2563eb); border-radius: 6px; }
+        .tornado-row .t-val { text-align: end; color: #475569; font-variant-numeric: tabular-nums; }
         @media print {
             .app-sidebar, .topbar, .global-filters, #briefingPrint, .tab, .app-shell > aside { display: none !important; }
             .panel:not(#panel-briefing) { display: none !important; }
@@ -1078,6 +1084,16 @@
                     </div>
                     <div id="whatifHeadline" class="whatif-headline"></div>
                     <div class="table-scroll"><table class="data-table" id="whatifTable"></table></div>
+                </article>
+
+                <article class="table-card" id="sensitivityCard">
+                    <div class="table-head">
+                        <div><div class="chart-title" data-i18n="sensitivity.title">Profit sensitivity</div><div class="chart-subtitle" data-i18n="sensitivity.subtitle">Which lever moves net income the most (±5%)</div></div>
+                        <button class="export-btn" type="button" data-export-table="sensitivityTable" data-export-name="profit-sensitivity">Export CSV</button>
+                    </div>
+                    <div id="sensitivityHeadline" class="whatif-headline"></div>
+                    <div id="sensitivityBars" class="tornado"></div>
+                    <div class="table-scroll"><table class="data-table" id="sensitivityTable"></table></div>
                 </article>
 
                 <div class="controls"><div class="control-group"><label for="scenMetric">Metric</label><select id="scenMetric"><option value="net_sales">Net Sales</option><option value="cogs">COGS</option><option value="gross_margin">Gross Margin</option><option value="opex">OpEx</option><option value="operating_profit">Operating Profit</option><option value="net_income">Net Income</option></select></div></div>

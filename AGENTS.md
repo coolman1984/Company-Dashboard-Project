@@ -59,7 +59,9 @@ overwriting each other and breaking the project.
 Follow these steps in order. Don't skip.
 
 1. **Read** this file, then [`ARCHITECTURE.md`](ARCHITECTURE.md) (the 5 layers +
-   the one-way dependency rule + *where code goes*), then [`ROADMAP.md`](ROADMAP.md).
+   the one-way dependency rule + *where code goes*), then [`FEATURES.md`](FEATURES.md)
+   (every feature + the **module pattern** to follow when adding one). Those three
+   files are the whole project — you don't need to read more to start.
 2. **Claim** your task on the [Task Board](#task-board) (move it to *In Progress*
    with your agent name). If someone owns it, pick something else.
 3. **Branch:** `git checkout -b <agent>/<short-task>` (e.g. `claude/pdf-fonts`).
@@ -371,6 +373,33 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Next:** what the next agent should pick up.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
+
+### 2026-06-16 — Claude Code — main (Profit sensitivity (tornado) + doc consolidation → FEATURES.md)
+**Did:** Two things — a new feature and a big documentation cleanup.
+- **Feature — Profit sensitivity (Hermes idea #4, part 1):** new
+  `reports/sensitivity.py` ranks which lever (net sales / COGS / opex) moves net
+  income most under a ±5% shock. It **reuses `scenario.run_scenario`** (no P&L
+  maths re-derived) — the cleanest demonstration of the module-reuse pattern.
+  `GET /api/sensitivity?delta=` + a tornado card on the Scenario tab (bars +
+  table + "most sensitive to X" headline), bilingual. `reports/test_sensitivity.py`
+  (3 tests) wired into CI.
+- **Docs — collapsed "read 100 files" into THREE:** new top-level
+  [`FEATURES.md`](FEATURES.md) documents **every feature** (what / tech / when /
+  edge cases), the **Feature Module Pattern** (engine + endpoint + tab + i18n,
+  works alone *and* composes), the shared conventions, an endpoint→engine→tab
+  map, and a gotchas list. README now says "read three files"
+  (ARCHITECTURE + FEATURES + AGENTS); ARCHITECTURE/AGENTS cross-link FEATURES.
+  Answers the modularity question: yes — features are independent, individually
+  tested modules that connect through thin endpoints and compose by reusing
+  engines (sensitivity→scenario, briefing→anomaly+validation).
+**Why:** The user asked for the next feature *with* documentation, and to cut doc
+sprawl so a new agent understands the whole project from ≤3 files.
+**Status:** ✅ Full gate green on EN *and* AR seeds; sensitivity tests pass;
+structure guard green (FEATURES.md is an allowed extra root doc).
+**Next:** multi-scenario comparison (Conservative/Base/Aggressive) to finish
+idea #4; one-click board pack; pricing intelligence.
+**Watch out:** When adding a feature, follow `FEATURES.md` §2 and add a catalogue
+row in §4 — keep that file the single source of feature truth so it doesn't rot.
 
 ### 2026-06-16 — Claude Code — main (Ask: offline natural-language querying — Arabic/English)
 **Did:** Built Hermes idea #2 (natural-language query) — but **offline and
