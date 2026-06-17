@@ -180,9 +180,12 @@ Each entry: **what it does · tech · when to use · edge cases · files/endpoin
   group-by + entity filters + year + quarter) → parameterised SQL. **No LLM, no
   network.** Entity names matched against the DB's own values.
 - **When:** managers who want the answer without writing SQL.
+  Understands **top-N** ("top 5 customers"), and draws a **bar chart** for grouped
+  answers.
 - **Edge cases:** understands documented intents, not arbitrary free text (falls
   back to net_sales + current year); cross-language entity matching is limited to
-  the data's own language; extend synonyms in `METRIC_SYNONYMS`/`DIM_SYNONYMS`.
+  the data's own language; extend synonyms in `METRIC_SYNONYMS`/`DIM_SYNONYMS`/
+  `_find_limit`; the chart only shows for grouped results.
 - **Where:** `reports/nlquery.py` (+ `test_nlquery.py`) · `GET /api/nl-query?q=`
   · **Ask** tab.
 

@@ -2210,6 +2210,29 @@ function renderAsk(d) {
     }).join('') + '</tbody>';
     el('askTable').innerHTML = head + body;
     card.style.display = '';
+
+    // Draw a bar chart when the answer is a grouped breakdown (more than one row).
+    var grouped = d.query && d.query.group_by && rows.length > 1;
+    var wrap = el('askChartWrap');
+    destroyChart('ask');
+    if (grouped && window.Chart) {
+        wrap.style.display = '';
+        charts.ask = new Chart(el('askChart'), {
+            type: 'bar',
+            data: {
+                labels: rows.map(function (r) { return tr(String(r.label)); }),
+                datasets: [{ label: metricLabel, data: rows.map(function (r) { return r.value; }),
+                    backgroundColor: '#2563eb', borderRadius: 4 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { ticks: { callback: function (v) { return (v / 1e6).toFixed(1) + 'M'; } } } }
+            }
+        });
+    } else {
+        wrap.style.display = 'none';
+    }
 }
 
 function pricingText(s) {

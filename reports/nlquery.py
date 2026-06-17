@@ -130,6 +130,11 @@ def _find_quarter(text):
     return None
 
 
+def _find_limit(text):
+    m = re.search(r"\btop\s+(\d+)\b", text) or re.search(r"(?:أعلى|أكبر|اعلى|اكبر)\s+(\d+)", text)
+    return max(1, min(50, int(m.group(1)))) if m else None
+
+
 def parse(question, vocab, current):
     """Pure parser: question + vocab -> structured query dict (no DB access)."""
     text = " " + (question or "").lower().strip() + " "
@@ -138,6 +143,7 @@ def parse(question, vocab, current):
     entities = _find_entities(text, vocab)
     year = _find_year(text, vocab, current)
     periods = _find_quarter(text)
+    limit = _find_limit(text)
     is_compare = any(w in text for w in COMPARE_WORDS)
 
     group_by = dimension
@@ -159,6 +165,7 @@ def parse(question, vocab, current):
         "filters": filters,
         "year": year if year is not None else current,
         "periods": periods,
+        "limit": limit,
         "compare": is_compare,
     }
 
@@ -220,11 +227,12 @@ def run(conn, question):
 
     metric = q["metric"]
     where_sql = " AND ".join(where)
+    limit = q.get("limit") or 50
     if q["group_by"]:
         sql = (f"SELECT COALESCE({q['group_by']}, 'Unassigned') AS label, "
                f"COALESCE(SUM({metric}), 0) AS value FROM pl_detail "
                f"WHERE {where_sql} GROUP BY {q['group_by']} "
-               f"ORDER BY value DESC LIMIT 50")
+               f"ORDER BY value DESC LIMIT {int(limit)}")
         rows = [{"label": r[0], "value": r[1]} for r in conn.execute(sql, params)]
         columns = ["label", "value"]
     else:

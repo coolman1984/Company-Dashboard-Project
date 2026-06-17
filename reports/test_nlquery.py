@@ -62,6 +62,13 @@ def test_quarter():
     assert nlquery.parse("sales الربع الرابع", VOCAB, CURRENT)["periods"] == [10, 11, 12]
 
 
+def test_top_n():
+    q = nlquery.parse("top 3 customers by net sales", VOCAB, CURRENT)
+    assert q["limit"] == 3 and q["group_by"] == "customer_name"
+    assert nlquery.parse("أكبر 5 عملاء", VOCAB, CURRENT)["limit"] == 5
+    assert nlquery.parse("net sales by region", VOCAB, CURRENT)["limit"] is None
+
+
 def _make_db(path):
     conn = sqlite3.connect(path)
     with open(SCHEMA_PATH, encoding="utf-8") as fh:
@@ -99,6 +106,7 @@ def main():
     test_comparison_sets_group_and_filters()
     test_single_entity_is_filter_not_group()
     test_quarter()
+    test_top_n()
     test_run_end_to_end()
     print("nlquery tests passed.")
     return 0
