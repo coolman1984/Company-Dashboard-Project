@@ -374,6 +374,32 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — main (Three features: multi-scenario + one-click board pack + guardian memory/alerts)
+**Did:** Built the three user-requested features, each as a small module that
+works alone and connects (per FEATURES.md §2).
+- **Three plans side by side (idea #4):** `scenario.compare()` runs
+  Conservative/Base/Aggressive through `run_scenario` and pivots by P&L line.
+  `GET /api/scenario-compare` + a card on the Scenario tab (Base == baseline as a
+  sanity check). Unit test added.
+- **One-click board pack (idea #9):** `GET /api/reports/board-pack?format=pdf|xlsx`
+  reuses `reports.cli --pack`; PDF/XLSX buttons on the Reports tab follow the same
+  capability/`503` graceful pattern (disabled with a tooltip if libs missing).
+- **Smarter Guardian (idea #5):** each anomaly now has a stable `id`; the server
+  remembers seen alerts in git-ignored `output/guardian_state.json`, marks **NEW**
+  ones, exposes `new_count`, and `GET /api/guardian/ack` to mark all seen. The UI
+  adds a NEW badge, "Mark all seen", and opt-in **browser notifications**
+  (offline Web Notifications) for new alerts.
+**Why:** side-by-side planning, one-step board output, and a guardian that tells
+you *what changed since last time* — the next decision-product steps.
+**Status:** ✅ Full gate green on EN *and* AR seeds; scenario/anomaly tests pass;
+board pack produces valid PDF (45KB) + XLSX; guardian memory + ack verified; all
+new Arabic phrases resolve. FEATURES.md catalogue + endpoint map updated.
+**Next:** pricing intelligence (idea #7); phone-friendly layout; multi-client.
+**Watch out:** acknowledge is a GET-with-side-effect (server is GET-only; fine for
+local single user); notifications need browser permission; board pack can be slow
+on big ledgers (180s timeout); scenario presets are simple heuristics — tune per
+client in the endpoint.
+
 ### 2026-06-16 — Claude Code — main (Profit sensitivity (tornado) + doc consolidation → FEATURES.md)
 **Did:** Two things — a new feature and a big documentation cleanup.
 - **Feature — Profit sensitivity (Hermes idea #4, part 1):** new

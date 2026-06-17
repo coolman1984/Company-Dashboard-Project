@@ -393,6 +393,35 @@ function reportOfficeBuffer(name, format) {
 // number can be defended on screen. The validation checks are computed live from
 // the database; the run history is read from per-client workspace manifests when
 // a real client import has been performed (absent for the synthetic seed).
+// Guardian memory: which alerts the user has already seen, persisted locally
+// (git-ignored) so the dashboard can highlight what's NEW since the last check.
+const GUARDIAN_STATE = path.join(PROJECT_ROOT, 'output', 'guardian_state.json');
+function readGuardianSeen() {
+    try {
+        const data = JSON.parse(fs.readFileSync(GUARDIAN_STATE, 'utf8'));
+        return new Set(Array.isArray(data.seen) ? data.seen : []);
+    } catch (error) {
+        return new Set();
+    }
+}
+function writeGuardianSeen(ids) {
+    try {
+        fs.mkdirSync(path.dirname(GUARDIAN_STATE), { recursive: true });
+        fs.writeFileSync(GUARDIAN_STATE, JSON.stringify({ seen: ids, updated_at: new Date().toISOString() }));
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+function runAnomalyReport() {
+    const result = spawnSync('python3', ['-m', 'reports.anomaly', '--db', DB_PATH, '--json'],
+        { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 30000 });
+    if (result.status !== 0) {
+        throw new Error((result.stderr || result.stdout || '').trim() || `exit ${result.status}`);
+    }
+    return JSON.parse(result.stdout);
+}
+
 function readImportHistory() {
     const runs = [];
     const wsRoot = path.join(PROJECT_ROOT, 'workspaces');
@@ -1134,6 +1163,71 @@ function handleApi(pathname, query, res) {
         }
     }
 
+    if (pathname === '/api/reports/board-pack') {
+        // One-click full report: cover + every report + source-confidence page,
+        // bundled into a single PDF or XLSX. Needs the optional export libs.
+        const format = String(query.format || 'pdf').toLowerCase();
+        if (!['pdf', 'xlsx'].includes(format)) {
+            return errorResponse(res, 400, 'Invalid format. Use pdf or xlsx.');
+        }
+        if (!getExportCapabilities()[format]) {
+            return jsonResponse(res, {
+                error: `${format.toUpperCase()} board pack is not available on this server.`,
+                code: 'export_unavailable', format: format,
+                hint: 'Install report dependencies (see setup.sh). CSV report downloads still work.'
+            }, 503);
+        }
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdash-pack-'));
+        try {
+            const result = spawnSync('python3', [
+                '-m', 'reports.cli', '--pack', '--db', DB_PATH, '--out', tmpDir,
+                '--format', format, '--title', 'Board Pack'
+            ], { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 180000 });
+            if (result.status !== 0) {
+                const details = (result.stderr || result.stdout || '').trim();
+                return errorResponse(res, 500, `Board pack failed: ${details || result.status}`);
+            }
+            const filePath = path.join(tmpDir, `board-pack.${format}`);
+            if (!fs.existsSync(filePath)) return errorResponse(res, 500, 'Board pack file was not generated.');
+            const type = format === 'xlsx'
+                ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                : 'application/pdf';
+            return sendDownload(res, `board-pack.${format}`, type, fs.readFileSync(filePath));
+        } catch (error) {
+            return errorResponse(res, 500, `Board pack failed: ${error.message}`);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    }
+
+    if (pathname === '/api/scenario-compare') {
+        // Three plans side by side (Conservative / Base / Aggressive). Reuses the
+        // scenario engine; presets are intentionally simple and tunable.
+        const presets = {
+            scenarios: [
+                { name: 'Conservative', adjustments: [
+                    { metric: 'net_sales', change_pct: -7 },
+                    { metric: 'cost_of_goods_sold', change_pct: 2 }
+                ] },
+                { name: 'Base', adjustments: [] },
+                { name: 'Aggressive', adjustments: [
+                    { metric: 'net_sales', change_pct: 10 }
+                ] }
+            ]
+        };
+        try {
+            const result = spawnSync('python3', ['-m', 'reports.scenario', '--compare-stdin', '--db', DB_PATH],
+                { cwd: PROJECT_ROOT, encoding: 'utf8', input: JSON.stringify(presets), timeout: 30000 });
+            if (result.status !== 0) {
+                const details = (result.stderr || result.stdout || '').trim();
+                return errorResponse(res, 500, `Scenario comparison failed: ${details || result.status}`);
+            }
+            return jsonResponse(res, JSON.parse(result.stdout));
+        } catch (error) {
+            return errorResponse(res, 500, `Scenario comparison failed: ${error.message}`);
+        }
+    }
+
     if (pathname === '/api/sensitivity') {
         // "Which lever moves profit most?" — reuses the scenario engine.
         let delta = Number(query.delta);
@@ -1154,17 +1248,34 @@ function handleApi(pathname, query, res) {
 
     if (pathname === '/api/anomalies') {
         // The "passive guardian": deterministic, source-traceable anomaly
-        // detection. Reuses the tested Python engine (reports/anomaly.py).
+        // detection. Reuses the tested Python engine (reports/anomaly.py) and
+        // remembers which alerts have already been seen to highlight what's NEW.
         try {
-            const result = spawnSync('python3', ['-m', 'reports.anomaly', '--db', DB_PATH, '--json'],
-                { cwd: PROJECT_ROOT, encoding: 'utf8', timeout: 30000 });
-            if (result.status !== 0) {
-                const details = (result.stderr || result.stdout || '').trim();
-                return errorResponse(res, 500, `Anomaly detection failed: ${details || result.status}`);
-            }
-            return jsonResponse(res, JSON.parse(result.stdout));
+            const report = runAnomalyReport();
+            const seen = readGuardianSeen();
+            let newCount = 0;
+            (report.anomalies || []).forEach(a => {
+                a.is_new = !seen.has(a.id);
+                if (a.is_new) newCount++;
+            });
+            report.new_count = newCount;
+            report.has_state = seen.size > 0;
+            return jsonResponse(res, report);
         } catch (error) {
             return errorResponse(res, 500, `Anomaly detection failed: ${error.message}`);
+        }
+    }
+
+    if (pathname === '/api/guardian/ack') {
+        // Mark all current alerts as seen (GET with side-effect — local single
+        // user app; the server is GET-only by design).
+        try {
+            const report = runAnomalyReport();
+            const ids = (report.anomalies || []).map(a => a.id);
+            writeGuardianSeen(ids);
+            return jsonResponse(res, { ok: true, seen: ids.length });
+        } catch (error) {
+            return errorResponse(res, 500, `Acknowledge failed: ${error.message}`);
         }
     }
 

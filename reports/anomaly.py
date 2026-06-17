@@ -78,7 +78,12 @@ def _period_series(conn, col, year, current):
 def _anomaly(type_, severity, metric, value, baseline, *, dimension=None,
              label=None, year=None, period=None, delta_pct=None, detail=None):
     delta = value - baseline
+    # A stable fingerprint so the dashboard can remember which alerts have been
+    # seen across checks (independent of the changing numeric values).
+    fingerprint = "|".join(str(x) for x in (type_, dimension or "", label or "",
+                                            metric, period if period is not None else ""))
     return {
+        "id": fingerprint,
         "type": type_,
         "severity": severity,
         "dimension": dimension,

@@ -124,11 +124,34 @@ def test_evaluate_config_json_ready():
         assert _lines(lifted["rows"])["Net Income"]["change"] > 0
 
 
+def test_compare_side_by_side():
+    scenarios = [
+        {"name": "Conservative", "adjustments": [{"metric": "net_sales", "change_pct": -10}]},
+        {"name": "Base", "adjustments": []},
+        {"name": "Aggressive", "adjustments": [{"metric": "net_sales", "change_pct": 10}]},
+    ]
+    with tempfile.TemporaryDirectory() as tmp:
+        db = os.path.join(tmp, "pl_detail.db")
+        _make_db(db)
+        conn = sqlite3.connect(db)
+        try:
+            result = scenario.compare(conn, scenarios)
+        finally:
+            conn.close()
+        assert result["scenarios"] == ["Conservative", "Base", "Aggressive"]
+        assert result["columns"] == ["line_item", "baseline", "Conservative", "Base", "Aggressive"]
+        ns = next(r for r in result["rows"] if r["line_item"] == "Net Sales")
+        # Base reproduces the baseline; Conservative < baseline < Aggressive.
+        assert ns["Base"] == ns["baseline"]
+        assert ns["Conservative"] < ns["baseline"] < ns["Aggressive"]
+
+
 def main():
     test_zero_adjustment_reproduces_baseline()
     test_regional_revenue_cut()
     test_validation()
     test_evaluate_config_json_ready()
+    test_compare_side_by_side()
     print("scenario tests passed.")
     return 0
 

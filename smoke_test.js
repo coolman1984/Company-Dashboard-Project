@@ -172,6 +172,26 @@ async function run() {
     const nlBad = await fetch(baseUrl + '/api/nl-query');
     assert.equal(nlBad.status, 400);
 
+    const compare = await getJson('/api/scenario-compare');
+    assert.equal(compare.response.status, 200);
+    assert.deepEqual(compare.body.scenarios, ['Conservative', 'Base', 'Aggressive']);
+    assert.ok(compare.body.rows.length > 0);
+    const niCmp = compare.body.rows.find(r => r.line_item === 'Net Income');
+    assert.ok(niCmp && niCmp.Base === niCmp.baseline);
+
+    // One-click board pack: 200 when export libs are present, else a clean 503.
+    const pack = await fetch(baseUrl + '/api/reports/board-pack?format=pdf');
+    if (reports.body.exportFormats.pdf) {
+        assert.equal(pack.status, 200);
+        assert.match(pack.headers.get('content-disposition') || '', /board-pack\.pdf/);
+    } else {
+        assert.equal(pack.status, 503);
+    }
+
+    const ack = await getJson('/api/guardian/ack');
+    assert.equal(ack.response.status, 200);
+    assert.equal(ack.body.ok, true);
+
     const sensitivity = await getJson('/api/sensitivity?delta=5');
     assert.equal(sensitivity.response.status, 200);
     assert.ok(Array.isArray(sensitivity.body.rows) && sensitivity.body.rows.length === 3);

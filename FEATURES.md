@@ -113,13 +113,21 @@ Each entry: **what it does · tech · when to use · edge cases · files/endpoin
   revenue spikes, intra-year period spikes (z-score). Every alert is
   **source-traced** (`year · dimension=label · metric`).
 - **Tech:** `reports/anomaly.py` — explicit rules + thresholds (auditable),
-  reuses `outlook.py`. A red nav badge is primed on startup.
+  reuses `outlook.py`. Each alert has a stable `id`; the server **remembers which
+  alerts have been seen** (git-ignored `output/guardian_state.json`) so it can
+  mark what's **NEW**. A red nav badge (new count) is primed on startup, and the
+  browser can pop a **notification** for new alerts (offline Web Notifications —
+  opt-in via "Enable alerts"). "Mark all seen" acknowledges via
+  `GET /api/guardian/ack`.
 - **When:** the "what should I worry about?" view; passive monitoring.
 - **Edge cases:** thresholds tuned for the synthetic distribution — revisit on
   real data; deterministic (not ML) on purpose so "why was this flagged?" always
-  has an answer; clean data correctly produces **zero** alerts (no false positives).
-- **Where:** `reports/anomaly.py` (+ `test_anomaly.py`) · `GET /api/anomalies`
-  · **Guardian** tab.
+  has an answer; clean data correctly produces **zero** alerts (no false
+  positives); notifications need the user to grant browser permission, and the
+  server is GET-only so acknowledge is a GET-with-side-effect (fine for a local
+  single user).
+- **Where:** `reports/anomaly.py` (+ `test_anomaly.py`) · `GET /api/anomalies`,
+  `GET /api/guardian/ack` · **Guardian** tab.
 
 ### 4.3 What-if scenario levers
 - **What:** sliders for net sales / COGS / opex / tax + a "COGS scales with
@@ -141,6 +149,29 @@ Each entry: **what it does · tech · when to use · edge cases · files/endpoin
   damped (COGS moves too) — that is correct, not a bug; shock size is clamped 1–50%.
 - **Where:** `reports/sensitivity.py` (+ `test_sensitivity.py`) ·
   `GET /api/sensitivity?delta=` · **Scenario** tab (card under the levers).
+
+### 4.4b Three plans side by side  (multi-scenario)
+- **What:** Conservative / Base / Aggressive full-year P&L lined up in one table,
+  with the net-income range across plans.
+- **Tech:** `scenario.compare()` runs each preset through `run_scenario` and
+  pivots by P&L line. Presets are defined in the `/api/scenario-compare` endpoint
+  (tunable).
+- **When:** planning — "show me the spread of outcomes, not one number."
+- **Edge cases:** Base always equals the baseline (sanity check); preset
+  assumptions are deliberately simple — adjust per client.
+- **Where:** `reports/scenario.py:compare` (+ `test_scenario.py`) ·
+  `GET /api/scenario-compare` · **Scenario** tab.
+
+### 4.6b One-click board pack
+- **What:** one button → the whole board pack (cover + every report +
+  source-confidence page) as a single PDF or XLSX.
+- **Tech:** `reports/cli.py --pack` (reuses `generate_board_pack`). Needs the
+  optional export libs; the buttons follow the same capability/`503` graceful
+  pattern as report downloads.
+- **When:** "give me everything to hand to the board" in one step.
+- **Edge cases:** large/slow for big ledgers (180s timeout); PDF/XLSX only;
+  disabled with a "needs setup" tooltip if libs are missing.
+- **Where:** `GET /api/reports/board-pack?format=` · **Reports** tab (top buttons).
 
 ### 4.5 Ask — offline natural-language query
 - **What:** type a question in Arabic/English ("compare Africa vs Asia net
@@ -208,7 +239,10 @@ Each entry: **what it does · tech · when to use · edge cases · files/endpoin
 | `/api/executive-narrative` | `server.js` (+ anomalies, validation) | Briefing |
 | `/api/anomalies` | `reports/anomaly.py` | Guardian |
 | `/api/scenario-whatif` | `reports/scenario.py` | Scenario |
+| `/api/scenario-compare` | `reports/scenario.py:compare` | Scenario |
 | `/api/sensitivity` | `reports/sensitivity.py` → `scenario.py` | Scenario |
+| `/api/reports/board-pack` | `reports/cli.py --pack` | Reports |
+| `/api/guardian/ack` | guardian seen-state (`output/guardian_state.json`) | Guardian |
 | `/api/nl-query` | `reports/nlquery.py` | Ask |
 | `/api/reports*` | `reports/` (definitions/generate/render) | Reports |
 | `/api/import-health` | `server.js` + `import_validation` | Source & Health |

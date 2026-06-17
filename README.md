@@ -260,6 +260,10 @@ All endpoints are `GET` and return JSON. Common filters: `version`, `year`,
 | `/api/yoy-variance` | Year-over-year deltas |
 | `/api/scenario-pl` | Actual vs T06/T07 by year |
 | `/api/scenario-whatif?ns=&cogs=&opex=&tax=&scales=` | Interactive what-if: baseline vs scenario P&L for live lever changes |
+| `/api/scenario-compare` | Three plans side by side (Conservative/Base/Aggressive) |
+| `/api/sensitivity?delta=` | Which lever moves net income the most (tornado) |
+| `/api/reports/board-pack?format=` | One-click full board pack (PDF/XLSX) |
+| `/api/anomalies`, `/api/guardian/ack` | Guardian alerts (with NEW/seen memory) |
 | `/api/executive-outlook` | Reconciled CFO outlook cockpit |
 | `/api/executive-narrative` | One-page executive briefing: top changes, risks, actions, source confidence |
 | `/api/anomalies` | Guardian: deterministic, source-traceable anomaly detection over the ledger |

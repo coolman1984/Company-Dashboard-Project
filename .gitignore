@@ -49,3 +49,6 @@ raw/*
 
 # Phase 2 — per-client import history manifests (may reference client data)
 import_history*.json
+
+# Guardian "seen alerts" memory (local only)
+output/guardian_state.json

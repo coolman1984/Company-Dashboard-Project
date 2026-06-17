@@ -818,6 +818,7 @@
         .tornado-track { background: #f1f5f9; border-radius: 6px; height: 18px; position: relative; }
         .tornado-fill { position: absolute; top: 0; height: 18px; background: var(--primary, #2563eb); border-radius: 6px; }
         .tornado-row .t-val { text-align: end; color: #475569; font-variant-numeric: tabular-nums; }
+        .boardpack-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         @media print {
             .app-sidebar, .topbar, .global-filters, #briefingPrint, .tab, .app-shell > aside { display: none !important; }
             .panel:not(#panel-briefing) { display: none !important; }
@@ -1022,7 +1023,12 @@
             </section>
 
             <section class="panel" id="panel-guardian" role="tabpanel" aria-labelledby="tab-guardian" hidden>
-                <div class="section-head"><div><h2 data-i18n="guardian.title">Guardian — anomaly watch</h2><p data-i18n="guardian.subtitle">The system watches the ledger and flags what looks unusual — every alert is traced to its source.</p></div></div>
+                <div class="section-head"><div><h2 data-i18n="guardian.title">Guardian — anomaly watch</h2><p data-i18n="guardian.subtitle">The system watches the ledger and flags what looks unusual — every alert is traced to its source.</p></div>
+                    <div class="boardpack-actions">
+                        <button class="secondary-btn" type="button" id="guardianAlertsBtn" data-i18n="guardian.enableAlerts">Enable alerts</button>
+                        <button class="secondary-btn" type="button" id="guardianAckBtn" data-i18n="guardian.ack">Mark all seen</button>
+                    </div>
+                </div>
                 <div id="guardianSummary" class="health-summary"></div>
                 <div id="guardianList"><div class="loading-spinner"></div></div>
             </section>
@@ -1096,6 +1102,15 @@
                     <div class="table-scroll"><table class="data-table" id="sensitivityTable"></table></div>
                 </article>
 
+                <article class="table-card" id="compareCard">
+                    <div class="table-head">
+                        <div><div class="chart-title" data-i18n="compare.title">Three plans side by side</div><div class="chart-subtitle" data-i18n="compare.subtitle">Conservative · Base · Aggressive — full-year P&amp;L</div></div>
+                        <button class="export-btn" type="button" data-export-table="compareTable" data-export-name="three-plans">Export CSV</button>
+                    </div>
+                    <div id="compareHeadline" class="whatif-headline"></div>
+                    <div class="table-scroll"><table class="data-table" id="compareTable"></table></div>
+                </article>
+
                 <div class="controls"><div class="control-group"><label for="scenMetric">Metric</label><select id="scenMetric"><option value="net_sales">Net Sales</option><option value="cogs">COGS</option><option value="gross_margin">Gross Margin</option><option value="opex">OpEx</option><option value="operating_profit">Operating Profit</option><option value="net_income">Net Income</option></select></div></div>
                 <div class="chart-grid">
                     <article class="chart-card"><div class="chart-title">Period plan</div><div class="chart-subtitle">Actual history with remaining 2026 operating versions</div><div class="chart-container tall"><canvas id="scenarioChart"></canvas></div></article>
@@ -1137,7 +1152,9 @@
             </section>
 
             <section class="panel" id="panel-reports" role="tabpanel" aria-labelledby="tab-reports" hidden>
-                <div class="section-head"><div><h2 data-i18n="reports.sectionTitle">Company Reports</h2><p data-i18n="reports.sectionDesc">Generate and download financial reports directly from the database</p></div></div>
+                <div class="section-head"><div><h2 data-i18n="reports.sectionTitle">Company Reports</h2><p data-i18n="reports.sectionDesc">Generate and download financial reports directly from the database</p></div>
+                    <div class="boardpack-actions" id="boardPackActions"></div>
+                </div>
                 <div class="report-list" id="reportList">
                     <div class="loading-spinner"></div>
                 </div>

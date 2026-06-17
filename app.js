@@ -1268,6 +1268,7 @@ function loadScenario(force) {
     setLoading('scenarioTable');
     initWhatif();
     loadSensitivity(force);
+    loadCompare(force);
     return fetchJson(API + '/api/scenario-pl' + queryString({}, { ignoreYear: true, ignoreVersion: true }), { force: force })
         .then(function (data) {
             scenarioData = data;
@@ -1365,6 +1366,43 @@ function renderSensitivity(d) {
             formatFull(r.ni_high) + '</td><td>' + formatFull(Math.abs(r.swing)) + '</td><td>' + escapeHtml(pct) + '</td></tr>';
     }).join('') + '</tbody>';
     el('sensitivityTable').innerHTML = head + body;
+}
+
+function loadCompare(force) {
+    var table = el('compareTable');
+    if (!table) return;
+    table.innerHTML = '<tbody><tr><td><div class="loading-spinner"></div></td></tr></tbody>';
+    el('compareHeadline').textContent = '';
+    fetchJson(API + '/api/scenario-compare', { force: force })
+        .then(renderCompare)
+        .catch(function (err) { table.innerHTML = '<tbody><tr><td>' + escapeHtml(err.message) + '</td></tr></tbody>'; });
+}
+
+function renderCompare(d) {
+    var names = d.scenarios || [];
+    var rows = d.rows || [];
+    var head = '<thead><tr><th>' + tr('Line item') + '</th><th>' + tr('Baseline') + '</th>' +
+        names.map(function (n) { return '<th>' + escapeHtml(tr(n)) + '</th>'; }).join('') + '</tr></thead>';
+    var body = '<tbody>' + rows.map(function (r) {
+        var cells = '<td>' + escapeHtml(tr(String(r.line_item))) + '</td><td>' + formatFull(r.baseline) + '</td>';
+        cells += names.map(function (n) {
+            var v = r[n];
+            var cls = (v > r.baseline) ? 'delta-up' : (v < r.baseline ? 'delta-down' : '');
+            return '<td class="' + cls + '">' + formatFull(v) + '</td>';
+        }).join('');
+        var emph = r.line_item === 'Net Income' ? ' class="total"' : '';
+        return '<tr' + emph + '>' + cells + '</tr>';
+    }).join('') + '</tbody>';
+    el('compareTable').innerHTML = head + body;
+
+    var ni = rows.find(function (r) { return r.line_item === 'Net Income'; });
+    if (ni && names.length) {
+        var lo = Math.min.apply(null, names.map(function (n) { return ni[n]; }));
+        var hi = Math.max.apply(null, names.map(function (n) { return ni[n]; }));
+        el('compareHeadline').className = 'whatif-headline';
+        el('compareHeadline').textContent = tr('Net income range across plans') + ': ' +
+            formatFull(lo) + ' → ' + formatFull(hi);
+    }
 }
 
 function renderWhatif(data) {
@@ -1481,6 +1519,7 @@ function loadReports(force) {
         .then(function (data) {
             var reports = data.reports || [];
             var exportFormats = data.exportFormats || { csv: true, xlsx: true, pdf: true };
+            renderBoardPackActions(exportFormats);
             if (!reports.length) {
                 listEl.innerHTML = '<div class="report-card"><div class="report-card-body"><div class="report-card-title">No reports available</div></div></div>';
                 tabLoaded.reports = true;
@@ -1591,6 +1630,48 @@ function viewReport(name) {
 function closeReportView() {
     el('reportViewCard').style.display = 'none';
     el('reportList').style.display = '';
+}
+
+function renderBoardPackActions(exportFormats) {
+    var host = el('boardPackActions');
+    if (!host) return;
+    function packButton(format) {
+        var label = tr('Board pack') + ' ' + format.toUpperCase();
+        if (!exportFormats[format]) {
+            return '<button class="secondary-btn" type="button" disabled title="' + escapeHtml(tr('Export needs setup')) + '">' + escapeHtml(label) + '</button>';
+        }
+        return '<button class="primary-btn board-pack-btn" type="button" data-format="' + format + '">' + escapeHtml(label) + '</button>';
+    }
+    host.innerHTML = packButton('pdf') + ' ' + packButton('xlsx');
+    host.querySelectorAll('.board-pack-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { downloadBoardPack(btn.dataset.format); });
+    });
+}
+
+function downloadBoardPack(format) {
+    showToast(tr('Building board pack…'));
+    var url = API + '/api/reports/board-pack?format=' + encodeURIComponent(format);
+    fetch(url)
+        .then(function (response) {
+            if (!response.ok) {
+                return response.json().catch(function () { return {}; }).then(function (body) {
+                    throw new Error(body.code === 'export_unavailable' ? tr('Export needs setup') : (body.error || 'HTTP ' + response.status));
+                });
+            }
+            return response.blob();
+        })
+        .then(function (blob) {
+            var objectUrl = URL.createObjectURL(blob);
+            var anchor = document.createElement('a');
+            anchor.href = objectUrl;
+            anchor.download = 'board-pack.' + format;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(objectUrl);
+            showToast(tr('Board pack ready'));
+        })
+        .catch(function (err) { showToast(tr('Download failed') + ': ' + err.message, true); });
 }
 
 function downloadReportFile(name, format) {
@@ -1889,7 +1970,11 @@ function updateGuardianBadge(count) {
 function primeGuardianBadge() {
     // Passive guardian: surface the alert count on the nav without opening the tab.
     fetchJson(API + '/api/anomalies', { force: true })
-        .then(function (d) { updateGuardianBadge(d.count || 0); })
+        .then(function (d) {
+            var newCount = d.new_count || 0;
+            updateGuardianBadge(newCount > 0 ? newCount : (d.count || 0));
+            maybeNotify(newCount);
+        })
         .catch(function () { /* badge stays hidden if detection is unavailable */ });
 }
 
@@ -1933,7 +2018,18 @@ function guardianTrace(a) {
     return 'FY' + a.year + (where ? ' · ' + where : '') + ' · ' + a.metric;
 }
 
+var guardianWired = false;
+
 function loadGuardian(force) {
+    if (!guardianWired) {
+        guardianWired = true;
+        el('guardianAckBtn').addEventListener('click', function () {
+            fetchJson(API + '/api/guardian/ack', { force: true })
+                .then(function () { showToast(tr('All alerts marked as seen')); updateGuardianBadge(0); loadGuardian(true); })
+                .catch(function (err) { showToast(tr('Download failed') + ': ' + err.message, true); });
+        });
+        el('guardianAlertsBtn').addEventListener('click', enableGuardianAlerts);
+    }
     var list = el('guardianList');
     el('guardianSummary').innerHTML = '';
     list.innerHTML = '<div class="loading-spinner"></div>';
@@ -1945,12 +2041,27 @@ function loadGuardian(force) {
         });
 }
 
+function enableGuardianAlerts() {
+    if (!('Notification' in window)) { showToast(tr('Alerts are not supported here'), true); return; }
+    Notification.requestPermission().then(function (perm) {
+        showToast(perm === 'granted' ? tr('Alerts enabled') : tr('Alerts not enabled'), perm !== 'granted');
+    });
+}
+
+function maybeNotify(newCount) {
+    if (newCount > 0 && ('Notification' in window) && Notification.permission === 'granted') {
+        try { new Notification(tr('Guardian'), { body: newCount + ' ' + tr('new alerts') }); } catch (e) { /* ignore */ }
+    }
+}
+
 function renderGuardian(d) {
     var anomalies = d.anomalies || [];
     var high = (d.by_severity && d.by_severity.high) || 0;
     var medium = (d.by_severity && d.by_severity.medium) || 0;
-    updateGuardianBadge(d.count || 0);
+    var newCount = d.new_count || 0;
+    updateGuardianBadge(newCount > 0 ? newCount : (d.count || 0));
     el('guardianSummary').innerHTML =
+        '<div class="health-card ' + (newCount ? 'is-warn' : 'is-ok') + '"><div class="health-num">' + newCount + '</div><div class="health-lbl">' + tr('New') + '</div></div>' +
         '<div class="health-card ' + (d.count ? 'is-warn' : 'is-ok') + '"><div class="health-num">' + (d.count || 0) + '</div><div class="health-lbl">' + tr('Alerts') + '</div></div>' +
         '<div class="health-card ' + (high ? 'is-warn' : 'is-ok') + '"><div class="health-num">' + high + '</div><div class="health-lbl">' + tr('High') + '</div></div>' +
         '<div class="health-card"><div class="health-num">' + medium + '</div><div class="health-lbl">' + tr('Medium') + '</div></div>';
@@ -1959,8 +2070,9 @@ function renderGuardian(d) {
         return;
     }
     el('guardianList').innerHTML = '<div class="guardian-list">' + anomalies.map(function (a) {
+        var newTag = a.is_new ? '<span class="a-sev" style="background:#dbeafe;color:#1e40af">' + tr('NEW') + '</span>' : '';
         return '<div class="alert-card sev-' + a.severity + '">' +
-            '<span class="a-sev ' + a.severity + '">' + tr(a.severity === 'high' ? 'High' : 'Medium') + '</span>' +
+            '<span class="a-sev ' + a.severity + '">' + tr(a.severity === 'high' ? 'High' : 'Medium') + '</span>' + newTag +
             '<div class="a-body"><div class="a-text">' + guardianText(a) + '</div>' +
             '<div class="a-trace">' + escapeHtml(guardianTrace(a)) + '</div></div></div>';
     }).join('') + '</div>';

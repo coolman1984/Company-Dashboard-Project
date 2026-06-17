@@ -199,9 +199,7 @@ def generate_scenario(db_path, scenario_path, out_dir,
 def evaluate_config(db_path, config):
     """Run a scenario config dict against the database, returning a JSON-ready
     dict of {columns, rows, basis, scenario_name}. Used by the dashboard's
-    interactive what-if endpoint so the UI reuses this one tested engine rather
-    than re-implementing the P&L math.
-    """
+    interactive what-if endpoint so the UI reuses this one tested engine."""
     validate_scenario(config)
     if not os.path.exists(db_path):
         raise FileNotFoundError(
@@ -214,12 +212,51 @@ def evaluate_config(db_path, config):
     return {"columns": columns, "rows": rows, **extra}
 
 
+def compare(conn, scenarios):
+    """Run several scenarios and line them up side by side against the baseline.
+
+    Returns {columns, rows, scenarios}: one row per P&L line with the baseline
+    plus each named scenario's value, so the UI can show Conservative / Base /
+    Aggressive (etc.) next to each other. Reuses run_scenario for every column."""
+    results = []
+    baseline_by_line = {}
+    for sc in scenarios:
+        validate_scenario(sc)
+        _cols, rows, _extra = run_scenario(conn, sc)
+        results.append({"name": sc.get("name", "Scenario"),
+                        "by_line": {r["line_item"]: r["scenario"] for r in rows}})
+        for r in rows:
+            baseline_by_line[r["line_item"]] = r["baseline"]
+    names = [r["name"] for r in results]
+    rows_out = []
+    for label, _col in outlook.PL_LINES:
+        row = {"line_item": label, "baseline": baseline_by_line.get(label, 0)}
+        for r in results:
+            row[r["name"]] = r["by_line"].get(label, 0)
+        rows_out.append(row)
+    return {"columns": ["line_item", "baseline"] + names, "rows": rows_out, "scenarios": names}
+
+
+def evaluate_compare(db_path, scenarios):
+    if not os.path.exists(db_path):
+        raise FileNotFoundError(
+            f"Database not found: {db_path}. Seed it or load client data first.")
+    conn = sqlite3.connect(db_path)
+    try:
+        return compare(conn, scenarios)
+    finally:
+        conn.close()
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Run a what-if scenario on the outlook.")
     parser.add_argument("--scenario", help="Scenario JSON file.")
     parser.add_argument("--eval-stdin", action="store_true",
                         help="Read a scenario config as JSON from stdin and print "
                              "the baseline-vs-scenario result as JSON (for the UI).")
+    parser.add_argument("--compare-stdin", action="store_true",
+                        help="Read {\"scenarios\": [...]} from stdin and print a "
+                             "side-by-side comparison as JSON (for the UI).")
     parser.add_argument("--db", default=DEFAULT_DB, help="Source database.")
     parser.add_argument("--out", default=DEFAULT_OUT, help="Output folder.")
     parser.add_argument("--format", nargs="+", default=["json", "xlsx", "pdf"],
@@ -230,6 +267,16 @@ def main(argv=None):
         try:
             config = json.loads(sys.stdin.read() or "{}")
             print(json.dumps(evaluate_config(args.db, config)))
+        except (ScenarioError, FileNotFoundError, json.JSONDecodeError) as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.compare_stdin:
+        try:
+            payload = json.loads(sys.stdin.read() or "{}")
+            print(json.dumps(evaluate_compare(args.db, payload.get("scenarios", [])),
+                             ensure_ascii=False))
         except (ScenarioError, FileNotFoundError, json.JSONDecodeError) as error:
             print(f"ERROR: {error}", file=sys.stderr)
             return 1
