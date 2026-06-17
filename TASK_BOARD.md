@@ -12,6 +12,13 @@
 |---|--------|-------|----------------|
 | R9 | Live Outlook COM extraction | استخراج مباشر من Outlook على Windows | codex/claude |
 | R12 | Client-specific wording polish | تدقيق الصياغة عند توفر ملفات عميل حقيقية | — |
+| I1 | Data Source Items | رفع Excel/CSV، تخزين metadata، استخراج تلقائي للـ schema (أوراق، أعمدة، أنواع، نطاقات تاريخ) | — |
+| I2 | Logic Extraction Engine 🧠 | استخراج المعادلات، علاقات الأعمدة، الإجماليات، الاتجاهات، anomalies من البيانات | — |
+| I3 | Smart Queries | توليد تلقائي لاستعلامات مفيدة + query builder مخصص + رسم بياني للنتائج | — |
+| I4 | Insight Discovery ✨ | اكتشاف روابط خفية بين مصادر مختلفة — ١٠ أنواع رؤى مع درجات ثقة وإجراءات مقترحة | — |
+| I5 | Auto Report Generation | تقارير تلقائية بملخصات وجداول ورسوم وتحذيرات وتوصيات (٤ طبقات: schema → logic → insight → action) | — |
+| I6 | Insight Graph | رسم بياني متخصص للرؤى، كشف التغييرات، إخطار بالتحديثات الحرجة | — |
+| I7 | Continuous Discovery | إعادة تحليل مستمرة عند تغير البيانات — اكتشاف تلقائي للأنماط الجديدة | — |
 
 ---
 
@@ -68,4 +75,4 @@
 
 ---
 
-*آخر تحديث: 2026-06-17 — hermes (لوحة محدثة + R1 قيد التطوير)*
+*آخر تحديث: 2026-06-17 — hermes — إضافة ٧ مهام Insight Engine من خطة Second-Brain (I1–I7)*
