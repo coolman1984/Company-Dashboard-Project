@@ -10,7 +10,6 @@
 
 | # | المهمة | الوصف | الوكيل المقترح |
 |---|--------|-------|----------------|
-| R7 | Note→report deep links | روابط من ملاحظات المعرفة إلى تقارير محددة | claude |
 | R9 | Live Outlook COM extraction | استخراج مباشر من Outlook على Windows | codex/claude |
 | R12 | Client-specific wording polish | تدقيق الصياغة عند توفر ملفات عميل حقيقية | — |
 
