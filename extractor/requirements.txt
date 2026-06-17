@@ -11,6 +11,12 @@ python-docx       # .docx Word documents
 pdfplumber        # digital (text-based) PDFs
 extract-msg       # Outlook .msg / .eml emails
 #
+# Optional OCR for scanned / photographed PDFs (off unless installed). Needs the
+# system `tesseract` binary too (e.g. apt-get install tesseract-ocr
+# tesseract-ocr-ara). Without these, scanned pages are simply flagged, not failed:
+# pytesseract     # OCR wrapper
+# Pillow          # image handling for OCR
+#
 # Windows only - the primary "full control" path via Microsoft Office COM.
 # Uncomment on a Windows machine that has Office installed:
 # pywin32         # Excel / Word / Outlook automation (excel_com.py, future word/outlook COM)

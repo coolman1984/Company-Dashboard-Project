@@ -104,6 +104,62 @@ def normalize_block(block):
     return rows
 
 
+def fill_merged_cells(grid, merged_ranges):
+    """Duplicate each merged region's anchor value across the whole region.
+
+    Real client spreadsheets merge cells for region/group headers, leaving the
+    non-anchor cells blank. `merged_ranges` is a list of 0-based inclusive
+    (r1, c1, r2, c2) tuples (the shape openpyxl's `merged_cells.ranges` gives,
+    minus its 1-based offset). Returns a NEW grid with every merged region
+    filled, so downstream mapping sees a flat, complete table. Pure + testable.
+    """
+    out = [list(row) for row in grid]
+    for (r1, c1, r2, c2) in merged_ranges:
+        if r1 < 0 or c1 < 0 or r1 >= len(out):
+            continue
+        anchor = out[r1][c1] if c1 < len(out[r1]) else None
+        for r in range(r1, min(r2, len(out) - 1) + 1):
+            for c in range(c1, c2 + 1):
+                while len(out[r]) <= c:
+                    out[r].append(None)
+                if not (r == r1 and c == c1):
+                    out[r][c] = anchor
+    return out
+
+
+def combine_header_rows(header_rows, separator=" / "):
+    """Collapse multi-row (stacked) headers into one row of column names.
+
+    Each header row is forward-filled left-to-right (so a merged group header
+    spanning columns is carried across), then the non-empty parts of each column
+    are joined top-to-bottom. e.g. [["", "2025", "2025"], ["Region", "Q1", "Q2"]]
+    -> ["Region", "2025 / Q1", "2025 / Q2"]. Pure + testable.
+    """
+    if not header_rows:
+        return []
+    width = max(len(r) for r in header_rows)
+    filled = []
+    for row in header_rows:
+        out, last = [], ""
+        for i in range(width):
+            val = row[i] if i < len(row) else None
+            text = "" if val is None else str(val).strip()
+            if text:
+                last = text
+            out.append(last)
+        filled.append(out)
+    names = []
+    for c in range(width):
+        parts, seen = [], set()
+        for row in filled:
+            text = row[c]
+            if text and text not in seen:
+                parts.append(text)
+                seen.add(text)
+        names.append(separator.join(parts))
+    return names
+
+
 def chunk_bounds(total_rows, chunk_size, start_row=1):
     """Yield inclusive (first_row, last_row) 1-based ranges covering the data.
 

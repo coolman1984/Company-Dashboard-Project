@@ -272,6 +272,12 @@ Each entry: **what it does · tech · when to use · edge cases · files/endpoin
   `map_raw_to_db.py` (raw → ledger, with per-client workspaces + rollback).
   Windows Excel COM logic lives in `extractor/com_utils.py` (`excel_session`
   force-kills orphaned `EXCEL.EXE`; a live Windows sweep is still owed).
+  **Messy files:** `com_utils.fill_merged_cells` / `combine_header_rows` (pure,
+  tested) handle merged regions + stacked headers; the openpyxl reader auto-fills
+  merged cells for small files. **Scanned PDFs:** `pdf_text.py` has an **optional
+  OCR fallback** (`ocr_available`) — uses pytesseract + the `tesseract` binary
+  when present (English + Arabic), otherwise flags the page. ⚠️ OCR can't be
+  tested in CI/this sandbox (no tesseract); validate on a machine with it installed.
 
 ---
 

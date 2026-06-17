@@ -10,7 +10,13 @@ from __future__ import annotations
 
 import os
 
+from . import com_utils
 from .base import Extractor, optional_import
+
+# Reading merged-cell ranges needs a non-read-only workbook (loads fully into
+# memory), so only do it for reasonably small files. The big production ledger
+# goes through Excel COM anyway.
+MERGED_FILL_LIMIT = 15 * 1024 * 1024
 
 
 class ExcelOpenpyxlExtractor(Extractor):
@@ -44,6 +50,25 @@ class ExcelOpenpyxlExtractor(Extractor):
                 "or not a valid Excel file."
             ) from exc
         
+        # Client sheets often merge cells for region/group headers, leaving the
+        # other cells blank. Read the merged ranges (small files only) so we can
+        # duplicate each anchor value across its region — a flat table for mapping.
+        merged_map = {}
+        if file_size < MERGED_FILL_LIMIT:
+            try:
+                wb_full = openpyxl.load_workbook(path, read_only=False, data_only=True)
+                try:
+                    for ws_full in wb_full.worksheets:
+                        ranges = [(r.min_row - 1, r.min_col - 1, r.max_row - 1, r.max_col - 1)
+                                  for r in ws_full.merged_cells.ranges]
+                        if ranges:
+                            merged_map[ws_full.title] = ranges
+                finally:
+                    wb_full.close()
+            except Exception as exc:
+                warnings.append(f"Could not read merged cells: {exc}. "
+                                "Merged headers may appear blank.")
+
         sheets = []
         try:
             for ws in workbook.worksheets:
@@ -76,6 +101,14 @@ class ExcelOpenpyxlExtractor(Extractor):
                         f"due to error: {exc}. Partial extraction."
                     )
                 
+                # Fill merged regions (duplicate the anchor value) before trimming.
+                if merged_map.get(sheet_name):
+                    rows = com_utils.fill_merged_cells(rows, merged_map[sheet_name])
+                    max_cols = max([max_cols] + [len(r) for r in rows])
+                    warnings.append(
+                        f"Sheet '{sheet_name}': filled {len(merged_map[sheet_name])} "
+                        "merged region(s) so headers/labels repeat across cells.")
+
                 # Drop trailing fully-empty rows.
                 while rows and not any(cell not in (None, "") for cell in rows[-1]):
                     rows.pop()

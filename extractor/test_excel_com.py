@@ -139,6 +139,33 @@ class TestPureHelpers(unittest.TestCase):
         self.assertFalse(com_utils._terminate_orphan(-1))
         self.assertFalse(com_utils._terminate_orphan(None))
 
+    def test_fill_merged_cells(self):
+        grid = [["Region", None, None],
+                ["Africa", 1, 2],
+                [None, 3, 4]]
+        # Merge the header label across 3 cols, and the "Africa" label down 2 rows.
+        out = com_utils.fill_merged_cells(grid, [(0, 0, 0, 2), (1, 0, 2, 0)])
+        self.assertEqual(out[0], ["Region", "Region", "Region"])
+        self.assertEqual(out[1][0], "Africa")
+        self.assertEqual(out[2][0], "Africa")
+        # Original is untouched (pure).
+        self.assertIsNone(grid[0][1])
+
+    def test_fill_merged_cells_extends_ragged_rows(self):
+        grid = [["A"], ["B"]]
+        out = com_utils.fill_merged_cells(grid, [(0, 0, 0, 2)])
+        self.assertEqual(out[0], ["A", "A", "A"])
+
+    def test_combine_header_rows(self):
+        headers = [["", "2025", "2025", "2026"],
+                   ["Region", "Q1", "Q2", "Q1"]]
+        self.assertEqual(
+            com_utils.combine_header_rows(headers),
+            ["Region", "2025 / Q1", "2025 / Q2", "2026 / Q1"])
+        # A single header row passes through unchanged.
+        self.assertEqual(com_utils.combine_header_rows([["A", "B"]]), ["A", "B"])
+        self.assertEqual(com_utils.combine_header_rows([]), [])
+
     def test_find_sheet_by_name_and_index(self):
         wb = FakeWorkbook([FakeSheet("Sheet3", [[1]]), FakeSheet("Sheet1", [[2]])])
         self.assertEqual(com_utils.find_sheet(wb, name="sheet1").Name, "Sheet1")   # case-insensitive

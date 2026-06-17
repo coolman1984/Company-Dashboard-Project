@@ -374,6 +374,29 @@ We are a team with different strengths. Use the right agent for the right job.
 > **Watch out:** gotchas, shared-contract changes, things you couldn't test.
 > ```
 
+### 2026-06-16 — Claude Code — main (Messy & scanned files: merged cells + stacked headers + optional OCR)
+**Did:** Built idea #7.
+- **Merged cells / stacked headers (no new dep, fully tested):** pure helpers
+  `com_utils.fill_merged_cells` (duplicate each merged anchor across its region)
+  and `combine_header_rows` (collapse multi-row headers, forward-filling merged
+  group headers) + 3 unit tests. Wired `fill_merged_cells` into
+  `excel_openpyxl.py` (reads merged ranges for files <15MB and fills them, with a
+  warning). Verified end-to-end on a real merged .xlsx.
+- **Scanned PDFs — optional OCR:** `pdf_text.py` gains `ocr_available()` +
+  `_ocr_page()`; a page with no selectable text is OCR'd (English+Arabic) **only
+  if** pytesseract + Pillow + the `tesseract` binary are present, else the page is
+  flagged as before. Per-page `ocr` flag + summary warnings. Optional deps noted
+  in `extractor/requirements.txt`.
+**Why:** real client files merge header cells and arrive as scans; the importer
+must cope.
+**Status:** ✅ excel/com tests 15→18; extractor + arabic tests pass; OCR path
+verified graceful-off here (no tesseract). ⚠️ **OCR itself is untested in this
+sandbox** — needs a machine with tesseract; flagged in FEATURES.md.
+**Next:** none queued — this finishes the user's 1/2/3/7 + second-brain batch.
+**Watch out:** merged-cell fill opens the workbook a second time (non-read-only)
+for ranges — guarded to <15MB; the big production ledger uses COM. OCR resolution/
+lang (`OCR_LANG` env) may need tuning per client scans.
+
 ### 2026-06-16 — Claude Code — main (Multi-client switcher + smarter Ask top-N/chart)
 **Did:** Two of the requested features.
 - **Many clients in one place (idea #1):** refactored the DB bootstrap into

@@ -16,6 +16,33 @@ import os
 
 from .base import Extractor, optional_import
 
+# OCR is an OPTIONAL fallback for scanned/photographed PDF pages (no selectable
+# text). It needs pytesseract + Pillow AND the system `tesseract` binary, so it
+# degrades gracefully: if any piece is missing we simply flag the page for OCR
+# (the previous behaviour) instead of failing. Language data: English + Arabic.
+OCR_LANG = os.environ.get("OCR_LANG", "eng+ara")
+
+
+def ocr_available():
+    """True only if pytesseract, Pillow and the tesseract binary are all present."""
+    try:
+        import pytesseract
+        from PIL import Image  # noqa: F401
+        pytesseract.get_tesseract_version()
+        return True
+    except Exception:  # noqa: BLE001 — any failure means "OCR not usable"
+        return False
+
+
+def _ocr_page(page):
+    """Best-effort OCR text for one pdfplumber page; '' if it can't be done."""
+    import pytesseract
+    img = page.to_image(resolution=200).original
+    try:
+        return pytesseract.image_to_string(img, lang=OCR_LANG)
+    except Exception:  # noqa: BLE001 — e.g. missing Arabic traineddata
+        return pytesseract.image_to_string(img)   # fall back to default language
+
 
 class PdfTextExtractor(Extractor):
     name = "pdf-text"
@@ -57,16 +84,31 @@ class PdfTextExtractor(Extractor):
         pages = []
         tables = []
         empty_pages = 0
+        ocr_pages = 0
+        ocr_on = ocr_available()
         total_pages = len(pdf.pages)
         parse_errors = 0
-        
+
         try:
             for index, page in enumerate(pdf.pages, start=1):
                 try:
                     text = page.extract_text() or ""
+                    used_ocr = False
+                    # Scanned page with no selectable text: OCR it if we can.
+                    if not text.strip() and ocr_on:
+                        try:
+                            ocr_text = _ocr_page(page)
+                            if ocr_text.strip():
+                                text = ocr_text
+                                used_ocr = True
+                                ocr_pages += 1
+                        except Exception as exc:  # noqa: BLE001
+                            parse_errors += 1
+                            if parse_errors <= 5:
+                                warnings.append(f"Page {index}: OCR failed ({exc}).")
                     if not text.strip():
                         empty_pages += 1
-                    pages.append({"number": index, "text": text})
+                    pages.append({"number": index, "text": text, "ocr": used_ocr})
                     
                     # Extract tables from this page
                     try:
@@ -93,6 +135,12 @@ class PdfTextExtractor(Extractor):
         
         if parse_errors > 5:
             warnings.append(f"... and {parse_errors - 5} more extraction errors")
+
+        if ocr_pages:
+            warnings.append(f"OCR recovered text from {ocr_pages} scanned page(s).")
+        if empty_pages and not ocr_on:
+            warnings.append("OCR is not installed (pip install pytesseract Pillow + the "
+                            "tesseract binary); scanned pages were left empty.")
 
         if empty_pages:
             if empty_pages == total_pages:
